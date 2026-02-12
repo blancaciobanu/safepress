@@ -1,0 +1,397 @@
+/* Red Hat Display + Inter (editorial with character) */
+@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  /* Dark base colors - warmer, richer */
+  --color-dark-900: #0D0D12;
+  --color-dark-800: #16161D;
+  --color-dark-700: #1E1E28;
+  --color-dark-600: #272733;
+
+  /* Deep Crimson - urgency, breaking news */
+  --color-crimson-400: #EF4444;
+  --color-crimson-500: #DC2626;
+  --color-crimson-600: #B91C1C;
+
+  /* Midnight Blue - trust, depth, serious journalism */
+  --color-midnight-400: #3B82F6;
+  --color-midnight-500: #1E3A8A;
+  --color-midnight-600: #1E40AF;
+
+  /* Warm Amber - investigation, truth */
+  --color-amber-400: #FBBF24;
+  --color-amber-500: #F59E0B;
+  --color-amber-600: #D97706;
+
+  /* Steel Gray - neutral, professional */
+  --color-steel-400: #94A3B8;
+  --color-steel-500: #64748B;
+  --color-steel-600: #475569;
+
+  /* Olive Green - verified, safe */
+  --color-olive-400: #84CC16;
+  --color-olive-500: #65A30D;
+  --color-olive-600: #4D7C0F;
+
+  /* Teal - fresh, modern, truth */
+  --color-teal-400: #2DD4BF;
+  --color-teal-500: #14B8A6;
+  --color-teal-600: #0D9488;
+
+  /* Purple - trust, integrity, truth */
+  --color-purple-400: #A78BFA;
+  --color-purple-500: #8B5CF6;
+  --color-purple-600: #7C3AED;
+
+  /* Font families - Bauhaus Editorial */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Red Hat Display', sans-serif;
+
+  /* Custom animations */
+  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-gradient-shift: gradient-shift 8s ease infinite;
+  --animate-slide-up: slide-up 0.5s ease-out;
+  --animate-fade-in: fade-in 0.3s ease-out;
+}
+
+/* Keyframe animations */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3);
+  }
+  50% {
+    box-shadow: 0 12px 32px rgba(220, 38, 38, 0.5);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+body {
+  background-color: #0D0D12;
+  color: white;
+  font-family: 'Inter', system-ui, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+}
+
+/* Premium mesh gradient background - Editorial */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      rgba(100, 116, 139, 0.08),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 0% 50%,
+      rgba(71, 85, 105, 0.10),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 100% 50%,
+      rgba(100, 116, 139, 0.06),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 100% 80% at 50% 100%,
+      rgba(220, 38, 38, 0.04),
+      transparent
+    );
+  filter: blur(60px);
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* Grain texture overlay for premium feel */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.5' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+  opacity: 0.7;
+  z-index: -1;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* Custom component classes */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #DC2626, #B91C1C);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+.btn-glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.btn-glass:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
+.btn-glass:active {
+  transform: scale(0.95);
+}
+
+.btn-crisis {
+  background: linear-gradient(135deg, #DC2626, #B91C1C);
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3);
+  transition: all 0.2s;
+  animation: glow-pulse 2s ease-in-out infinite;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.btn-crisis:hover {
+  box-shadow: 0 12px 32px rgba(220, 38, 38, 0.5);
+  transform: scale(1.02);
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+.btn-crisis:active {
+  transform: scale(0.95);
+}
+
+.section-container {
+  max-width: 80rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 2rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .section-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .section-container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Scrollbar styling */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background-color: #16161D;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #DC2626, #1E3A8A);
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #B91C1C, #1E40AF);
+}
+
+/* Custom cursor - disabled but keeping for future use */
+.custom-cursor {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #DC2626;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transition: width 0.3s, height 0.3s, border-color 0.3s;
+  mix-blend-mode: difference;
+}
+
+.custom-cursor-dot {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  background: #F59E0B;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10000;
+  transition: transform 0.15s;
+}
+
+.custom-cursor.hover {
+  width: 50px;
+  height: 50px;
+  border-color: #F59E0B;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* Magnetic effect */
+.magnetic {
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Glitch effect */
+.glitch {
+  position: relative;
+}
+
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+}
+
+.glitch::before {
+  animation: glitch-1 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+  color: #DC2626;
+  z-index: -1;
+}
+
+.glitch::after {
+  animation: glitch-2 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite reverse;
+  color: #1E3A8A;
+  z-index: -2;
+}
+
+@keyframes glitch-1 {
+  0%, 100% {
+    transform: translate(0);
+    opacity: 0;
+  }
+  33% {
+    transform: translate(-2px, 2px);
+    opacity: 0.8;
+  }
+  66% {
+    transform: translate(2px, -2px);
+    opacity: 0.8;
+  }
+}
+
+@keyframes glitch-2 {
+  0%, 100% {
+    transform: translate(0);
+    opacity: 0;
+  }
+  33% {
+    transform: translate(2px, -2px);
+    opacity: 0.8;
+  }
+  66% {
+    transform: translate(-2px, 2px);
+    opacity: 0.8;
+  }
+}
+
+/* Reveal animation for text */
+.reveal-text {
+  overflow: hidden;
+}
+
+.reveal-text span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(100%);
+  animation: reveal 0.8s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+}
+
+@keyframes reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Bento box grid */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1rem;
+  grid-auto-rows: minmax(200px, auto);
+}
+
+.bento-item {
+  grid-column: span 6;
+}
+
+.bento-item.large {
+  grid-column: span 8;
+}
+
+.bento-item.small {
+  grid-column: span 4;
+}
+
+.bento-item.tall {
+  grid-row: span 2;
+}
+
+@media (max-width: 768px) {
+  .bento-item,
+  .bento-item.large,
+  .bento-item.small {
+    grid-column: span 12;
+  }
+}
