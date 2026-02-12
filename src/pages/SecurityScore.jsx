@@ -613,6 +613,57 @@ const SecurityScore = () => {
     return riskInfo[riskLevel] || riskInfo.medium;
   };
 
+  const getRiskLevelColor = (riskLevel) => {
+    const colors = {
+      low: 'text-olive-500',
+      medium: 'text-amber-500',
+      high: 'text-orange-500',
+      critical: 'text-crimson-500'
+    };
+    return colors[riskLevel] || 'text-gray-500';
+  };
+
+  const getRiskLevelLabel = (riskLevel) => {
+    const labels = {
+      low: 'low-risk environment',
+      medium: 'medium-risk environment',
+      high: 'high-risk environment',
+      critical: 'critical-risk environment'
+    };
+    return labels[riskLevel] || 'unknown';
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return 'text-olive-500';
+    if (score >= 60) return 'text-amber-500';
+    return 'text-crimson-500';
+  };
+
+  const getScoreLabel = (score) => {
+    if (score >= 80) return 'strong security';
+    if (score >= 60) return 'moderate security';
+    if (score >= 40) return 'needs improvement';
+    return 'critical - immediate action needed';
+  };
+
+  const getRecommendations = () => {
+    const categoryScores = calculateCategoryScores();
+    const recommendations = [];
+
+    Object.entries(categoryScores).forEach(([key, data]) => {
+      if (data.score < 60) {
+        recommendations.push({
+          category: data.name,
+          icon: questions.find(q => q.category === key)?.icon || Shield,
+          score: data.score,
+          priority: data.score < 40 ? 'critical' : 'important'
+        });
+      }
+    });
+
+    return recommendations.sort((a, b) => a.score - b.score);
+  };
+
   // Welcome Screen
   if (view === 'welcome') {
     return (
