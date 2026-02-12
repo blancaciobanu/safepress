@@ -23,13 +23,18 @@ Visit `http://localhost:5174` in your browser.
 
 ## ✨ Features
 
-- ✅ **Security Quiz** - 25-question assessment (0-100% score)
+- ✅ **Security Quiz** - 31-question assessment with risk profiling (0-100% score)
 - ✅ **Personalized Dashboard** - Score history & smart recommendations
+- ✅ **Interactive Setup Checklist** - 31 actionable security tasks with progress tracking
+- ✅ **Smart Resource Filtering** - Risk-based tool recommendations (25+ security tools)
+- ✅ **OS Security Guides** - Step-by-step hardening for Windows, macOS, Linux, iOS, Android
+- ✅ **AI Security Section** - Safe AI usage, deepfake detection, privacy-respecting tools
 - ✅ **Crisis Mode** - Emergency guidance for 4 scenarios
-- ✅ **User Authentication** - Secure login/signup with Firebase
+- ✅ **User Authentication** - Secure login/signup with Firebase (anonymous identity system)
+- ✅ **Specialist Verification** - Admin dashboard for security expert verification
 - ✅ **Settings Page** - Profile management & password change
 - ✅ **Protected Routes** - Dashboard & Settings require login
-- ✅ **Data Persistence** - Quiz results saved to Firestore
+- ✅ **Data Persistence** - Quiz results & setup progress saved to Firestore
 
 ## 📁 Project Structure
 
@@ -68,9 +73,14 @@ safepress/
 |------|-------|-----------|-------------|
 | Home | `/` | No | Landing page |
 | Dashboard | `/dashboard` | Yes | User dashboard with scores |
-| Security Quiz | `/security-score` | No | 25-question assessment |
+| Security Quiz | `/security-score` | No | 31-question assessment with risk profiling |
+| Secure Setup | `/secure-setup` | No | Interactive checklist (31 tasks, progress tracking) |
+| Resources | `/resources` | No | OS guides, security tools, AI safety |
 | Crisis Mode | `/crisis` | No | Emergency guidance |
+| Community | `/community` | No | Community features (coming soon) |
+| Support | `/request-support` | No | Request specialist support |
 | Settings | `/settings` | Yes | Profile & password management |
+| Admin | `/admin` | Admin Only | Specialist verification dashboard |
 | Login | `/login` | No | User authentication |
 | Signup | `/signup` | No | Account creation |
 

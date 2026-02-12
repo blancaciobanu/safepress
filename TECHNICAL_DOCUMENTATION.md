@@ -1097,8 +1097,130 @@ Master's dissertation project
 Educational project - Master's dissertation
 Not for commercial use without permission
 
+### Phase 9: Interactive Secure Setup Checklist
+**Comprehensive Security Hardening with Progress Tracking**
+
+**Problem Solved**: The original Secure Setup page was non-functional. Users needed actionable, trackable security implementation steps.
+
+**Implementation**: Complete rebuild with 31 security tasks across 5 categories.
+
+**Features**:
+1. **Personalized Priority Section**:
+   - Shows weak categories from Security Score quiz at top
+   - Clickable buttons to jump directly to relevant sections
+   - Real-time sync with quiz results
+
+2. **Interactive Task Checklist**:
+   - 31 total tasks organized by category:
+     - Password Security (6 tasks)
+     - Device Security (7 tasks)
+     - Data Protection (6 tasks)
+     - Communication Security (6 tasks)
+     - Physical Security (6 tasks)
+
+3. **Each Task Includes**:
+   - Checkbox (Firestore-synced, login required)
+   - Title with difficulty badge (easy/medium/hard)
+   - Priority label (critical/high/medium)
+   - "Why" explanation (security rationale)
+   - "How" instructions (step-by-step guide)
+   - OS compatibility tags (Windows, macOS, Linux, iOS, Android, all)
+   - Links to Resources page for related tools
+
+4. **Progress Tracking**:
+   - Overall completion percentage at top
+   - Per-category progress bars
+   - Saved to Firestore: `setupProgress.completedTasks` array
+   - Persistent across sessions
+
+5. **Expandable Categories**:
+   - Click category header to expand/collapse
+   - Visual progress indicator shows completion
+   - Color-coded icons for each category
+
+**Data Structure**:
+```javascript
+// Firestore: users/{uid}
+{
+  setupProgress: {
+    completedTasks: ['pass-manager', 'device-encryption', ...],
+    lastUpdated: '2026-02-12T...'
+  }
+}
+
+// Task structure
+{
+  id: 'pass-manager',
+  title: 'install a password manager',
+  why: 'prevents password reuse and makes it easy to use strong passwords',
+  how: 'download Bitwarden (free, open-source) or 1Password (premium)',
+  link: '/resources',
+  difficulty: 'easy',
+  os: ['all'],
+  priority: 'critical'
+}
+```
+
+**Implementation**:
+```javascript
+// src/pages/SecureSetup.jsx
+const setupTasks = {
+  password: { name: 'password security', icon: Lock, tasks: [...] },
+  device: { name: 'device security', icon: Smartphone, tasks: [...] },
+  data: { name: 'data protection', icon: Database, tasks: [...] },
+  communication: { name: 'communication security', icon: MessageSquare, tasks: [...] },
+  physical: { name: 'physical security', icon: MapPin, tasks: [...] }
+};
+
+const toggleTask = async (taskId) => {
+  if (!user) return; // Requires login
+
+  const newCompleted = new Set(completedTasks);
+  if (newCompleted.has(taskId)) {
+    newCompleted.delete(taskId);
+  } else {
+    newCompleted.add(taskId);
+  }
+  setCompletedTasks(newCompleted);
+
+  // Save to Firestore
+  await updateDoc(doc(db, 'users', user.uid), {
+    'setupProgress.completedTasks': Array.from(newCompleted),
+    'setupProgress.lastUpdated': new Date().toISOString()
+  });
+};
+```
+
+**User Experience Flow**:
+1. User completes Security Score quiz → Gets personalized dashboard
+2. Dashboard shows "Secure your setup" recommendation
+3. Navigates to /secure-setup
+4. Sees priority categories highlighted based on quiz results
+5. Expands categories and checks off completed tasks
+6. Progress auto-saves to Firestore (login required)
+7. Returns later → Progress persists, picks up where left off
+
+**Integration with Other Features**:
+- **Dashboard**: "Secure your setup" quick action links here
+- **Security Score Results**: "start securing your setup" CTA links here
+- **Resources Page**: Task descriptions link to specific tools/guides
+
+**Example Tasks by Category**:
+- **Password**: Install password manager, enable 2FA, audit passwords
+- **Device**: Enable BitLocker/FileVault, antivirus, auto-updates, screen locks
+- **Data**: Set up encrypted backups, encrypt USB drives, secure delete tools
+- **Communication**: Install Signal, set up ProtonMail, use VPN, enable disappearing messages
+- **Physical**: Cover webcams, privacy screens, disable location services, secure storage
+
+**Impact**:
+- ✅ Transforms Secure Setup from static dummy page to actionable guide
+- ✅ Users can track progress toward better security
+- ✅ Clear, jargon-free instructions for non-technical journalists
+- ✅ Difficulty badges help users prioritize (start with "easy" tasks)
+- ✅ OS tags ensure cross-platform relevance
+
 ---
 
 **Last Updated**: February 12, 2026
-**Version**: 2.3.0
-**Documentation**: Complete (includes Phases 1-8)
+**Version**: 2.4.0
+**Documentation**: Complete (includes Phases 1-9)

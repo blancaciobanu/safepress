@@ -17,6 +17,16 @@ const SecurityScore = () => {
   const [answers, setAnswers] = useState({});
   const [saving, setSaving] = useState(false);
 
+  // Map category keys to their icons
+  const categoryIcons = {
+    risk: Briefcase,
+    password: Lock,
+    device: Smartphone,
+    communication: MessageSquare,
+    data: Database,
+    physical: MapPin
+  };
+
   const questions = [
     // Risk/Work Context (6 questions)
     {
@@ -650,13 +660,53 @@ const SecurityScore = () => {
     const categoryScores = calculateCategoryScores();
     const recommendations = [];
 
+    // Category-specific guidance with links and actions
+    const categoryGuidance = {
+      password: {
+        action: 'learn password security best practices',
+        link: '/secure-setup',
+        description: 'set up a password manager and enable 2FA'
+      },
+      device: {
+        action: 'secure your devices',
+        link: '/secure-setup',
+        description: 'enable full disk encryption and automatic updates'
+      },
+      communication: {
+        action: 'explore secure communication tools',
+        link: '/resources',
+        description: 'switch to encrypted messaging like Signal'
+      },
+      data: {
+        action: 'improve data protection',
+        link: '/secure-setup',
+        description: 'set up encrypted backups and secure deletion'
+      },
+      physical: {
+        action: 'review physical security practices',
+        link: '/resources',
+        description: 'learn about device security and operational safety'
+      }
+    };
+
     Object.entries(categoryScores).forEach(([key, data]) => {
+      // Skip work context - not actionable
+      if (key === 'risk') return;
+
       if (data.score < 60) {
+        const guidance = categoryGuidance[key] || {
+          action: 'view recommendations',
+          link: '/resources',
+          description: 'learn more about this security area'
+        };
+
         recommendations.push({
           category: data.name,
+          categoryKey: key,
           icon: questions.find(q => q.category === key)?.icon || Shield,
           score: data.score,
-          priority: data.score < 40 ? 'critical' : 'important'
+          priority: data.score < 40 ? 'critical' : 'important',
+          ...guidance
         });
       }
     });
@@ -927,23 +977,36 @@ const SecurityScore = () => {
             transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="glass-card p-8 md:p-12 text-center mb-12"
           >
-            <div className="inline-flex items-center justify-center w-32 h-32 md:w-40 md:h-40 rounded-full bg-white/5 border-4 border-white/10 mb-6">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.8, delay: 0.5, type: 'spring', bounce: 0.4 }}
-                className={`text-5xl md:text-7xl font-bold ${getScoreColor(overallScore)}`}
-              >
-                {overallScore}%
-              </motion.div>
-            </div>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.5, type: 'spring', bounce: 0.4 }}
+              className={`inline-flex items-center justify-center w-40 h-40 md:w-48 md:h-48 rounded-full mb-6 relative bg-gradient-to-br ${
+                overallScore >= 80 ? 'from-olive-500/20 to-olive-600/20' :
+                overallScore >= 60 ? 'from-amber-500/20 to-amber-600/20' :
+                'from-crimson-500/20 to-crimson-600/20'
+              } border-4 ${
+                overallScore >= 80 ? 'border-olive-500/40' :
+                overallScore >= 60 ? 'border-amber-500/40' :
+                'border-crimson-500/40'
+              }`}
+            >
+              <div className="text-center">
+                <div className={`text-6xl md:text-7xl font-display font-bold ${getScoreColor(overallScore)}`}>
+                  {overallScore}
+                </div>
+                <div className={`text-lg md:text-xl font-semibold ${getScoreColor(overallScore)} opacity-70 -mt-2`}>
+                  out of 100
+                </div>
+              </div>
+            </motion.div>
 
             <h2 className={`text-2xl md:text-3xl font-display font-semibold mb-2 lowercase ${getScoreColor(overallScore)}`}>
               {getScoreLabel(overallScore)}
             </h2>
 
             <p className="text-gray-400 font-sans text-sm md:text-base lowercase">
-              based on your responses across 6 security categories
+              based on your security practices across 5 actionable categories
             </p>
           </motion.div>
 
@@ -988,46 +1051,48 @@ const SecurityScore = () => {
               category breakdown
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(categoryScores).map(([key, data], index) => {
-                const CategoryIcon = data.icon;
-                return (
-                  <motion.div
-                    key={key}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
-                    className="glass-card p-6"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                          <CategoryIcon className="w-5 h-5 text-midnight-400" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 justify-items-center">
+              {Object.entries(categoryScores)
+                .filter(([key]) => key !== 'risk') // Exclude work context - not actionable
+                .map(([key, data], index) => {
+                  const CategoryIcon = categoryIcons[key] || Shield;
+                  return (
+                    <motion.div
+                      key={key}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
+                      className="glass-card p-6 w-full max-w-md"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
+                            <CategoryIcon className="w-5 h-5 text-midnight-400" />
+                          </div>
+                          <h3 className="font-display font-semibold lowercase">
+                            {data.name}
+                          </h3>
                         </div>
-                        <h3 className="font-display font-semibold lowercase">
-                          {data.name}
-                        </h3>
+                        <span className={`text-2xl font-bold ${getScoreColor(data.score)}`}>
+                          {data.score}%
+                        </span>
                       </div>
-                      <span className={`text-2xl font-bold ${getScoreColor(data.percentage)}`}>
-                        {data.percentage}%
-                      </span>
-                    </div>
 
-                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${data.percentage}%` }}
-                        transition={{ duration: 1, delay: 0.7 + index * 0.1, ease: [0.22, 1, 0.36, 1] }}
-                        className={`h-full ${
-                          data.percentage >= 80 ? 'bg-olive-500' :
-                          data.percentage >= 60 ? 'bg-amber-500' :
-                          'bg-crimson-500'
-                        }`}
-                      />
-                    </div>
-                  </motion.div>
-                );
-              })}
+                      <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${data.score}%` }}
+                          transition={{ duration: 1, delay: 0.7 + index * 0.1, ease: [0.22, 1, 0.36, 1] }}
+                          className={`h-full ${
+                            data.score >= 80 ? 'bg-olive-500' :
+                            data.score >= 60 ? 'bg-amber-500' :
+                            'bg-crimson-500'
+                          }`}
+                        />
+                      </div>
+                    </motion.div>
+                  );
+                })}
             </div>
           </motion.section>
 
@@ -1052,32 +1117,47 @@ const SecurityScore = () => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.5, delay: 0.7 + index * 0.1 }}
-                      className="glass-card p-6 flex items-center justify-between"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          rec.priority === 'critical' ? 'bg-crimson-500/20' : 'bg-amber-500/20'
+                      <Link
+                        to={rec.link}
+                        className="glass-card p-6 flex items-center justify-between hover:bg-white/5 transition-all group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            rec.priority === 'critical' ? 'bg-crimson-500/20' : 'bg-amber-500/20'
+                          }`}>
+                            <RecIcon className={`w-6 h-6 ${
+                              rec.priority === 'critical' ? 'text-crimson-500' : 'text-amber-500'
+                            }`} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-display font-semibold lowercase text-white">
+                                {rec.category}
+                              </h3>
+                              <span className={`text-sm font-bold ${getScoreColor(rec.score)}`}>
+                                {rec.score}%
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-400 font-sans lowercase mb-2">
+                              {rec.description}
+                            </p>
+                            <div className="flex items-center gap-2 text-midnight-400 group-hover:text-midnight-300 transition-colors">
+                              <span className="text-sm font-semibold lowercase">
+                                {rec.action}
+                              </span>
+                              <ArrowRight className="w-4 h-4" />
+                            </div>
+                          </div>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-xs uppercase font-semibold tracking-wider ${
+                          rec.priority === 'critical'
+                            ? 'bg-crimson-500/20 text-crimson-400 border border-crimson-500/30'
+                            : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                         }`}>
-                          {rec.priority === 'critical' ? (
-                            <XCircle className="w-5 h-5 text-crimson-500" />
-                          ) : (
-                            <AlertTriangle className="w-5 h-5 text-amber-500" />
-                          )}
+                          {rec.priority}
                         </div>
-                        <div>
-                          <h3 className="font-display font-semibold lowercase text-white mb-1">
-                            {rec.category}
-                          </h3>
-                          <p className="text-sm text-gray-400 font-sans lowercase">
-                            {rec.priority === 'critical' ? 'immediate attention needed' : 'needs improvement'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={`text-xl font-bold ${getScoreColor(rec.score)}`}>
-                          {rec.score}%
-                        </span>
-                      </div>
+                      </Link>
                     </motion.div>
                   );
                 })}
