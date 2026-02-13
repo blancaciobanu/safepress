@@ -88,8 +88,8 @@
 │  ┌──────────────────┐      ┌─────────────────────────┐  │
 │  │  Authentication  │      │  Firestore Database     │  │
 │  │  - User accounts │      │  Collection: users      │  │
-│  │  - Email/Password│      │  - User profiles        │  │
-│  │  - Session mgmt  │      │  - Quiz results         │  │
+│  │  - Email/Password│      │  Collection: community  │  │
+│  │  - Session mgmt  │      │  Security rules active  │  │
 │  └──────────────────┘      └─────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -119,37 +119,67 @@
 ### Configuration
 File: `/src/firebase/config.js`
 
+Firebase credentials are stored in environment variables (`.env` file, not committed to git):
+
 ```javascript
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "safepress-9f50c.firebaseapp.com",
-  projectId: "safepress-9f50c",
-  storageBucket: "safepress-9f50c.firebasestorage.app",
-  messagingSenderId: "113890207754",
-  appId: "1:113890207754:web:52ea5813a3bfbb404197f3"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
+```
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+Required `.env` file at project root:
+```
+VITE_FIREBASE_API_KEY=your_key
+VITE_FIREBASE_AUTH_DOMAIN=safepress-9f50c.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=safepress-9f50c
+VITE_FIREBASE_STORAGE_BUCKET=safepress-9f50c.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=113890207754
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ```
 
 ### Firestore Security Rules
+File: `/firestore.rules` — deployed via Firebase CLI (`firebase deploy --only firestore:rules`)
+
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only read/write their own data
+
+    function isAuth() { return request.auth != null; }
+    function isOwner(userId) { return isAuth() && request.auth.uid == userId; }
+    function isAdmin() {
+      return isAuth() && request.auth.token.email in ['ciobanubianca20@stud.ase.ro'];
+    }
+
+    // Users: owner + admin access only
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId);
+    }
+
+    // Community posts: public read, authenticated write
+    match /community-posts/{postId} {
+      allow read: if true;
+      allow create: if isAuth() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuth();
+      allow delete: if isAdmin();
     }
   }
 }
 ```
+
+### Firestore Indexes
+File: `/firestore.indexes.json` — composite index for admin queries:
+- `users` collection: `accountType` + `verificationStatus` (for Admin Dashboard)
 
 ---
 
@@ -163,32 +193,43 @@ safepress/
 │   │   │   ├── Header.jsx           # Navigation header with auth UI
 │   │   │   ├── Footer.jsx           # Footer component
 │   │   │   └── MainLayout.jsx       # Layout wrapper (Outlet)
-│   │   └── ProtectedRoute.jsx       # Route guard for auth
+│   │   ├── ProtectedRoute.jsx       # Route guard for auth
+│   │   ├── ProtectedAdminRoute.jsx  # Admin-only route guard
+│   │   └── VerifiedBadge.jsx        # Specialist verification badge
 │   │
 │   ├── contexts/
 │   │   └── AuthContext.jsx          # Authentication state & methods
 │   │
 │   ├── firebase/
-│   │   └── config.js                # Firebase initialization
+│   │   └── config.js                # Firebase initialization (uses env vars)
+│   │
+│   ├── utils/
+│   │   └── userUtils.js             # Anonymous identity generation
 │   │
 │   ├── pages/
 │   │   ├── Home.jsx                 # Landing page
-│   │   ├── Dashboard.jsx            # User dashboard (protected)
-│   │   ├── SecurityScore.jsx        # Security quiz (25 questions)
-│   │   ├── CrisisMode.jsx           # Emergency guidance
-│   │   ├── SecureSetup.jsx          # Setup guides
-│   │   ├── Resources.jsx            # Educational resources
-│   │   ├── Community.jsx            # Community features
-│   │   ├── RequestSupport.jsx       # Support request form
+│   │   ├── Dashboard.jsx            # User dashboard (score + setup at a glance)
+│   │   ├── SecurityScore.jsx        # Security quiz (31 questions, 6 categories)
+│   │   ├── CrisisMode.jsx           # Emergency guidance (4 scenarios)
+│   │   ├── SecureSetup.jsx          # Interactive 31-task checklist
+│   │   ├── Resources.jsx            # OS guides, tools, AI security (3 tabs)
+│   │   ├── Community.jsx            # Discussions, stories, Q&A (3 tabs)
+│   │   ├── RequestSupport.jsx       # Crisis support request form
+│   │   ├── AdminDashboard.jsx       # Specialist verification management
 │   │   ├── Login.jsx                # Login page
-│   │   ├── Signup.jsx               # Registration page
+│   │   ├── Signup.jsx               # Registration (journalist or specialist)
 │   │   └── Settings.jsx             # User settings (protected)
 │   │
 │   ├── App.jsx                      # Route definitions
 │   ├── main.jsx                     # App entry point
-│   └── index.css                    # Global styles + Tailwind
+│   └── index.css                    # Global styles + Tailwind v4 @theme
 │
 ├── public/                          # Static assets
+├── .env                             # Firebase credentials (not in git)
+├── .firebaserc                      # Firebase project link
+├── firebase.json                    # Firebase CLI config
+├── firestore.rules                  # Firestore security rules
+├── firestore.indexes.json           # Firestore composite indexes
 ├── index.html                       # HTML template
 ├── package.json                     # Dependencies
 ├── vite.config.js                   # Vite configuration
@@ -202,22 +243,23 @@ safepress/
 ### 1. User Signup
 
 ```javascript
-// User submits signup form
-AuthContext.signup(email, password, displayName)
+// User submits signup form (journalist or specialist)
+AuthContext.signup(email, password, userData)
   ↓
-// Create Firebase user
+// Create Firebase Auth user
 createUserWithEmailAndPassword(auth, email, password)
   ↓
-// Update profile with display name
-updateProfile(user, { displayName })
+// Generate anonymous identity
+const { username, avatarIcon } = generateUserIdentity()
   ↓
-// Create user document in Firestore
+// Create Firestore user document
 setDoc(doc(db, 'users', uid), {
-  email,
-  displayName,
-  createdAt: timestamp,
+  email, username, avatarIcon,
+  realName: userData.realName,
+  createdAt: ISO string,
   securityScores: [],
-  completedGuides: []
+  accountType: 'journalist' | 'specialist',
+  // + specialist fields if applicable
 })
   ↓
 // Redirect to Dashboard
@@ -232,11 +274,11 @@ AuthContext.login(email, password)
 // Authenticate with Firebase
 signInWithEmailAndPassword(auth, email, password)
   ↓
-// Fetch user data from Firestore
+// onAuthStateChanged fires → fetch user doc from Firestore
 getDoc(doc(db, 'users', uid))
   ↓
-// Update AuthContext state
-setUser({ uid, email, displayName, ...firestoreData })
+// Merge auth + Firestore data into context
+setUser({ uid, email, metadata, ...firestoreData })
   ↓
 // Redirect to Dashboard
 ```
@@ -281,37 +323,82 @@ onAuthStateChanged(auth, async (user) => {
 
 ```javascript
 {
+  // Identity
   email: string,                    // User's email
-  displayName: string,              // User's full name
-  createdAt: string (ISO 8601),    // Account creation timestamp
-  lastQuizDate: string (ISO 8601), // Last quiz completion date
+  username: string,                 // Anonymous generated name (e.g., "SecureReporter_4829")
+  avatarIcon: string,               // Emoji avatar
+  realName: string,                 // Private, for account recovery only
+  createdAt: string (ISO 8601),     // Account creation timestamp
+  accountType: 'journalist' | 'specialist',
 
-  securityScores: [                // Array of quiz results
+  // Security Assessment (single source of truth)
+  securityScores: [                 // Array — new entry each time quiz is taken
     {
-      score: number (0-100),       // Overall percentage score
-      completedAt: string,         // Quiz completion timestamp
-      totalQuestions: number,      // Total questions in quiz
-      answeredQuestions: number,   // Number answered
-
-      categoryScores: {            // Breakdown by category
-        password: {
-          name: string,
-          icon: Component,
-          percentage: number (0-100),
-          earnedPoints: number,
-          maxPoints: number
-        },
-        device: { /* same structure */ },
-        communication: { /* same structure */ },
-        data: { /* same structure */ },
-        physical: { /* same structure */ }
+      score: number (0-100),        // Overall percentage score
+      riskLevel: string,            // 'low' | 'medium' | 'high' | 'critical'
+      completedAt: string,          // Quiz completion timestamp
+      totalQuestions: number,
+      answeredQuestions: number,
+      categoryScores: {             // Breakdown by category
+        password: { name, score, earnedPoints, maxPoints },
+        device: { /* same */ },
+        communication: { /* same */ },
+        data: { /* same */ },
+        physical: { /* same */ },
+        risk: { /* same — work context category */ }
       }
     }
   ],
 
-  completedGuides: [               // Future feature
-    string                         // Guide IDs
-  ]
+  // Secure Setup Progress
+  setupProgress: {
+    completedTasks: string[],       // Array of task IDs (31 total tasks)
+    lastUpdated: string (ISO 8601)
+  },
+
+  // Specialist-only fields (when accountType === 'specialist')
+  verificationStatus: 'pending' | 'approved' | 'rejected',
+  verificationDate: string | null,
+  verificationData: {
+    expertise: string,
+    credentials: string,
+    linkedinUrl: string,
+    organization: string,
+    submittedAt: string (ISO 8601)
+  },
+  specialistProfile: {
+    bio: string,
+    expertiseAreas: string[],
+    certifications: string[]
+  }
+}
+```
+
+### Community Post Document
+**Collection**: `community-posts`
+**Document ID**: Auto-generated (Firestore)
+
+```javascript
+{
+  type: 'discussion' | 'story' | 'question',
+  title: string,
+  content: string,
+  authorId: string,                 // User UID
+  authorName: string,               // Anonymous username
+  authorIcon: string,               // Avatar emoji
+  authorType: 'journalist' | 'specialist',
+  isVerified: boolean,              // Specialist verification badge
+  category: string,                 // e.g., 'device-security', 'source-protection'
+  createdAt: string (ISO 8601),
+  likes: number,
+  likedBy: string[],                // Array of UIDs (one like per user)
+  comments: [                       // Embedded array
+    {
+      authorId, authorName, authorIcon, authorType,
+      isVerified, content, createdAt
+    }
+  ],
+  resolved: boolean                 // Q&A posts only
 }
 ```
 
@@ -420,14 +507,16 @@ const ProtectedRoute = ({ children }) => {
 
 ## Key Features
 
-### 1. Security Quiz
+### 1. Security Assessment
 **File**: `src/pages/SecurityScore.jsx`
 
-- **25 questions** across 5 categories
-- **Categories**: Password, Device, Communication, Data, Physical
+- **31 questions** across 6 categories
+- **Categories**: Password, Device, Communication, Data, Physical, Risk Profile
 - **Scoring**: 0-100% based on weighted points
+- **Risk Level**: Calculated from score + work context (low/medium/high/critical)
 - **Auto-save**: Results saved to Firestore when user logged in
 - **Guest mode**: Can take quiz without login (no save)
+- **Welcome screen**: First-time users see category preview; returning users see last score with category bars and "check in" prompt
 
 **Implementation**:
 ```javascript
@@ -446,35 +535,16 @@ const calculateScore = () => {
 };
 ```
 
-### 2. Personalized Dashboard
+### 2. Dashboard (Everything at a Glance)
 **File**: `src/pages/Dashboard.jsx`
 
-**Features**:
-- Latest security score display
-- Category breakdown (5 categories)
-- Smart recommendations based on weak areas
-- Score history (last 5 attempts)
-- Quick actions grid
-
-**Recommendations Logic**:
-```javascript
-const getRecommendations = () => {
-  const recommendations = [];
-
-  if (categoryScores.password?.percentage < 70) {
-    recommendations.push({
-      category: 'password security',
-      issue: 'your password security needs improvement',
-      action: 'start using a password manager',
-      priority: 'high'
-    });
-  }
-
-  // ... check other categories ...
-
-  return recommendations.slice(0, 3); // Top 3 priorities
-};
-```
+**Layout**:
+- Compact header with avatar + username
+- Two side-by-side metric cards:
+  - **Security Score**: Last score with mini category progress bars
+  - **Secure Setup**: Progress bar showing X/31 completed tasks
+- **"Up Next" section**: Smart recommendations sorted by weakest quiz categories, prompts for untaken quiz/unstarted setup, "lessons — coming soon" placeholder
+- Compact quick link pills (crisis mode, resources, community, settings)
 
 ### 3. Crisis Mode
 **File**: `src/pages/CrisisMode.jsx`
@@ -520,7 +590,7 @@ npm run dev
 ```
 
 ### Environment Setup
-No `.env` file needed - Firebase config is in `src/firebase/config.js`
+Create a `.env` file in the project root with your Firebase credentials (see Firebase Setup section above). The `.env` file is gitignored.
 
 ### Building for Production
 ```bash
@@ -591,7 +661,7 @@ const MyComponent = () => {
   if (loading) return <div>Loading...</div>;
   if (!user) return <div>Not logged in</div>;
 
-  return <div>Hello {user.displayName}!</div>;
+  return <div>Hello {user.username}!</div>;
 };
 ```
 
@@ -1221,6 +1291,90 @@ const toggleTask = async (taskId) => {
 
 ---
 
-**Last Updated**: February 12, 2026
-**Version**: 2.4.0
-**Documentation**: Complete (includes Phases 1-9)
+### Phase 10: Community Hub
+**Full-Featured Community with Discussions, Stories & Q&A**
+
+**File**: `src/pages/Community.jsx`
+
+**3-Tab Layout**:
+1. **Discussions** — General security topic threads
+2. **Anonymous Stories** — Journalists share security incidents (author always shown as "anonymous journalist")
+3. **Q&A** — Ask security questions, get specialist answers; can be marked as resolved
+
+**Features**:
+- Public browsing (anyone can read)
+- Posting/commenting requires login
+- Like system (one per user, stored in `likedBy` array)
+- Category filtering (device security, source protection, communication, data, physical safety, legal, general)
+- Specialist verified badge next to names
+- Inline new post form with type/category selection
+- Comment thread on each post
+
+**Firestore**: `community-posts` collection (see Data Models section)
+
+### Phase 11: UI Consistency Pass
+**Standardized Page Headers Across All Pages**
+
+Established a consistent header pattern for all content pages:
+```jsx
+<motion.div
+  initial={{ opacity: 0, y: 30 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+  className="text-center mb-12"
+>
+  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl
+    bg-{color}/10 border border-{color}/20 mb-5">
+    <Icon className="w-7 h-7 text-{color}" />
+  </div>
+  <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">title</h1>
+  <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed"
+    style={{ letterSpacing: '0.03em' }}>description</p>
+</motion.div>
+```
+
+**Pages updated**: Resources, CrisisMode, SecurityScore, RequestSupport, Community, SecureSetup
+
+**Also standardized**:
+- Segmented control tabs (Resources, Community)
+- Animation easing: `[0.22, 1, 0.36, 1]` everywhere
+- Icon containers: `w-14 h-14 rounded-2xl`
+- Color per page: midnight (default), crimson (crisis), teal (setup), purple (community)
+
+### Phase 12: Dashboard Redesign
+**Everything at a Glance**
+
+Rewrote Dashboard from a generic layout to a focused overview:
+- Two side-by-side metric cards (Security Score + Secure Setup progress)
+- "Up Next" recommendations sorted by weakest quiz categories
+- Lessons placeholder for future feature
+- Compact quick links row
+
+### Phase 13: SecurityScore Welcome Redesign
+**Mindfulness Check-In for Returning Users**
+
+- **First-time users**: Minimal category icon grid, clean CTA, no text walls
+- **Returning users**: "check in" title, large last score display, mini category progress bars, days since last check-in
+
+### Phase 14: Schema Cleanup & Security Rules
+**Database Hardening**
+
+**Removed dead/redundant fields**:
+- `completedGuides` — written on signup, never read
+- `lastQuizDate` — redundant with `securityScores[].completedAt`
+- Root-level `riskLevel` — redundant with `securityScores[].riskLevel`
+
+**Resources.jsx** updated to derive risk level from latest score entry.
+
+**Firestore security rules deployed** (see Firebase Setup section):
+- Users: owner + admin access only
+- Community posts: public read, authenticated create, admin delete
+- Composite index for admin verification queries
+
+**Backup files deleted**: `.bak2`, `.bak3`, `.backup`
+
+---
+
+**Last Updated**: February 13, 2026
+**Version**: 3.0.0
+**Documentation**: Complete (includes Phases 1-14)
