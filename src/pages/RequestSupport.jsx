@@ -61,15 +61,17 @@ const RequestSupport = () => {
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-midnight-400/10 border border-midnight-400/20 mb-6">
-            <Shield className="w-8 h-8 text-midnight-400" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-midnight-400/10 border border-midnight-400/20 mb-5">
+            <Shield className="w-7 h-7 text-midnight-400" />
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 lowercase">
+          <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
             request specialist support
           </h1>
 
-          <p className="text-lg text-gray-400 font-sans lowercase leading-relaxed">
+          <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed"
+            style={{ letterSpacing: '0.03em' }}
+          >
             fill out this form and a verified cybersecurity expert will contact you
           </p>
         </motion.div>

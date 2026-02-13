@@ -474,16 +474,21 @@ const SecureSetup = () => {
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-12"
+          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 lowercase">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 mb-5">
+            <Shield className="w-7 h-7 text-teal-500" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
             secure your setup
           </h1>
-          <p className="text-lg text-gray-400 lowercase leading-relaxed">
-            step-by-step guide to harden your digital security. check off tasks as you complete them.
+          <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed"
+            style={{ letterSpacing: '0.03em' }}
+          >
+            step-by-step guide to harden your digital security
           </p>
         </motion.div>
 

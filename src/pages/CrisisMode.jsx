@@ -153,16 +153,18 @@ const CrisisMode = () => {
           <motion.div
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-crimson-500/10 border border-crimson-500/20 mb-6"
+            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-crimson-500/10 border border-crimson-500/20 mb-5"
           >
-            <AlertCircle className="w-8 h-8 text-crimson-500" />
+            <AlertCircle className="w-7 h-7 text-crimson-500" />
           </motion.div>
 
-          <h1 className="text-4xl md:text-6xl font-display font-bold mb-4 lowercase">
+          <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
             you're going to be <span className="text-crimson-500">okay</span>
           </h1>
 
-          <p className="text-lg md:text-xl font-sans text-gray-400 max-w-2xl mx-auto lowercase leading-relaxed">
+          <p className="text-base text-gray-500 lowercase max-w-lg mx-auto leading-relaxed"
+            style={{ letterSpacing: '0.03em' }}
+          >
             take a breath. follow these steps. we'll help you through this.
           </p>
         </motion.div>

@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import {
-  Shield, AlertTriangle, TrendingUp, Book, Users, Zap,
+  Shield, AlertTriangle, Book, Users, Zap,
   Lock, Smartphone, MessageSquare, Database, MapPin,
-  ArrowRight, Calendar, Award, Clock
+  ArrowRight, Clock, ChevronRight, BookOpen
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,7 +16,6 @@ const Dashboard = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Map category keys to their icons
   const categoryIcons = {
     risk: Users,
     password: Lock,
@@ -29,7 +28,6 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       if (!user) return;
-
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
@@ -41,12 +39,16 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-
     fetchUserData();
   }, [user]);
 
   const latestScore = userData?.securityScores?.[userData.securityScores.length - 1];
   const hasQuizData = userData?.securityScores && userData.securityScores.length > 0;
+
+  // Setup progress
+  const setupCompleted = userData?.setupProgress?.completedTasks?.length || 0;
+  const setupTotal = 31;
+  const setupPercent = Math.round((setupCompleted / setupTotal) * 100);
 
   const getScoreColor = (score) => {
     if (score >= 80) return 'text-olive-500';
@@ -54,120 +56,52 @@ const Dashboard = () => {
     return 'text-crimson-500';
   };
 
-  const getScoreGradient = (score) => {
-    if (score >= 80) return 'from-olive-500 to-olive-600';
-    if (score >= 60) return 'from-amber-500 to-amber-600';
-    return 'from-crimson-500 to-crimson-600';
+  const getBarColor = (score) => {
+    if (score >= 80) return 'bg-olive-500';
+    if (score >= 60) return 'bg-amber-500';
+    return 'bg-crimson-500';
   };
 
-  const getScoreMessage = (score) => {
-    if (score >= 80) return 'excellent! keep up the great work';
-    if (score >= 60) return 'good progress, but room for improvement';
-    return 'attention needed - let\'s improve your security';
+  const getScoreLabel = (score) => {
+    if (score >= 80) return 'strong';
+    if (score >= 60) return 'moderate';
+    return 'needs work';
   };
 
   const getRecommendations = () => {
     if (!latestScore) return [];
+    const recs = [];
+    const cs = latestScore.categoryScores;
 
-    const recommendations = [];
-    const categoryScores = latestScore.categoryScores;
+    if (cs.password?.score < 70) recs.push({
+      icon: Lock, label: 'passwords', action: 'set up a password manager', link: '/secure-setup', score: cs.password.score
+    });
+    if (cs.device?.score < 70) recs.push({
+      icon: Smartphone, label: 'devices', action: 'enable disk encryption', link: '/secure-setup', score: cs.device.score
+    });
+    if (cs.communication?.score < 70) recs.push({
+      icon: MessageSquare, label: 'comms', action: 'switch to encrypted messaging', link: '/resources', score: cs.communication.score
+    });
+    if (cs.data?.score < 70) recs.push({
+      icon: Database, label: 'data', action: 'set up encrypted backups', link: '/secure-setup', score: cs.data.score
+    });
+    if (cs.physical?.score < 70) recs.push({
+      icon: MapPin, label: 'physical', action: 'review physical security guide', link: '/resources', score: cs.physical.score
+    });
 
-    // Check each category and provide recommendations
-    if (categoryScores.password?.score < 70) {
-      recommendations.push({
-        icon: Lock,
-        category: 'password security',
-        issue: 'your password security needs improvement',
-        action: 'start using a password manager',
-        link: '/secure-setup',
-        priority: 'high'
-      });
-    }
-
-    if (categoryScores.device?.score < 70) {
-      recommendations.push({
-        icon: Smartphone,
-        category: 'device security',
-        issue: 'your devices need better protection',
-        action: 'enable full disk encryption',
-        link: '/secure-setup',
-        priority: 'high'
-      });
-    }
-
-    if (categoryScores.communication?.score < 70) {
-      recommendations.push({
-        icon: MessageSquare,
-        category: 'communication security',
-        issue: 'your communications could be more secure',
-        action: 'switch to encrypted messaging',
-        link: '/resources',
-        priority: 'medium'
-      });
-    }
-
-    if (categoryScores.data?.score < 70) {
-      recommendations.push({
-        icon: Database,
-        category: 'data protection',
-        issue: 'your data storage needs improvement',
-        action: 'implement regular encrypted backups',
-        link: '/secure-setup',
-        priority: 'high'
-      });
-    }
-
-    if (categoryScores.physical?.score < 70) {
-      recommendations.push({
-        icon: MapPin,
-        category: 'physical security',
-        issue: 'your physical security practices need work',
-        action: 'review our physical security guide',
-        link: '/resources',
-        priority: 'medium'
-      });
-    }
-
-    return recommendations.slice(0, 3); // Return top 3 priorities
+    return recs.sort((a, b) => a.score - b.score).slice(0, 3);
   };
 
-  const quickActions = [
-    {
-      title: 'crisis mode',
-      description: 'get immediate help in emergency situations',
-      icon: AlertTriangle,
-      link: '/crisis',
-      gradient: 'from-crimson-500 to-crimson-600',
-    },
-    {
-      title: 'retake security quiz',
-      description: 'update your security score',
-      icon: Shield,
-      link: '/security-score',
-      gradient: 'from-midnight-400 to-midnight-500',
-    },
-    {
-      title: 'secure your setup',
-      description: 'step-by-step hardening guide',
-      icon: Zap,
-      link: '/secure-setup',
-      gradient: 'from-teal-500 to-teal-600',
-    },
-    {
-      title: 'browse resources',
-      description: 'learn about digital security',
-      icon: Book,
-      link: '/resources',
-      gradient: 'from-purple-500 to-purple-600',
-    },
-  ];
+  const daysSinceQuiz = hasQuizData
+    ? Math.floor((new Date() - new Date(latestScore.completedAt)) / (1000 * 60 * 60 * 24))
+    : null;
 
   if (loading) {
     return (
       <div className="min-h-screen pt-32 pb-20 px-4 flex items-center justify-center">
         <div className="text-center">
-          <Shield className="w-12 h-12 text-midnight-400 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-400 lowercase">loading your dashboard...</p>
+          <div className="w-6 h-6 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 text-[10px] tracking-widest uppercase">loading</p>
         </div>
       </div>
     );
@@ -175,243 +109,268 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen pt-32 pb-20 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Hero Section */}
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="mb-12"
         >
-          <div className="flex flex-col gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">{user.avatarIcon || '🔒'}</span>
-              <h1 className="text-4xl md:text-5xl font-display font-bold lowercase">
-                welcome back, <span className="text-midnight-400">{user.username}</span>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">{user.avatarIcon || '🔒'}</span>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl md:text-4xl font-display font-bold lowercase">
+                {user.username}
               </h1>
               {user.accountType === 'specialist' && user.verificationStatus === 'approved' && (
                 <VerifiedBadge size="md" />
               )}
             </div>
-
-            {/* Verification Status Notice for Specialists */}
-            {user.accountType === 'specialist' && user.verificationStatus === 'pending' && (
-              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-amber-400 font-semibold lowercase mb-1">
-                      specialist verification pending
-                    </p>
-                    <p className="text-xs text-gray-400 lowercase leading-relaxed">
-                      your credentials are being reviewed. you'll receive full specialist access once approved.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
-          <p className="text-lg text-gray-400 lowercase leading-relaxed">
-            your digital safety command center
+          <p className="text-sm text-gray-500 lowercase" style={{ letterSpacing: '0.03em' }}>
+            your security at a glance
           </p>
+
+          {/* Specialist pending notice */}
+          {user.accountType === 'specialist' && user.verificationStatus === 'pending' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mt-4 flex items-center gap-2 text-xs text-amber-400 lowercase"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              specialist verification pending
+            </motion.div>
+          )}
         </motion.div>
 
-        {/* Security Score Card */}
-        {hasQuizData ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="glass-card p-8 mb-8"
-          >
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${getScoreGradient(latestScore.score)} flex items-center justify-center`}>
-                    <Shield className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-display font-bold lowercase">your security score</h2>
-                    <p className="text-sm text-gray-400 lowercase">
-                      {getScoreMessage(latestScore.score)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className={`text-6xl font-display font-bold ${getScoreColor(latestScore.score)}`}>
-                    {latestScore.score}
-                  </span>
-                  <span className="text-2xl text-gray-500">/100</span>
-                </div>
-
-                <p className="text-sm text-gray-500 lowercase">
-                  last updated: {new Date(latestScore.completedAt).toLocaleDateString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </p>
-              </div>
-
-              {/* Category Breakdown */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full md:w-auto">
-                {Object.entries(latestScore.categoryScores).map(([key, category]) => {
-                  const Icon = categoryIcons[key] || Shield;
-                  return (
-                    <div key={key} className="text-center">
-                      <Icon className={`w-5 h-5 mx-auto mb-2 ${getScoreColor(category.score)}`} />
-                      <p className={`text-2xl font-bold ${getScoreColor(category.score)}`}>
-                        {category.score}%
-                      </p>
-                      <p className="text-xs text-gray-500 lowercase">{category.name}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="glass-card p-8 mb-8 text-center"
-          >
-            <Shield className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-display font-bold mb-4 lowercase">
-              take your first security assessment
-            </h2>
-            <p className="text-gray-400 mb-6 lowercase">
-              find out how secure you really are with our comprehensive quiz
-            </p>
-            <Link
-              to="/security-score"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg font-semibold transition-all hover:scale-105 lowercase"
-            >
-              start security quiz
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-          </motion.div>
-        )}
-
-        {/* Personalized Recommendations */}
-        {hasQuizData && getRecommendations().length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="mb-8"
-          >
-            <h2 className="text-2xl font-display font-bold mb-6 lowercase">
-              recommended actions
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {getRecommendations().map((rec, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-                  className="glass-card p-6"
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      rec.priority === 'high' ? 'bg-crimson-500/20' : 'bg-amber-500/20'
-                    }`}>
-                      <rec.icon className={`w-5 h-5 ${
-                        rec.priority === 'high' ? 'text-crimson-500' : 'text-amber-500'
-                      }`} />
-                    </div>
-                    <div className="flex-1">
-                      <span className={`text-xs uppercase tracking-wider font-semibold ${
-                        rec.priority === 'high' ? 'text-crimson-500' : 'text-amber-500'
-                      }`}>
-                        {rec.priority} priority
-                      </span>
-                      <h3 className="text-lg font-display font-semibold mt-1 lowercase">
-                        {rec.category}
-                      </h3>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-400 mb-4 lowercase">{rec.issue}</p>
-                  <Link
-                    to={rec.link}
-                    className="inline-flex items-center gap-2 text-sm text-midnight-400 hover:text-midnight-300 transition-colors lowercase font-semibold"
-                  >
-                    {rec.action}
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Score History */}
-        {hasQuizData && userData.securityScores.length > 1 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mb-8"
-          >
-            <h2 className="text-2xl font-display font-bold mb-6 lowercase">
-              your progress
-            </h2>
-            <div className="glass-card p-6">
-              <div className="space-y-4">
-                {userData.securityScores.slice(-5).reverse().map((score, index) => (
-                  <div key={index} className="flex items-center gap-4">
-                    <Calendar className="w-5 h-5 text-gray-500" />
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-400">
-                        {new Date(score.completedAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                    <div className={`text-2xl font-bold ${getScoreColor(score.score)}`}>
-                      {score.score}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Quick Actions Grid */}
+        {/* ── Top Row: Score + Setup ── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
+          transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"
         >
-          <h2 className="text-2xl font-display font-bold mb-6 lowercase">quick actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {quickActions.map((action, index) => (
-              <motion.div
-                key={action.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
-              >
-                <Link
-                  to={action.link}
-                  className="block glass-card p-6 hover:scale-[1.02] transition-all duration-300 group"
-                >
-                  <div
-                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.gradient} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}
-                  >
-                    <action.icon className="w-6 h-6 text-white" />
+          {/* Security Score Card */}
+          <Link to="/security-score" className="group">
+            <div className="border border-white/[0.08] rounded-2xl p-6 bg-white/[0.02] hover:bg-white/[0.03] transition-all h-full">
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600">
+                  security score
+                </p>
+                <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-gray-400 transition-colors" />
+              </div>
+
+              {hasQuizData ? (
+                <>
+                  <div className="flex items-end gap-3 mb-4">
+                    <span className={`text-5xl font-display font-bold ${getScoreColor(latestScore.score)}`}>
+                      {latestScore.score}
+                    </span>
+                    <span className="text-sm text-gray-600 mb-1.5 lowercase">/100</span>
+                    <span className={`text-xs font-semibold lowercase mb-2 ml-auto ${getScoreColor(latestScore.score)}`}>
+                      {getScoreLabel(latestScore.score)}
+                    </span>
                   </div>
-                  <h3 className="text-lg font-semibold mb-2 lowercase">{action.title}</h3>
-                  <p className="text-sm text-gray-400 lowercase">{action.description}</p>
+
+                  {/* Mini bars */}
+                  <div className="space-y-2">
+                    {Object.entries(latestScore.categoryScores)
+                      .filter(([key]) => key !== 'risk')
+                      .map(([key, data]) => {
+                        const CatIcon = categoryIcons[key] || Shield;
+                        return (
+                          <div key={key} className="flex items-center gap-2">
+                            <CatIcon className="w-3 h-3 text-gray-600 flex-shrink-0" />
+                            <div className="flex-1 h-1 bg-white/[0.05] rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${getBarColor(data.score)}`} style={{ width: `${data.score}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  <p className="text-[10px] text-gray-600 lowercase mt-4">
+                    {daysSinceQuiz === 0 ? 'taken today' : daysSinceQuiz === 1 ? 'taken yesterday' : `${daysSinceQuiz}d ago`}
+                  </p>
+                </>
+              ) : (
+                <div className="flex flex-col items-center text-center py-4">
+                  <Shield className="w-8 h-8 text-gray-700 mb-3" />
+                  <p className="text-sm text-gray-400 lowercase mb-1">not taken yet</p>
+                  <p className="text-xs text-gray-600 lowercase">find out where you stand</p>
+                </div>
+              )}
+            </div>
+          </Link>
+
+          {/* Secure Setup Card */}
+          <Link to="/secure-setup" className="group">
+            <div className="border border-white/[0.08] rounded-2xl p-6 bg-white/[0.02] hover:bg-white/[0.03] transition-all h-full">
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600">
+                  secure setup
+                </p>
+                <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-gray-400 transition-colors" />
+              </div>
+
+              <div className="flex items-end gap-3 mb-4">
+                <span className={`text-5xl font-display font-bold ${
+                  setupPercent >= 80 ? 'text-olive-500' :
+                  setupPercent >= 40 ? 'text-amber-500' :
+                  setupPercent > 0 ? 'text-crimson-500' : 'text-gray-600'
+                }`}>
+                  {setupPercent}%
+                </span>
+                <span className="text-sm text-gray-600 mb-1.5 lowercase">complete</span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="h-1.5 bg-white/[0.05] rounded-full overflow-hidden mb-2">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    setupPercent >= 80 ? 'bg-olive-500' :
+                    setupPercent >= 40 ? 'bg-amber-500' :
+                    setupPercent > 0 ? 'bg-crimson-500' : 'bg-gray-700'
+                  }`}
+                  style={{ width: `${setupPercent}%` }}
+                />
+              </div>
+
+              <p className="text-[10px] text-gray-600 lowercase">
+                {setupCompleted} of {setupTotal} tasks done
+              </p>
+
+              {setupCompleted === 0 && (
+                <p className="text-xs text-gray-500 lowercase mt-4">
+                  step-by-step hardening guide
+                </p>
+              )}
+            </div>
+          </Link>
+        </motion.div>
+
+        {/* ── Up Next ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="mb-6"
+        >
+          <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600 mb-4">
+            up next
+          </p>
+
+          <div className="space-y-2">
+            {/* Recommendations from quiz */}
+            {hasQuizData && getRecommendations().map((rec, i) => {
+              const RecIcon = rec.icon;
+              return (
+                <Link
+                  key={rec.label}
+                  to={rec.link}
+                  className="group flex items-center gap-4 py-3 px-4 -mx-4 rounded-xl hover:bg-white/[0.03] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+                    <RecIcon className="w-4 h-4 text-gray-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white lowercase">{rec.action}</p>
+                    <p className="text-[10px] text-gray-600 lowercase">{rec.label} · score {rec.score}%</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-700 group-hover:text-gray-400 transition-colors flex-shrink-0" />
                 </Link>
-              </motion.div>
-            ))}
+              );
+            })}
+
+            {/* Prompt to take quiz if no data */}
+            {!hasQuizData && (
+              <Link
+                to="/security-score"
+                className="group flex items-center gap-4 py-3 px-4 -mx-4 rounded-xl hover:bg-white/[0.03] transition-all"
+              >
+                <div className="w-8 h-8 rounded-lg bg-midnight-400/10 border border-midnight-400/20 flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-4 h-4 text-midnight-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white lowercase">take your security assessment</p>
+                  <p className="text-[10px] text-gray-600 lowercase">find out how secure you really are</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-gray-700 group-hover:text-gray-400 transition-colors flex-shrink-0" />
+              </Link>
+            )}
+
+            {/* Setup prompt if not started */}
+            {setupCompleted === 0 && (
+              <Link
+                to="/secure-setup"
+                className="group flex items-center gap-4 py-3 px-4 -mx-4 rounded-xl hover:bg-white/[0.03] transition-all"
+              >
+                <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-4 h-4 text-teal-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white lowercase">start securing your setup</p>
+                  <p className="text-[10px] text-gray-600 lowercase">{setupTotal} tasks to harden your devices</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-gray-700 group-hover:text-gray-400 transition-colors flex-shrink-0" />
+              </Link>
+            )}
+
+            {/* Lessons placeholder */}
+            <div className="flex items-center gap-4 py-3 px-4 -mx-4 rounded-xl opacity-50">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
+                <BookOpen className="w-4 h-4 text-purple-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white lowercase">lessons</p>
+                <p className="text-[10px] text-gray-600 lowercase">interactive security training — coming soon</p>
+              </div>
+              <span className="text-[10px] bg-white/[0.05] border border-white/[0.08] text-gray-500 px-2 py-0.5 rounded-full uppercase tracking-widest font-bold flex-shrink-0">
+                soon
+              </span>
+            </div>
+
+            {/* No recommendations — all good */}
+            {hasQuizData && getRecommendations().length === 0 && setupPercent >= 80 && (
+              <div className="flex items-center gap-4 py-3 px-4 -mx-4">
+                <div className="w-8 h-8 rounded-lg bg-olive-500/10 border border-olive-500/20 flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-4 h-4 text-olive-500" />
+                </div>
+                <p className="text-sm text-olive-400 lowercase">you're in great shape — keep it up</p>
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* ── Quick Links ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="pt-6 border-t border-white/[0.05]"
+        >
+          <div className="flex flex-wrap gap-2">
+            {[
+              { to: '/crisis', icon: AlertTriangle, label: 'crisis mode', color: 'text-crimson-500' },
+              { to: '/resources', icon: Book, label: 'resources', color: 'text-gray-400' },
+              { to: '/community', icon: Users, label: 'community', color: 'text-gray-400' },
+              { to: '/settings', icon: Lock, label: 'settings', color: 'text-gray-400' },
+            ].map((item) => {
+              const ItemIcon = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-xl text-xs font-medium lowercase hover:bg-white/[0.06] transition-all"
+                >
+                  <ItemIcon className={`w-3.5 h-3.5 ${item.color}`} />
+                  {item.label}
+                </Link>
+              );
+            })}
           </div>
         </motion.div>
       </div>

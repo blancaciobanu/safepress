@@ -693,20 +693,20 @@ const Resources = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-12"
+          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center mb-12"
         >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-full bg-midnight-400/20 flex items-center justify-center">
-              <Book className="w-6 h-6 text-midnight-400" />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-display font-bold lowercase">
-              resources
-            </h1>
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-midnight-400/10 border border-midnight-400/20 mb-5">
+            <Book className="w-7 h-7 text-midnight-400" />
           </div>
-          <p className="text-lg text-gray-400 lowercase leading-relaxed">
+          <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
+            resources
+          </h1>
+          <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed"
+            style={{ letterSpacing: '0.03em' }}
+          >
             step-by-step guides to harden your security
           </p>
         </motion.div>
@@ -715,26 +715,26 @@ const Resources = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="mb-8"
+          transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="flex justify-center mb-10"
         >
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="inline-flex bg-white/[0.03] border border-white/[0.08] rounded-xl p-1">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => !tab.coming && setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap lowercase ${
                     activeTab === tab.id
-                      ? 'bg-midnight-400 text-white'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                      ? 'bg-white/[0.08] text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-300'
                   } ${tab.coming ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="lowercase">{tab.name}</span>
+                  <Icon className="w-4 h-4" />
+                  {tab.name}
                   {tab.coming && (
-                    <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full lowercase">
+                    <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
                       soon
                     </span>
                   )}

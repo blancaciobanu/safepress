@@ -716,114 +716,162 @@ const SecurityScore = () => {
 
   // Welcome Screen
   if (view === 'welcome') {
+    const lastScore = user?.securityScores?.[user.securityScores.length - 1];
+    const hasHistory = lastScore != null;
+    const lastDate = hasHistory
+      ? new Date(lastScore.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : null;
+    const daysSince = hasHistory
+      ? Math.floor((new Date() - new Date(lastScore.completedAt)) / (1000 * 60 * 60 * 24))
+      : null;
+
+    const categoryList = [
+      { icon: Lock, name: 'passwords' },
+      { icon: Smartphone, name: 'devices' },
+      { icon: MessageSquare, name: 'comms' },
+      { icon: Database, name: 'data' },
+      { icon: MapPin, name: 'physical' },
+    ];
+
     return (
       <div className="min-h-screen pt-32 pb-20 px-4">
         <div className="max-w-3xl mx-auto">
+          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
             className="text-center mb-12"
           >
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-midnight-400/10 border border-midnight-400/20 mb-6">
-              <Shield className="w-8 h-8 text-midnight-400" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-midnight-400/10 border border-midnight-400/20 mb-5">
+              <Shield className="w-7 h-7 text-midnight-400" />
             </div>
 
-            <h1 className="text-4xl md:text-6xl font-display font-bold mb-4 lowercase">
-              security assessment
+            <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
+              {hasHistory ? 'check in' : 'security assessment'}
             </h1>
 
-            <p className="text-lg md:text-xl font-sans text-gray-400 max-w-2xl mx-auto lowercase leading-relaxed">
-              evaluate your digital safety practices with our comprehensive 31-question assessment
+            <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed"
+              style={{ letterSpacing: '0.03em' }}
+            >
+              {hasHistory
+                ? 'see where you stand. habits change — your score should too.'
+                : '31 questions across 6 categories. about 5 minutes.'}
             </p>
           </motion.div>
 
+          {/* Returning user: last score card */}
+          {hasHistory && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              className="mb-8"
+            >
+              <div className="border border-white/[0.08] rounded-2xl p-8 bg-white/[0.02]">
+                <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600 mb-6">
+                  your last check-in · {lastDate}
+                </p>
+
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <div className={`text-6xl md:text-7xl font-display font-bold ${getScoreColor(lastScore.score)}`}>
+                      {lastScore.score}
+                    </div>
+                    <p className="text-sm text-gray-500 lowercase mt-1">out of 100</p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className={`text-sm font-semibold lowercase ${getScoreColor(lastScore.score)}`}>
+                      {getScoreLabel(lastScore.score)}
+                    </p>
+                    <p className="text-xs text-gray-600 lowercase mt-1">
+                      {daysSince === 0 ? 'today' : daysSince === 1 ? 'yesterday' : `${daysSince} days ago`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mini category bars */}
+                <div className="space-y-3">
+                  {Object.entries(lastScore.categoryScores)
+                    .filter(([key]) => key !== 'risk')
+                    .map(([key, data]) => {
+                      const CatIcon = categoryIcons[key] || Shield;
+                      return (
+                        <div key={key} className="flex items-center gap-3">
+                          <CatIcon className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
+                          <span className="text-xs text-gray-500 lowercase w-20 flex-shrink-0">{data.name}</span>
+                          <div className="flex-1 h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                data.score >= 80 ? 'bg-olive-500' :
+                                data.score >= 60 ? 'bg-amber-500' :
+                                'bg-crimson-500'
+                              }`}
+                              style={{ width: `${data.score}%` }}
+                            />
+                          </div>
+                          <span className={`text-xs font-semibold w-8 text-right ${getScoreColor(data.score)}`}>
+                            {data.score}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Categories preview (first-time users) */}
+          {!hasHistory && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              className="flex justify-center gap-6 mb-10 flex-wrap"
+            >
+              {categoryList.map((cat, i) => {
+                const CatIcon = cat.icon;
+                return (
+                  <motion.div
+                    key={cat.name}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.25 + i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+                    className="flex flex-col items-center gap-2"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+                      <CatIcon className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <span className="text-[10px] tracking-widest uppercase text-gray-600 font-medium">{cat.name}</span>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+
+          {/* CTA */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="glass-card p-8 mb-8"
+            transition={{ duration: 0.8, delay: hasHistory ? 0.3 : 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="text-center"
           >
-            <h2 className="text-2xl font-display font-semibold mb-6 lowercase">
-              what you'll discover
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="flex items-start gap-3 md:col-span-2">
-                <Briefcase className="w-5 h-5 text-midnight-400 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-white lowercase mb-1">work context & risk profile</h3>
-                  <p className="text-sm text-gray-400 font-sans lowercase">
-                    your work environment, source protection needs, and threat landscape
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Lock className="w-5 h-5 text-midnight-400 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-white lowercase mb-1">password security</h3>
-                  <p className="text-sm text-gray-400 font-sans lowercase">
-                    authentication strength, password management, and 2FA practices
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Smartphone className="w-5 h-5 text-midnight-400 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-white lowercase mb-1">device security</h3>
-                  <p className="text-sm text-gray-400 font-sans lowercase">
-                    encryption, updates, antivirus, and device protection
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <MessageSquare className="w-5 h-5 text-midnight-400 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-white lowercase mb-1">communication practices</h3>
-                  <p className="text-sm text-gray-400 font-sans lowercase">
-                    encrypted messaging, secure email, and source verification
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <Database className="w-5 h-5 text-midnight-400 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-white lowercase mb-1">data protection</h3>
-                  <p className="text-sm text-gray-400 font-sans lowercase">
-                    backups, encryption, cloud security, and file deletion
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-midnight-400 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-white lowercase mb-1">physical security</h3>
-                  <p className="text-sm text-gray-400 font-sans lowercase">
-                    device protection, location privacy, and operational security
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-midnight-400/10 rounded-lg border border-midnight-400/20 mb-8">
-              <p className="text-sm font-sans text-gray-300 lowercase leading-relaxed">
-                <span className="text-white font-semibold">note:</span> this assessment takes approximately 5 minutes.
-                answer honestly to get an accurate picture of your security posture. all responses are private and stored locally.
-              </p>
-            </div>
-
             <button
               onClick={() => setView('quiz')}
-              className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg font-semibold transition-all hover:scale-[1.02] lowercase"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg font-semibold transition-all hover:scale-[1.02] lowercase"
             >
-              start assessment
+              {hasHistory ? 'retake assessment' : 'start assessment'}
               <ArrowRight className="w-5 h-5" />
             </button>
+
+            <p className="text-xs text-gray-600 lowercase mt-4"
+              style={{ letterSpacing: '0.03em' }}
+            >
+              {hasHistory
+                ? 'your previous results are saved — you can always compare'
+                : 'private · no tracking · takes about 5 minutes'}
+            </p>
           </motion.div>
         </div>
       </div>
