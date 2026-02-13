@@ -58,7 +58,6 @@ export const AuthProvider = ({ children }) => {
         realName: userData.realName,
         createdAt: new Date().toISOString(),
         securityScores: [],
-        completedGuides: [],
         accountType: userData.accountType || 'journalist'
       };
 

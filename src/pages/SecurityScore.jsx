@@ -465,17 +465,13 @@ const SecurityScore = () => {
         // Document exists - manually append to array
         const existingScores = userDoc.data().securityScores || [];
         await updateDoc(userRef, {
-          securityScores: [...existingScores, quizResult],
-          lastQuizDate: quizResult.completedAt,
-          riskLevel: riskLevel
+          securityScores: [...existingScores, quizResult]
         });
       } else {
         // Document doesn't exist - create it with initial data
         await setDoc(userRef, {
           email: user.email,
           securityScores: [quizResult],
-          lastQuizDate: quizResult.completedAt,
-          riskLevel: riskLevel,
           createdAt: new Date().toISOString()
         });
       }

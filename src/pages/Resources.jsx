@@ -14,8 +14,9 @@ const Resources = () => {
   const [expandedOS, setExpandedOS] = useState(null);
   const [viewMode, setViewMode] = useState('personalized'); // 'personalized' or 'all'
 
-  // Get user's risk level (default to 'medium' if not taken quiz yet)
-  const userRiskLevel = user?.riskLevel || 'medium';
+  // Derive risk level from latest security score (default to 'medium' if no quiz taken)
+  const latestScore = user?.securityScores?.[user.securityScores.length - 1];
+  const userRiskLevel = latestScore?.riskLevel || 'medium';
 
   const tabs = [
     { id: 'os-guides', name: 'os security guides', icon: Monitor },
