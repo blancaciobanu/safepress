@@ -474,7 +474,7 @@ const SecureSetup = () => {
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="text-center mb-12"
@@ -494,7 +494,7 @@ const SecureSetup = () => {
 
         {/* Overall Progress */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
           className="glass-card p-8 mb-8"
@@ -533,7 +533,7 @@ const SecureSetup = () => {
         {/* Priority Section */}
         {user && weakCategories.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className="glass-card p-6 mb-8 border-l-4 border-crimson-500"
@@ -578,7 +578,7 @@ const SecureSetup = () => {
           return (
             <motion.div
               key={categoryKey}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 + categoryIndex * 0.1 }}
               className="glass-card p-6 mb-6"
@@ -728,7 +728,7 @@ const SecureSetup = () => {
         {/* Footer CTA */}
         {!user && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5 }}
             className="glass-card p-6 text-center"

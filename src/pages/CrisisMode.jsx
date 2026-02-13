@@ -145,7 +145,7 @@ const CrisisMode = () => {
       <div className="max-w-4xl mx-auto">
         {/* Hero Section */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="text-center mb-16"
@@ -171,7 +171,7 @@ const CrisisMode = () => {
 
         {/* Scenario Selection */}
         <motion.section
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="mb-16"
@@ -188,7 +188,7 @@ const CrisisMode = () => {
               return (
                 <motion.button
                   key={scenario.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
                   onClick={() => {
@@ -235,7 +235,7 @@ const CrisisMode = () => {
         {/* Immediate Actions Checklist */}
         <motion.section
           key={selectedScenario}
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="mb-16"
@@ -289,7 +289,7 @@ const CrisisMode = () => {
 
         {/* Emergency Contacts */}
         <motion.section
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="mb-16"
@@ -303,7 +303,7 @@ const CrisisMode = () => {
             {emergencyContacts.map((contact, index) => (
               <motion.div
                 key={contact.org}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="glass-card p-6"
@@ -329,7 +329,7 @@ const CrisisMode = () => {
 
         {/* Security Protocols */}
         <motion.section
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="mb-16"
@@ -342,7 +342,7 @@ const CrisisMode = () => {
             {securityProtocols.map((protocol, index) => (
               <motion.div
                 key={protocol.title}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 className="glass-card p-6"
@@ -371,7 +371,7 @@ const CrisisMode = () => {
 
         {/* Connect with Specialist */}
         <motion.section
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="mb-16"
@@ -419,7 +419,7 @@ const CrisisMode = () => {
 
         {/* Bottom Support Message */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="text-center"

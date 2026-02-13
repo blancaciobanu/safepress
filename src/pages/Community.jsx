@@ -2,7 +2,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, MessageSquare, HelpCircle, Heart, Send,
   Plus, ArrowLeft, CheckCircle2, X,
-  Shield, Smartphone, Lock, Radio, Scale
+  Shield, Smartphone, Lock, Radio, Scale,
+  Newspaper, ExternalLink, AlertTriangle
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,6 +40,8 @@ const Community = () => {
   const [error, setError] = useState('');
   const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', category: 'general' });
   const [questionForm, setQuestionForm] = useState({ title: '', content: '', category: 'general' });
+  const [newsArticles, setNewsArticles] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(true);
 
   const isQA = activeTab === 'qa';
   const currentTabType = isQA ? 'question' : 'discussion';
@@ -60,6 +63,35 @@ const Community = () => {
       setLoading(false);
     };
     fetchPosts();
+  }, []);
+
+  // Fetch cybersecurity news from RSS feeds
+  useEffect(() => {
+    const fetchNews = async () => {
+      setNewsLoading(true);
+      try {
+        const feeds = [
+          'https://api.rss2json.com/v1/api.json?rss_url=https://thehackernews.com/feeds/posts/default',
+          'https://api.rss2json.com/v1/api.json?rss_url=https://www.bleepingcomputer.com/feed/'
+        ];
+        const results = await Promise.allSettled(feeds.map(url => fetch(url).then(r => r.json())));
+        const articles = results
+          .filter(r => r.status === 'fulfilled' && r.value.status === 'ok')
+          .flatMap(r => r.value.items.map(item => ({
+            title: item.title,
+            link: item.link,
+            pubDate: item.pubDate,
+            source: r.value.feed?.title?.includes('Hacker') ? 'The Hacker News' : 'BleepingComputer'
+          })))
+          .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+          .slice(0, 8);
+        setNewsArticles(articles);
+      } catch (err) {
+        console.error('Error fetching news:', err);
+      }
+      setNewsLoading(false);
+    };
+    fetchNews();
   }, []);
 
   const filteredPosts = posts.filter(post => {
@@ -199,7 +231,7 @@ const Community = () => {
           </motion.button>
 
           <motion.article
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           >
@@ -342,13 +374,79 @@ const Community = () => {
     );
   }
 
+  // ── News Sidebar Component ────────────────────────────────────────
+  const NewsSidebar = () => (
+    <motion.aside
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="lg:sticky lg:top-32"
+    >
+      <div className="border border-white/[0.08] rounded-2xl p-5 bg-white/[0.02]">
+        <div className="flex items-center gap-2 mb-5">
+          <div className="w-7 h-7 rounded-lg bg-crimson-500/10 border border-crimson-500/20 flex items-center justify-center">
+            <Newspaper className="w-3.5 h-3.5 text-crimson-400" />
+          </div>
+          <h3 className="text-[10px] font-bold tracking-widest uppercase text-gray-500">
+            latest threats
+          </h3>
+        </div>
+
+        {newsLoading ? (
+          <div className="space-y-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-3 bg-white/[0.05] rounded w-full mb-2" />
+                <div className="h-3 bg-white/[0.05] rounded w-3/4 mb-1.5" />
+                <div className="h-2 bg-white/[0.03] rounded w-1/3" />
+              </div>
+            ))}
+          </div>
+        ) : newsArticles.length === 0 ? (
+          <div className="text-center py-6">
+            <AlertTriangle className="w-5 h-5 text-gray-700 mx-auto mb-2" />
+            <p className="text-xs text-gray-600 lowercase">couldn't load news feed</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {newsArticles.map((article, i) => (
+              <a
+                key={i}
+                href={article.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group block"
+              >
+                <p className="text-[13px] text-gray-300 leading-snug lowercase group-hover:text-white transition-colors mb-1.5 line-clamp-2">
+                  {article.title}
+                </p>
+                <div className="flex items-center gap-2 text-[10px] text-gray-600">
+                  <span className="lowercase">{article.source}</span>
+                  <span>·</span>
+                  <span className="lowercase">{timeAgo(article.pubDate)}</span>
+                  <ExternalLink className="w-2.5 h-2.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-gray-500" />
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-5 pt-4 border-t border-white/[0.06]">
+          <p className="text-[10px] text-gray-700 lowercase leading-relaxed">
+            powered by the hacker news & bleepingcomputer rss feeds
+          </p>
+        </div>
+      </div>
+    </motion.aside>
+  );
+
   // ── Main Feed View ────────────────────────────────────────────────
   return (
     <div className="min-h-screen pt-32 pb-20 px-4">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="text-center mb-12"
@@ -368,7 +466,7 @@ const Community = () => {
 
         {/* Tab Switcher */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           className="flex justify-center mb-10"
@@ -397,7 +495,7 @@ const Community = () => {
 
         {/* Category pills + new post */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
           className="flex items-center justify-between gap-4 mb-8"
@@ -496,8 +594,10 @@ const Community = () => {
           )}
         </AnimatePresence>
 
+        {/* Two-Column Layout: Posts + News Sidebar */}
+        <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
         {/* Posts Feed */}
-        <div>
+        <div className="min-w-0">
           {loading ? (
             <div className="text-center py-20">
               <div className="w-6 h-6 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -516,7 +616,7 @@ const Community = () => {
               </p>
             </div>
           ) : (
-            <div className={isQA ? 'space-y-3' : 'space-y-px'}>
+            <div className="space-y-3">
               {filteredPosts.map((post, index) => {
                 const liked = post.likedBy?.includes(user?.uid);
 
@@ -525,11 +625,11 @@ const Community = () => {
                   return (
                     <motion.div
                       key={post.id}
-                      initial={{ opacity: 0, y: 15 }}
+                      initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
                       onClick={() => setSelectedPost(post)}
-                      className={`group relative border rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.02] ${
+                      className={`group relative border rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] ${
                         post.resolved
                           ? 'border-olive-500/20 bg-olive-500/[0.02]'
                           : 'border-white/[0.08]'
@@ -545,7 +645,7 @@ const Community = () => {
                           }`}>
                             {post.resolved ? '✓' : '?'}
                           </span>
-                          <span className="text-xs text-gray-500 mt-1 font-semibold">{post.comments?.length || 0}</span>
+                          <span className="text-sm text-gray-400 mt-1 font-semibold">{post.comments?.length || 0}</span>
                           <span className="text-[10px] text-gray-600 lowercase">
                             {(post.comments?.length || 0) === 1 ? 'answer' : 'answers'}
                           </span>
@@ -553,22 +653,22 @@ const Community = () => {
 
                         {/* content */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-[15px] font-semibold text-white lowercase mb-1.5 group-hover:text-midnight-400 transition-colors leading-snug">
+                          <h3 className="text-base font-semibold text-white lowercase mb-1.5 group-hover:text-midnight-400 transition-colors leading-snug">
                             {post.title}
                           </h3>
-                          <p className="text-xs text-gray-500 lowercase line-clamp-1 mb-3">
+                          <p className="text-sm text-gray-500 lowercase line-clamp-2 mb-4 leading-relaxed">
                             {post.content}
                           </p>
-                          <div className="flex items-center gap-3 text-[10px] text-gray-600 lowercase">
-                            <span className="flex items-center gap-1">
-                              <span>{post.authorIcon}</span> {post.authorName}
+                          <div className="flex items-center gap-4 text-xs text-gray-500 lowercase">
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-base">{post.authorIcon}</span> {post.authorName}
                               {post.isVerified && <VerifiedBadge size="xs" />}
                             </span>
                             <span>{timeAgo(post.createdAt)}</span>
                             <span>{categories.find(c => c.id === post.category)?.name}</span>
                             <button onClick={(e) => handleLike(e, post.id)}
-                              className={`flex items-center gap-1 ml-auto transition-colors ${liked ? 'text-crimson-400' : 'hover:text-crimson-400'}`}>
-                              <Heart className={`w-3 h-3 ${liked ? 'fill-current' : ''}`} />
+                              className={`flex items-center gap-1.5 ml-auto transition-colors ${liked ? 'text-crimson-400' : 'hover:text-crimson-400'}`}>
+                              <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
                               {post.likes || 0}
                             </button>
                           </div>
@@ -578,42 +678,44 @@ const Community = () => {
                   );
                 }
 
-                // ── Discussion Card: clean feed, social-style ──
+                // ── Discussion Card ──
                 return (
                   <motion.div
                     key={post.id}
-                    initial={{ opacity: 0, y: 15 }}
+                    initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
                     onClick={() => setSelectedPost(post)}
-                    className="group py-5 cursor-pointer border-b border-white/[0.05] last:border-b-0 hover:bg-white/[0.01] transition-all -mx-2 px-2 rounded-lg"
+                    className="group border border-white/[0.08] rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
                   >
-                    <div className="flex items-start gap-3">
-                      <span className="text-lg mt-0.5 flex-shrink-0">{post.authorIcon}</span>
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center flex-shrink-0 text-lg">
+                        {post.authorIcon}
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-gray-400 lowercase">{post.authorName}</span>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-sm font-medium text-gray-300 lowercase">{post.authorName}</span>
                           {post.isVerified && <VerifiedBadge size="xs" />}
                           <span className="text-[10px] text-gray-700">·</span>
-                          <span className="text-[10px] text-gray-600 lowercase">{timeAgo(post.createdAt)}</span>
-                          <span className="text-[10px] text-gray-700 lowercase ml-auto">
+                          <span className="text-xs text-gray-600 lowercase">{timeAgo(post.createdAt)}</span>
+                          <span className="text-xs text-gray-700 lowercase ml-auto px-2 py-0.5 bg-white/[0.04] rounded">
                             {categories.find(c => c.id === post.category)?.name}
                           </span>
                         </div>
-                        <h3 className="text-[15px] font-semibold text-white lowercase mb-1 group-hover:text-purple-400 transition-colors leading-snug">
+                        <h3 className="text-base font-semibold text-white lowercase mb-1.5 group-hover:text-purple-400 transition-colors leading-snug">
                           {post.title}
                         </h3>
-                        <p className="text-xs text-gray-500 lowercase line-clamp-2 leading-relaxed mb-3">
+                        <p className="text-sm text-gray-500 lowercase line-clamp-2 leading-relaxed mb-4">
                           {post.content}
                         </p>
-                        <div className="flex items-center gap-4 text-xs text-gray-600">
+                        <div className="flex items-center gap-5 pt-3 border-t border-white/[0.05]">
                           <button onClick={(e) => handleLike(e, post.id)}
-                            className={`flex items-center gap-1.5 transition-colors lowercase ${liked ? 'text-crimson-400' : 'hover:text-crimson-400'}`}>
-                            <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
+                            className={`flex items-center gap-2 text-sm transition-colors lowercase ${liked ? 'text-crimson-400' : 'text-gray-500 hover:text-crimson-400'}`}>
+                            <Heart className={`w-4.5 h-4.5 ${liked ? 'fill-current' : ''}`} />
                             {post.likes || 0}
                           </button>
-                          <span className="flex items-center gap-1.5 lowercase">
-                            <MessageSquare className="w-3.5 h-3.5" />
+                          <span className="flex items-center gap-2 text-sm text-gray-500 lowercase">
+                            <MessageSquare className="w-4.5 h-4.5" />
                             {post.comments?.length || 0}
                           </span>
                         </div>
@@ -624,27 +726,38 @@ const Community = () => {
               })}
             </div>
           )}
+
+          {/* Guidelines */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="mt-16 pt-8 border-t border-white/[0.05]"
+          >
+            <div className="flex items-start gap-3">
+              <Shield className="w-4 h-4 text-gray-700 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600 mb-2">
+                  community guidelines
+                </p>
+                <p className="text-xs text-gray-600 lowercase leading-relaxed">
+                  never share identifying details of sources · keep discussions focused on security · be respectful · report suspicious activity
+                </p>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
-        {/* Guidelines */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-16 pt-8 border-t border-white/[0.05]"
-        >
-          <div className="flex items-start gap-3">
-            <Shield className="w-4 h-4 text-gray-700 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600 mb-2">
-                community guidelines
-              </p>
-              <p className="text-xs text-gray-600 lowercase leading-relaxed">
-                never share identifying details of sources · keep discussions focused on security · be respectful · report suspicious activity
-              </p>
-            </div>
-          </div>
-        </motion.div>
+        {/* News Sidebar (desktop) */}
+        <div className="hidden lg:block">
+          <NewsSidebar />
+        </div>
+        </div>
+
+        {/* News Sidebar (mobile — below posts) */}
+        <div className="lg:hidden mt-10">
+          <NewsSidebar />
+        </div>
       </div>
     </div>
   );

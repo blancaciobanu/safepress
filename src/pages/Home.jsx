@@ -11,7 +11,7 @@ const Home = () => {
         <div className="max-w-4xl mx-auto text-center">
           {/* Badge */}
           <motion.div
-            initial={{ opacity: 0, y: -30, scale: 0.8 }}
+            initial={{ opacity: 0, y: -6, scale: 0.8 }}
             animate={{
               opacity: 1,
               y: 0,
@@ -43,7 +43,7 @@ const Home = () => {
             className="text-5xl md:text-7xl lg:text-8xl font-display font-bold mb-6 tracking-tight"
           >
             <motion.div
-              initial={{ opacity: 0, y: 40 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
                 delay: 0.4,
@@ -69,7 +69,7 @@ const Home = () => {
                 story.
               </motion.span>
               <motion.span
-                initial={{ opacity: 0, y: 60, scale: 0.8 }}
+                initial={{ opacity: 0, y: 10, scale: 0.8 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 whileHover={{ y: -8, scale: 1.05, transition: { duration: 0.2 } }}
                 transition={{
@@ -99,7 +99,7 @@ const Home = () => {
 
           {/* Subtitle */}
           <motion.p
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
               delay: 1.2,
@@ -114,7 +114,7 @@ const Home = () => {
 
           {/* CTA Buttons */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
               delay: 0.8,
@@ -141,7 +141,7 @@ const Home = () => {
 
           {/* Trust Indicators */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
               delay: 1.1,
@@ -171,7 +171,7 @@ const Home = () => {
         <div className="max-w-6xl mx-auto">
           {/* Section Header */}
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{
               duration: 1.2,
@@ -231,7 +231,7 @@ const Home = () => {
       {/* CTA Section */}
       <section className="py-32 px-4 border-t border-white/5">
         <motion.div
-          initial={{ opacity: 0, y: 50 }}
+          initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{
             duration: 1.2,
@@ -272,7 +272,7 @@ const FeatureCard = ({ icon: Icon, title, description, delay }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 60, scale: 0.9 }}
+      initial={{ opacity: 0, y: 10, scale: 0.9 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
         duration: 1,
@@ -330,7 +330,7 @@ const StatCard = ({ number, suffix, label }) => {
   return (
     <motion.div
       ref={countRef}
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
+      initial={{ opacity: 0, y: 10, scale: 0.9 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
         duration: 1,

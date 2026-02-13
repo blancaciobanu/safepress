@@ -241,7 +241,7 @@ const Dashboard = () => {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           className="text-center mb-12"
@@ -279,7 +279,7 @@ const Dashboard = () => {
 
         {/* ── Top Row: Score + Setup ── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"
@@ -385,7 +385,7 @@ const Dashboard = () => {
 
         {/* ── Up Next ── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="mb-6"
@@ -479,7 +479,7 @@ const Dashboard = () => {
         {/* ── My Requests (journalist view) ── */}
         {myRequests.length > 0 && !isVerifiedSpecialist && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="mb-6"
@@ -620,7 +620,7 @@ const Dashboard = () => {
         {/* ── Specialist: Support Requests ── */}
         {isVerifiedSpecialist && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
             className="mb-6"
@@ -739,7 +739,7 @@ const Dashboard = () => {
         {/* ── Specialist: Your Feedback ── */}
         {isVerifiedSpecialist && resolvedByMe.some(r => r.feedback) && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="mb-6"
@@ -790,7 +790,7 @@ const Dashboard = () => {
 
         {/* ── Quick Links ── */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
           className="pt-6 border-t border-white/[0.05]"

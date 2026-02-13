@@ -734,7 +734,7 @@ const SecurityScore = () => {
         <div className="max-w-3xl mx-auto">
           {/* Header */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
             className="text-center mb-12"
@@ -759,7 +759,7 @@ const SecurityScore = () => {
           {/* Returning user: last score card */}
           {hasHistory && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
               className="mb-8"
@@ -821,7 +821,7 @@ const SecurityScore = () => {
           {/* Categories preview (first-time users) */}
           {!hasHistory && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
               className="flex justify-center gap-6 mb-10 flex-wrap"
@@ -831,7 +831,7 @@ const SecurityScore = () => {
                 return (
                   <motion.div
                     key={cat.name}
-                    initial={{ opacity: 0, y: 15 }}
+                    initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.25 + i * 0.06, ease: [0.22, 1, 0.36, 1] }}
                     className="flex flex-col items-center gap-2"
@@ -848,7 +848,7 @@ const SecurityScore = () => {
 
           {/* CTA */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: hasHistory ? 0.3 : 0.4, ease: [0.22, 1, 0.36, 1] }}
             className="text-center"
@@ -886,7 +886,7 @@ const SecurityScore = () => {
         <div className="max-w-3xl mx-auto">
           {/* Progress Bar */}
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
@@ -935,7 +935,7 @@ const SecurityScore = () => {
                 {currentQ.options.map((option, index) => (
                   <motion.button
                     key={option.value}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: index * 0.1 }}
                     onClick={() => handleAnswer(currentQ.id, option.value, option.points)}
@@ -1005,7 +1005,7 @@ const SecurityScore = () => {
         <div className="max-w-4xl mx-auto">
           {/* Overall Score */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
             className="text-center mb-12"
@@ -1056,7 +1056,7 @@ const SecurityScore = () => {
 
           {/* Risk Level Card */}
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="glass-card p-6 mb-12 border-l-4 border-midnight-400"
@@ -1086,7 +1086,7 @@ const SecurityScore = () => {
 
           {/* Category Breakdown */}
           <motion.section
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
             className="mb-12"
@@ -1103,7 +1103,7 @@ const SecurityScore = () => {
                   return (
                     <motion.div
                       key={key}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
                       className="glass-card p-6 w-full max-w-md"
@@ -1143,7 +1143,7 @@ const SecurityScore = () => {
           {/* Priority Recommendations */}
           {recommendations.length > 0 && (
             <motion.section
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="mb-12"
@@ -1211,7 +1211,7 @@ const SecurityScore = () => {
 
           {/* Call to Action */}
           <motion.section
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
             className="glass-card p-8 text-center"
