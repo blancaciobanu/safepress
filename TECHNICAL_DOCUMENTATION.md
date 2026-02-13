@@ -89,7 +89,8 @@
 │  │  Authentication  │      │  Firestore Database     │  │
 │  │  - User accounts │      │  Collection: users      │  │
 │  │  - Email/Password│      │  Collection: community  │  │
-│  │  - Session mgmt  │      │  Security rules active  │  │
+│  │  - Session mgmt  │      │  Collection: support    │  │
+│  │                   │      │  Security rules active  │  │
 │  └──────────────────┘      └─────────────────────────┘  │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -173,13 +174,24 @@ service cloud.firestore {
       allow update: if isAuth();
       allow delete: if isAdmin();
     }
+
+    // Support requests: authenticated CRUD, admin delete
+    match /support-requests/{requestId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAdmin();
+    }
   }
 }
 ```
 
 ### Firestore Indexes
-File: `/firestore.indexes.json` — composite index for admin queries:
-- `users` collection: `accountType` + `verificationStatus` (for Admin Dashboard)
+File: `/firestore.indexes.json` — composite indexes:
+- `users`: `accountType` + `verificationStatus` (Admin Dashboard)
+- `support-requests`: `status` + `createdAt` (specialist open requests view)
+- `support-requests`: `requesterId` + `createdAt` (journalist's own requests)
+- `support-requests`: `claimedBy` + `status` (specialist resolved/feedback view)
 
 ---
 
@@ -402,6 +414,42 @@ onAuthStateChanged(auth, async (user) => {
 }
 ```
 
+### Support Request Document
+**Collection**: `support-requests`
+**Document ID**: Auto-generated (Firestore)
+
+```javascript
+{
+  // Requester info
+  requesterId: string | null,        // User UID (null if not logged in)
+  requesterName: string,
+  requesterEmail: string,
+  requesterPhone: string | null,
+
+  // Crisis details
+  crisisType: 'hacked' | 'source' | 'doxxed' | 'phishing' | 'other',
+  urgency: 'emergency' | 'urgent' | 'normal',
+  description: string,
+  contactMethod: 'email' | 'phone' | 'signal',
+
+  // Status workflow: open → claimed → resolved
+  status: 'open' | 'claimed' | 'resolved',
+  claimedBy: string | null,          // Specialist UID
+  claimedByName: string | null,      // Specialist anonymous username
+  claimedAt: string | null,
+  resolvedAt: string | null,
+
+  // Feedback (set by requester after resolution)
+  feedback: {
+    rating: number (1-5),            // Star rating
+    comment: string,                 // Optional text
+    submittedAt: string (ISO 8601)
+  } | null,
+
+  createdAt: string (ISO 8601)
+}
+```
+
 ### Quiz Questions Structure
 
 ```javascript
@@ -539,12 +587,15 @@ const calculateScore = () => {
 **File**: `src/pages/Dashboard.jsx`
 
 **Layout**:
-- Compact header with avatar + username
+- Centered "hello, username" header with avatar icon box
 - Two side-by-side metric cards:
   - **Security Score**: Last score with mini category progress bars
   - **Secure Setup**: Progress bar showing X/31 completed tasks
 - **"Up Next" section**: Smart recommendations sorted by weakest quiz categories, prompts for untaken quiz/unstarted setup, "lessons — coming soon" placeholder
-- Compact quick link pills (crisis mode, resources, community, settings)
+- **"My Support Requests"** (journalists): Track submitted requests with status (open/claimed/resolved), rate specialist after resolution with 1-5 stars + comment
+- **"Support Requests"** (verified specialists): View and claim open requests, expand for full details + contact info, mark as resolved
+- **"Your Feedback"** (verified specialists): Average star rating, recent feedback from resolved requests
+- Explore grid: resources, community, get help, crisis mode
 
 ### 3. Crisis Mode
 **File**: `src/pages/CrisisMode.jsx`
@@ -1373,8 +1424,49 @@ Rewrote Dashboard from a generic layout to a focused overview:
 
 **Backup files deleted**: `.bak2`, `.bak3`, `.backup`
 
+### Phase 15: Dashboard Polish
+**Hello Greeting, Bigger Fonts, Redesigned Quick Links**
+
+- Centered "hello, {username}" header matching standard page pattern (`text-4xl md:text-5xl`)
+- All body text bumped from `text-sm`/`text-[10px]` to `text-base`/`text-xs`
+- Quick links redesigned from tiny pills to a centered 4-card grid with icons, labels, and descriptions
+- Added "get help" (contact specialist) card linking to `/request-support`
+- Removed settings from quick links (already in navbar)
+
+### Phase 16: Support Request Workflow
+**End-to-End Journalist ↔ Specialist Support System**
+
+**New Firestore collection**: `support-requests` (see Data Models section)
+
+**RequestSupport.jsx** — Updated:
+- Saves to Firestore instead of `console.log`
+- Pre-fills name/email for logged-in users
+- Shows success confirmation screen with request summary after submission
+- Disabled button state while submitting
+
+**Dashboard — Journalist view** ("my support requests"):
+- Shows all submitted requests with real-time status tracking
+- Status icons: amber clock (open), blue user (claimed), green check (resolved)
+- Expandable details with status badge, urgency, specialist name
+- **Rating system**: After resolution, journalist rates specialist (1-5 stars + optional comment)
+- Submitted feedback shown as read-only star display
+
+**Dashboard — Specialist view** ("support requests"):
+- Verified specialists see all open/claimed requests
+- Urgency-coded cards (red for emergency, amber for urgent)
+- Expandable details: full description, contact email, phone, preferred method
+- **Claim** button assigns request to specialist
+- **Resolve** button marks as complete
+
+**Dashboard — Specialist view** ("your feedback"):
+- Average star rating with count
+- Up to 3 recent feedback entries with stars, comments, and crisis type
+
+**Security rules**: Authenticated users can create/read/update. Admin-only delete.
+**Composite indexes**: 4 indexes for support-requests queries (status+createdAt, requesterId+createdAt, claimedBy+status).
+
 ---
 
 **Last Updated**: February 13, 2026
-**Version**: 3.0.0
-**Documentation**: Complete (includes Phases 1-14)
+**Version**: 3.1.0
+**Documentation**: Complete (includes Phases 1-16)

@@ -1,13 +1,18 @@
 import { motion } from 'framer-motion';
-import { Shield, Send, AlertCircle, Phone, Mail, Clock } from 'lucide-react';
+import { Shield, Send, AlertCircle, Clock, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 const RequestSupport = () => {
-  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: user?.realName || '',
+    email: user?.email || '',
     phone: '',
     crisisType: 'hacked',
     urgency: 'urgent',
@@ -15,13 +20,33 @@ const RequestSupport = () => {
     contactMethod: 'email'
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // In a real app, this would send to a backend
-    console.log('Form submitted:', formData);
-    // Show success and redirect
-    alert('Request submitted successfully! A specialist will contact you soon.');
-    navigate('/crisis');
+    setSubmitting(true);
+    try {
+      await addDoc(collection(db, 'support-requests'), {
+        requesterId: user?.uid || null,
+        requesterName: formData.name,
+        requesterEmail: formData.email,
+        requesterPhone: formData.phone || null,
+        crisisType: formData.crisisType,
+        urgency: formData.urgency,
+        description: formData.description,
+        contactMethod: formData.contactMethod,
+        status: 'open',
+        claimedBy: null,
+        claimedByName: null,
+        claimedAt: null,
+        resolvedAt: null,
+        createdAt: new Date().toISOString()
+      });
+      setSubmitted(true);
+    } catch (error) {
+      console.error('Error submitting request:', error);
+      alert('something went wrong. please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleChange = (e) => {
@@ -50,6 +75,70 @@ const RequestSupport = () => {
     { id: 'phone', label: 'phone call' },
     { id: 'signal', label: 'signal messenger' }
   ];
+
+  // Success state
+  if (submitted) {
+    return (
+      <div className="min-h-screen pt-32 pb-20 px-4">
+        <div className="max-w-3xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+            className="text-center"
+          >
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-olive-500/10 border border-olive-500/20 mb-5">
+              <CheckCircle className="w-7 h-7 text-olive-500" />
+            </div>
+
+            <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
+              request submitted
+            </h1>
+
+            <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed mb-8"
+              style={{ letterSpacing: '0.03em' }}
+            >
+              a verified cybersecurity specialist will review your request and reach out to you soon
+            </p>
+
+            <div className="glass-card p-6 max-w-sm mx-auto mb-8">
+              <div className="space-y-3 text-sm lowercase">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">type</span>
+                  <span className="text-white">{crisisTypes.find(t => t.id === formData.crisisType)?.label}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">urgency</span>
+                  <span className={`${formData.urgency === 'emergency' ? 'text-crimson-500' : formData.urgency === 'urgent' ? 'text-amber-500' : 'text-white'}`}>
+                    {formData.urgency}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">contact via</span>
+                  <span className="text-white">{formData.contactMethod}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg font-semibold transition-all lowercase"
+              >
+                back to dashboard
+              </Link>
+              <Link
+                to="/crisis"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.08] text-white rounded-lg font-semibold transition-all lowercase"
+              >
+                view crisis steps
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pt-32 pb-20 px-4">
@@ -257,10 +346,11 @@ const RequestSupport = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg font-semibold transition-all hover:scale-[1.02] lowercase"
+            disabled={submitting}
+            className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-midnight-400 hover:bg-midnight-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-all hover:scale-[1.02] lowercase"
           >
             <Send className="w-5 h-5" />
-            submit request
+            {submitting ? 'submitting...' : 'submit request'}
           </button>
 
           {/* Help Text */}

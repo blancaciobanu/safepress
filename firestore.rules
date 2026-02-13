@@ -63,5 +63,22 @@ service cloud.firestore {
       // Only admins can delete posts (moderation)
       allow delete: if isAdmin();
     }
+
+    // ─── SUPPORT REQUESTS ────────────────────────────────────
+    match /support-requests/{requestId} {
+
+      // Authenticated users can read all requests
+      // (UI restricts specialist view to verified specialists only)
+      allow read: if isAuth();
+
+      // Authenticated users can create requests
+      allow create: if isAuth();
+
+      // Authenticated users can update (claim, resolve)
+      allow update: if isAuth();
+
+      // Only admins can delete requests
+      allow delete: if isAdmin();
+    }
   }
 }
