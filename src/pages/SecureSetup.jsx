@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Lock, Smartphone, Database, MessageSquare, MapPin,
-  Check, ExternalLink, Shield,
+  Check, ExternalLink, Shield, AlertTriangle,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
@@ -399,6 +399,7 @@ const allTasks = Object.entries(setupTasks).flatMap(([key, cat]) =>
 const SecureSetup = () => {
   const { user } = useAuth();
   const [completedTasks,   setCompletedTasks]   = useState(new Set());
+  const [weakCategories,   setWeakCategories]   = useState([]);
   const [loading,          setLoading]           = useState(true);
   const [selectedCategory, setSelectedCategory]  = useState(null);
 
@@ -409,8 +410,22 @@ const SecureSetup = () => {
       if (!user) { setLoading(false); return; }
       try {
         const snap = await getDoc(doc(db, 'users', user.uid));
-        if (snap.exists() && snap.data().setupProgress?.completedTasks) {
-          setCompletedTasks(new Set(snap.data().setupProgress.completedTasks));
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.setupProgress?.completedTasks) {
+            setCompletedTasks(new Set(data.setupProgress.completedTasks));
+          }
+          // Derive weak categories from latest quiz score
+          const scores = data.securityScores;
+          if (scores?.length) {
+            const latest = scores[scores.length - 1];
+            const QUIZ_TO_SETUP = { password: 'password', device: 'device', communication: 'communication', data: 'data', physical: 'physical' };
+            const weak = Object.entries(latest.categoryScores ?? {})
+              .filter(([k, v]) => QUIZ_TO_SETUP[k] && v.percentage < 70)
+              .sort((a, b) => a[1].percentage - b[1].percentage)
+              .map(([k]) => QUIZ_TO_SETUP[k]);
+            setWeakCategories(weak);
+          }
         }
       } catch (e) {
         console.error('Error fetching setup progress:', e);
@@ -562,6 +577,46 @@ const SecureSetup = () => {
           </div>
         </motion.div>
 
+        {/* Quiz-based focus areas */}
+        {user && weakCategories.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            className="glass-card p-5 mb-6 border-l-4 border-l-amber-400"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-[0.15em] text-amber-400">
+                based on your security quiz
+              </span>
+            </div>
+            <p className="text-sm text-gray-400 lowercase mb-3">
+              your weakest areas — tackle these first:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {weakCategories.map(key => {
+                const cat = setupTasks[key];
+                const Icon = cat.icon;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedCategory(selectedCategory === key ? null : key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs lowercase transition-all ${
+                      selectedCategory === key
+                        ? 'bg-amber-400/20 border-amber-400/50 text-amber-300'
+                        : 'bg-amber-400/10 border-amber-400/30 text-amber-400 hover:bg-amber-400/20'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {cat.name}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
         {/* Category strip */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
@@ -579,12 +634,18 @@ const SecureSetup = () => {
               <button
                 key={key}
                 onClick={() => setSelectedCategory(isActive ? null : key)}
-                className={`p-4 rounded-xl border flex flex-col items-center gap-2.5 transition-all ${
+                className={`relative p-4 rounded-xl border flex flex-col items-center gap-2.5 transition-all ${
                   isActive
                     ? 'bg-midnight-400/10 border-midnight-400/30'
-                    : 'bg-white/[0.02] border-white/10 hover:bg-white/5 hover:border-white/20'
+                    : weakCategories.includes(key)
+                      ? 'bg-amber-400/[0.04] border-amber-400/20 hover:bg-amber-400/10'
+                      : 'bg-white/[0.02] border-white/10 hover:bg-white/5 hover:border-white/20'
                 }`}
               >
+                {/* Weak category indicator dot */}
+                {weakCategories.includes(key) && (
+                  <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-amber-400 rounded-full" />
+                )}
                 {/* Ring with icon */}
                 <div className="relative flex items-center justify-center">
                   <ProgressRing progress={pct} color={color} />
