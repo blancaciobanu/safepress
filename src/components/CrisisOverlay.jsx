@@ -343,15 +343,15 @@ const CrisisOverlay = () => {
       {overlayOpen && (
         <motion.div
           key="crisis-overlay"
-          initial={{ clipPath: 'circle(0% at calc(100% - 56px) 36px)' }}
-          animate={{ clipPath: 'circle(150% at calc(100% - 56px) 36px)' }}
-          exit={{ clipPath: 'circle(0% at calc(100% - 56px) 36px)' }}
+          initial={{ clipPath: 'circle(0% at calc(100% - 56px) calc(100% - 36px))' }}
+          animate={{ clipPath: 'circle(150% at calc(100% - 56px) calc(100% - 36px))' }}
+          exit={{ clipPath: 'circle(0% at calc(100% - 56px) calc(100% - 36px))' }}
           transition={{ duration: 1.2, ease: [0.4, 0, 0.15, 1] }}
           className="fixed inset-0 z-[100] overflow-y-auto"
           style={{ backgroundColor: '#FAF8F5', filter: 'drop-shadow(0 0 30px rgba(250,248,245,0.5))' }}
         >
-          {/* ── Toggle pill — same corner + same size as header toggle ── */}
-          <div className="fixed top-4 right-4 flex items-center gap-2" style={{ zIndex: 3 }}>
+          {/* ── Toggle pill — bottom-right, matches header crisis toggle position ── */}
+          <div className="fixed bottom-4 right-4 flex items-center gap-2" style={{ zIndex: 3 }}>
             <span className="hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] text-[#8A8680]">
               Crisis
             </span>

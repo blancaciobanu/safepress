@@ -1,7 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Menu, X, LogOut, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
+import {
+  Shield, Menu, X, LogOut, AlertCircle, ShieldCheck, ArrowRight,
+  Bell, Settings, ChevronDown,
+} from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCrisis } from '../../contexts/CrisisContext';
 import VerifiedBadge from '../VerifiedBadge';
@@ -16,11 +19,27 @@ const SCENARIO_LABELS = {
 };
 
 const Header = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const location  = useLocation();
+  const navigate  = useNavigate();
   const { user, logout } = useAuth();
   const { isInCrisis, activeScenario, deactivateCrisis, openOverlay, toggleOverlay, overlayOpen } = useCrisis();
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen,   setUserMenuOpen]   = useState(false);
+  const [notifOpen,      setNotifOpen]      = useState(false);
+
+  const userMenuRef = useRef(null);
+  const notifRef    = useRef(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
+      if (notifRef.current    && !notifRef.current.contains(e.target))    setNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -31,9 +50,8 @@ const Header = () => {
     }
   };
 
-  const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+  const isAdmin    = user && ADMIN_EMAILS.includes(user.email);
   const isVerified = user?.accountType === 'specialist' && user?.verificationStatus === 'approved';
-
   const dashboardPath = isVerified ? '/specialist-dashboard' : '/dashboard';
 
   const navItems = [
@@ -50,60 +68,87 @@ const Header = () => {
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
 
-      {/* ── Crisis toggle + auth — stacked fixed top-right ── */}
-      <div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-1.5">
+      {/* ── Top-right: notification bell + user menu ───────────────────── */}
+      <div className="fixed top-3 right-4 z-[60] flex items-center gap-2">
 
-        {/* Crisis row */}
-        <div className="flex items-center gap-2">
-          <span className={`hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
-            isInCrisis ? 'text-crimson-400' : 'text-gray-600'
-          }`}>
-            {isInCrisis ? 'Crisis Active' : 'Crisis'}
-          </span>
+        {/* Notification bell */}
+        <div className="relative" ref={notifRef}>
           <button
-            onClick={toggleOverlay}
-            role="switch"
-            aria-checked={overlayOpen}
-            className="relative flex-shrink-0 w-20 h-10 rounded-full transition-colors duration-200 focus:outline-none"
-            style={{
-              backgroundColor: overlayOpen
-                ? 'var(--crimson-500, #e53e3e)'
-                : isInCrisis
-                  ? 'rgba(229,62,62,0.25)'
-                  : 'rgba(255,255,255,0.08)',
-              border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
-            }}
+            onClick={() => { setNotifOpen(o => !o); setUserMenuOpen(false); }}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-gray-500 hover:text-gray-300 transition-all"
           >
-            <span
-              className="absolute top-[4px] w-8 h-8 rounded-full bg-white transition-transform duration-200"
-              style={{
-                left: 4,
-                transform: overlayOpen ? 'translateX(40px)' : 'translateX(0)',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
-              }}
-            />
+            <Bell className="w-3.5 h-3.5" />
           </button>
+
+          <AnimatePresence>
+            {notifOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0,  scale: 1     }}
+                exit={{    opacity: 0, y: -6, scale: 0.97  }}
+                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute top-full right-0 mt-2 w-72 glass-card rounded-xl border border-white/[0.08] overflow-hidden"
+                style={{ zIndex: 4 }}
+              >
+                <div className="px-4 py-3 border-b border-white/[0.06]">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">notifications</p>
+                </div>
+                <div className="px-4 py-6 text-center">
+                  <Bell className="w-6 h-6 text-gray-700 mx-auto mb-2" />
+                  <p className="text-xs text-gray-600 lowercase">no new notifications</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Auth row — directly below crisis toggle */}
+        {/* User menu */}
         {user ? (
-          <div className="flex items-center gap-2">
-            <Link
-              to="/settings"
-              className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition-colors lowercase"
-            >
-              <span className="text-sm leading-none">{user.avatarIcon || '🔒'}</span>
-              <span className="hidden sm:inline truncate max-w-[100px]">{user.username || user.email}</span>
-              {isVerified && <VerifiedBadge size="xs" />}
-            </Link>
-            <span className="text-gray-700 text-[10px] hidden sm:inline">·</span>
+          <div className="relative" ref={userMenuRef}>
             <button
-              onClick={handleLogout}
-              className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-gray-300 transition-colors lowercase"
+              onClick={() => { setUserMenuOpen(o => !o); setNotifOpen(false); }}
+              className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all"
             >
-              <LogOut className="w-3 h-3" />
-              <span className="hidden sm:inline">log out</span>
+              <span className="text-base leading-none">{user.avatarIcon || '🔒'}</span>
+              <span className="hidden sm:inline text-[11px] text-gray-400 truncate max-w-[90px] lowercase">
+                {user.username || user.email}
+              </span>
+              {isVerified && <VerifiedBadge size="xs" />}
+              <ChevronDown className={`w-3 h-3 text-gray-600 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
             </button>
+
+            <AnimatePresence>
+              {userMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0,  scale: 1     }}
+                  exit={{    opacity: 0, y: -6, scale: 0.97  }}
+                  transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute top-full right-0 mt-2 w-48 glass-card rounded-xl border border-white/[0.08] overflow-hidden"
+                  style={{ zIndex: 4 }}
+                >
+                  <div className="px-4 py-3 border-b border-white/[0.06]">
+                    <p className="text-xs text-gray-400 lowercase truncate">{user.avatarIcon} {user.username}</p>
+                    <p className="text-[10px] text-gray-600 lowercase mt-0.5">{user.accountType}</p>
+                  </div>
+                  <Link
+                    to="/settings"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-3 text-xs text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all lowercase"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    settings
+                  </Link>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-3 text-xs text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all lowercase border-t border-white/[0.06]"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    log out
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -120,10 +165,42 @@ const Header = () => {
         )}
       </div>
 
+      {/* ── Bottom-right: crisis toggle ────────────────────────────────── */}
+      <div className="fixed bottom-4 right-4 z-[60] flex items-center gap-2">
+        <span className={`hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
+          isInCrisis ? 'text-crimson-400' : 'text-gray-600'
+        }`}>
+          {isInCrisis ? 'Crisis Active' : 'Crisis'}
+        </span>
+        <button
+          onClick={toggleOverlay}
+          role="switch"
+          aria-checked={overlayOpen}
+          className="relative flex-shrink-0 w-20 h-10 rounded-full transition-colors duration-200 focus:outline-none"
+          style={{
+            backgroundColor: overlayOpen
+              ? 'var(--crimson-500, #e53e3e)'
+              : isInCrisis
+                ? 'rgba(229,62,62,0.25)'
+                : 'rgba(255,255,255,0.08)',
+            border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
+          }}
+        >
+          <span
+            className="absolute top-[4px] w-8 h-8 rounded-full bg-white transition-transform duration-200"
+            style={{
+              left:      4,
+              transform: overlayOpen ? 'translateX(40px)' : 'translateX(0)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+            }}
+          />
+        </button>
+      </div>
+
       {/* ── Main header ───────────────────────────────────────────────────── */}
       <motion.header
         initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+        animate={{ y: 0,    opacity: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="bg-dark-900/95 backdrop-blur-xl border-b border-white/[0.06]"
       >
@@ -144,25 +221,14 @@ const Header = () => {
           {/* Nav bar */}
           <nav className="flex items-center justify-center py-0">
             <div className="hidden lg:flex items-center">
-
-              {/* Regular nav items */}
               <div className="flex items-center gap-7">
                 {navItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className="relative py-3.5 group"
-                  >
-                    <span
-                      className={`text-[11px] font-semibold tracking-[0.12em] uppercase transition-colors duration-200 ${
-                        isActive(item.path)
-                          ? 'text-white'
-                          : 'text-gray-500 group-hover:text-gray-300'
-                      }`}
-                    >
+                  <Link key={item.path} to={item.path} className="relative py-3.5 group">
+                    <span className={`text-[11px] font-semibold tracking-[0.12em] uppercase transition-colors duration-200 ${
+                      isActive(item.path) ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
+                    }`}>
                       {item.name}
                     </span>
-
                     {isActive(item.path) && (
                       <motion.div
                         layoutId="nav-underline"
@@ -174,7 +240,6 @@ const Header = () => {
                   </Link>
                 ))}
               </div>
-
             </div>
 
             {/* Mobile menu button */}
@@ -200,9 +265,7 @@ const Header = () => {
                   to={item.path}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`block px-3 py-2.5 text-xs font-semibold tracking-[0.1em] uppercase rounded-md transition-colors ${
-                    isActive(item.path)
-                      ? 'text-white bg-white/5'
-                      : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
+                    isActive(item.path) ? 'text-white bg-white/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
                   }`}
                 >
                   {item.name}
@@ -213,7 +276,7 @@ const Header = () => {
         </div>
       </motion.header>
 
-      {/* ── Crisis banner — part of the fixed stack, no z-index fight ──────── */}
+      {/* ── Crisis banner ─────────────────────────────────────────────────── */}
       <AnimatePresence>
         {isInCrisis && (
           <motion.div
@@ -234,7 +297,6 @@ const Header = () => {
                   {SCENARIO_LABELS[activeScenario] ?? activeScenario}
                 </span>
               </div>
-
               <div className="flex items-center gap-3 flex-shrink-0">
                 <button
                   onClick={openOverlay}
