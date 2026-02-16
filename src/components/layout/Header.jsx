@@ -107,7 +107,7 @@ const Header = () => {
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => { setUserMenuOpen(o => !o); setNotifOpen(false); }}
-              className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all"
+              className="flex items-center gap-1.5 pl-1.5 pr-2.5 h-8 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all"
             >
               <span className="text-base leading-none">{user.avatarIcon || '🔒'}</span>
               <span className="hidden sm:inline text-[11px] text-gray-400 truncate max-w-[90px] lowercase">
