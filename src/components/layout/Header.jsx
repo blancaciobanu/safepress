@@ -8,6 +8,18 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCrisis } from '../../contexts/CrisisContext';
 import VerifiedBadge from '../VerifiedBadge';
+import { getDoc, getDocs, doc, query, where, collection, updateDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
+
+const notifTimeAgo = (iso) => {
+  const sec = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (sec < 60) return 'just now';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+};
 
 const ADMIN_EMAILS = ['ciobanubianca20@stud.ase.ro'];
 
@@ -27,9 +39,74 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen,   setUserMenuOpen]   = useState(false);
   const [notifOpen,      setNotifOpen]      = useState(false);
+  const [notifications,  setNotifications]  = useState([]);
+  const [notifCount,     setNotifCount]     = useState(0);
+  const [notifLoading,   setNotifLoading]   = useState(false);
 
   const userMenuRef = useRef(null);
   const notifRef    = useRef(null);
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    setNotifLoading(true);
+    try {
+      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      const userData = userSnap.data() || {};
+      const lastSeen = userData.notifLastSeen || new Date(0).toISOString();
+      const followedPostIds = userData.followedPosts || [];
+
+      const notifs = [];
+
+      // Support requests: claimed or resolved
+      const reqSnap = await getDocs(
+        query(collection(db, 'support-requests'), where('requesterId', '==', user.uid))
+      );
+      reqSnap.docs.forEach(d => {
+        const req = d.data();
+        if (req.status === 'claimed' && req.claimedBy) {
+          notifs.push({ id: d.id + '-c', text: 'a specialist picked up your support request', time: null });
+        }
+        if (req.status === 'resolved') {
+          notifs.push({ id: d.id + '-r', text: 'your support request has been resolved', time: null });
+        }
+      });
+
+      // Followed posts: new comments since last seen
+      for (const postId of followedPostIds) {
+        const postSnap = await getDoc(doc(db, 'community-posts', postId));
+        if (!postSnap.exists()) continue;
+        const pd = postSnap.data();
+        const newComments = (pd.comments || []).filter(
+          c => c.createdAt > lastSeen && c.authorId !== user.uid
+        );
+        if (newComments.length > 0) {
+          notifs.push({
+            id: postId,
+            text: `${newComments.length} new ${newComments.length === 1 ? 'reply' : 'replies'} on "${pd.title}"`,
+            time: newComments[newComments.length - 1].createdAt,
+          });
+        }
+      }
+
+      notifs.sort((a, b) => {
+        if (!a.time && !b.time) return 0;
+        if (!a.time) return 1;
+        if (!b.time) return -1;
+        return new Date(b.time) - new Date(a.time);
+      });
+
+      setNotifications(notifs);
+      setNotifCount(0);
+
+      // Mark as seen
+      await updateDoc(doc(db, 'users', user.uid), {
+        notifLastSeen: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+    setNotifLoading(false);
+  };
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -71,85 +148,114 @@ const Header = () => {
       {/* ── Top-right: notification bell + user menu ───────────────────── */}
       <div className="fixed top-3 right-4 z-[60] flex items-center gap-2">
 
-        {/* Notification bell */}
-        <div className="relative" ref={notifRef}>
-          <button
-            onClick={() => { setNotifOpen(o => !o); setUserMenuOpen(false); }}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-gray-500 hover:text-gray-300 transition-all"
-          >
-            <Bell className="w-3.5 h-3.5" />
-          </button>
-
-          <AnimatePresence>
-            {notifOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0,  scale: 1     }}
-                exit={{    opacity: 0, y: -6, scale: 0.97  }}
-                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute top-full right-0 mt-2 w-72 glass-card rounded-xl border border-white/[0.08] overflow-hidden"
-                style={{ zIndex: 4 }}
-              >
-                <div className="px-4 py-3 border-b border-white/[0.06]">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">notifications</p>
-                </div>
-                <div className="px-4 py-6 text-center">
-                  <Bell className="w-6 h-6 text-gray-700 mx-auto mb-2" />
-                  <p className="text-xs text-gray-600 lowercase">no new notifications</p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* User menu */}
         {user ? (
-          <div className="relative" ref={userMenuRef}>
-            <button
-              onClick={() => { setUserMenuOpen(o => !o); setNotifOpen(false); }}
-              className="flex items-center gap-1.5 pl-1.5 pr-2.5 h-8 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all"
-            >
-              <span className="text-base leading-none">{user.avatarIcon || '🔒'}</span>
-              <span className="hidden sm:inline text-[11px] text-gray-400 truncate max-w-[90px] lowercase">
-                {user.username || user.email}
-              </span>
-              {isVerified && <VerifiedBadge size="xs" />}
-              <ChevronDown className={`w-3 h-3 text-gray-600 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
+          <>
+            {/* Notification bell — only for logged-in users */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => {
+                  const opening = !notifOpen;
+                  setNotifOpen(o => !o);
+                  setUserMenuOpen(false);
+                  if (opening) fetchNotifications();
+                }}
+                className="relative w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-gray-500 hover:text-gray-300 transition-all"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                {notifCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-crimson-500 rounded-full text-[8px] font-bold text-white flex items-center justify-center leading-none">
+                    {notifCount > 9 ? '9+' : notifCount}
+                  </span>
+                )}
+              </button>
 
-            <AnimatePresence>
-              {userMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0,  scale: 1     }}
-                  exit={{    opacity: 0, y: -6, scale: 0.97  }}
-                  transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-                  className="absolute top-full right-0 mt-2 w-48 glass-card rounded-xl border border-white/[0.08] overflow-hidden"
-                  style={{ zIndex: 4 }}
-                >
-                  <div className="px-4 py-3 border-b border-white/[0.06]">
-                    <p className="text-xs text-gray-400 lowercase truncate">{user.avatarIcon} {user.username}</p>
-                    <p className="text-[10px] text-gray-600 lowercase mt-0.5">{user.accountType}</p>
-                  </div>
-                  <Link
-                    to="/settings"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-3 text-xs text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all lowercase"
+              <AnimatePresence>
+                {notifOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0,  scale: 1     }}
+                    exit={{    opacity: 0, y: -6, scale: 0.97  }}
+                    transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute top-full right-0 mt-2 w-72 glass-card rounded-xl border border-white/[0.08] overflow-hidden"
+                    style={{ zIndex: 4 }}
                   >
-                    <Settings className="w-3.5 h-3.5" />
-                    settings
-                  </Link>
-                  <button
-                    onClick={() => { setUserMenuOpen(false); handleLogout(); }}
-                    className="flex items-center gap-2.5 w-full px-4 py-3 text-xs text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all lowercase border-t border-white/[0.06]"
+                    <div className="px-4 py-3 border-b border-white/[0.06]">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">notifications</p>
+                    </div>
+                    {notifLoading ? (
+                      <div className="px-4 py-6 flex justify-center">
+                        <div className="w-4 h-4 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="px-4 py-6 text-center">
+                        <Bell className="w-6 h-6 text-gray-700 mx-auto mb-2" />
+                        <p className="text-xs text-gray-600 lowercase">no new notifications</p>
+                      </div>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto divide-y divide-white/[0.04]">
+                        {notifications.map(n => (
+                          <div key={n.id} className="px-4 py-3 hover:bg-white/[0.02] transition-colors">
+                            <p className="text-xs text-gray-300 lowercase leading-snug">{n.text}</p>
+                            {n.time && (
+                              <p className="text-[10px] text-gray-600 mt-1 lowercase">{notifTimeAgo(n.time)}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* User menu */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => { setUserMenuOpen(o => !o); setNotifOpen(false); }}
+                className="flex items-center gap-1.5 pl-1.5 pr-2.5 h-8 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all"
+              >
+                <span className="text-base leading-none">{user.avatarIcon || '🔒'}</span>
+                <span className="hidden sm:inline text-[11px] text-gray-400 truncate max-w-[90px] lowercase">
+                  {user.username || user.email}
+                </span>
+                {isVerified && <VerifiedBadge size="xs" />}
+                <ChevronDown className={`w-3 h-3 text-gray-600 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {userMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0,  scale: 1     }}
+                    exit={{    opacity: 0, y: -6, scale: 0.97  }}
+                    transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute top-full right-0 mt-2 w-48 glass-card rounded-xl border border-white/[0.08] overflow-hidden"
+                    style={{ zIndex: 4 }}
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                    log out
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                    <div className="px-4 py-3 border-b border-white/[0.06]">
+                      <p className="text-xs text-gray-400 lowercase truncate">{user.avatarIcon} {user.username}</p>
+                      <p className="text-[10px] text-gray-600 lowercase mt-0.5">{user.accountType}</p>
+                    </div>
+                    <Link
+                      to="/settings"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-3 text-xs text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all lowercase"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      settings
+                    </Link>
+                    <button
+                      onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                      className="flex items-center gap-2.5 w-full px-4 py-3 text-xs text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all lowercase border-t border-white/[0.06]"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      log out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </>
         ) : (
           <div className="flex items-center gap-2">
             <Link to="/login" className="text-[11px] text-gray-500 hover:text-white transition-colors lowercase">

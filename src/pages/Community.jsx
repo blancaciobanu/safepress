@@ -3,14 +3,15 @@ import {
   Users, MessageSquare, HelpCircle, Heart, Send,
   Plus, ArrowLeft, CheckCircle2, X, Search,
   Shield, Smartphone, Lock, Radio, Scale,
-  Newspaper, ExternalLink, AlertTriangle
+  Newspaper, ExternalLink, AlertTriangle, Bookmark, BookmarkCheck,
+  Pencil, Star, BadgeCheck
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
-  collection, addDoc, getDocs, doc, updateDoc,
-  arrayUnion, arrayRemove, increment
+  collection, addDoc, getDocs, getDoc, doc, updateDoc,
+  arrayUnion, arrayRemove, increment, query, where
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -44,6 +45,15 @@ const Community = () => {
   const [newsLoading, setNewsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [followedPosts,     setFollowedPosts]     = useState(new Set());
+  const [editMode,          setEditMode]          = useState(false);
+  const [editForm,          setEditForm]          = useState({ title: '', content: '' });
+  const [specialistProfile, setSpecialistProfile] = useState(null);
+  const [profileLoading,    setProfileLoading]    = useState(false);
+
+  useEffect(() => {
+    setFollowedPosts(new Set(user?.followedPosts || []));
+  }, [user?.uid]);
 
   const isQA = activeTab === 'qa';
   const currentTabType = isQA ? 'question' : 'discussion';
@@ -208,6 +218,82 @@ const Community = () => {
     }
   };
 
+  const toggleFollow = async (e, postId) => {
+    e.stopPropagation();
+    if (!user) { navigate('/login'); return; }
+    const isFollowing = followedPosts.has(postId);
+    setFollowedPosts(prev => {
+      const next = new Set(prev);
+      isFollowing ? next.delete(postId) : next.add(postId);
+      return next;
+    });
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        followedPosts: isFollowing ? arrayRemove(postId) : arrayUnion(postId),
+      });
+    } catch (err) {
+      console.error('Error toggling follow:', err);
+      setFollowedPosts(prev => {
+        const next = new Set(prev);
+        isFollowing ? next.add(postId) : next.delete(postId);
+        return next;
+      });
+    }
+  };
+
+  const handleEditPost = async () => {
+    if (!selectedPost || !editForm.title.trim() || !editForm.content.trim()) return;
+    setSubmitting(true);
+    try {
+      await updateDoc(doc(db, 'community-posts', selectedPost.id), {
+        title: editForm.title.trim(),
+        content: editForm.content.trim(),
+        edited: true,
+        editedAt: new Date().toISOString(),
+      });
+      const updated = { ...selectedPost, title: editForm.title.trim(), content: editForm.content.trim(), edited: true, editedAt: new Date().toISOString() };
+      setSelectedPost(updated);
+      setPosts(prev => prev.map(p => p.id === selectedPost.id ? updated : p));
+      setEditMode(false);
+    } catch (err) {
+      console.error('Error editing post:', err);
+      setError('failed to save edit — check your connection.');
+    }
+    setSubmitting(false);
+  };
+
+  const openProfile = async (uid) => {
+    if (!uid) return;
+    setSpecialistProfile({ uid, loading: true });
+    setProfileLoading(true);
+    try {
+      const userSnap = await getDoc(doc(db, 'users', uid));
+      const userData = userSnap.data() || {};
+      const reqSnap = await getDocs(
+        query(collection(db, 'support-requests'), where('claimedBy', '==', uid), where('status', '==', 'resolved'))
+      );
+      const resolvedReqs = reqSnap.docs.map(d => d.data());
+      const ratings = resolvedReqs.filter(r => r.feedback?.rating).map(r => r.feedback.rating);
+      const avgRating = ratings.length ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : null;
+      const recentFeedback = resolvedReqs.filter(r => r.feedback?.comment).slice(-3).reverse();
+      setSpecialistProfile({
+        uid,
+        loading: false,
+        username: userData.username || 'specialist',
+        avatarIcon: userData.avatarIcon || '🔒',
+        bio: userData.bio || '',
+        specializations: userData.specializations || [],
+        resolvedCount: resolvedReqs.length,
+        avgRating,
+        recentFeedback,
+      });
+    } catch (err) {
+      console.error('Error loading profile:', err);
+      setSpecialistProfile(null);
+    }
+    setProfileLoading(false);
+  };
+
   const timeAgo = (dateString) => {
     const seconds = Math.floor((new Date() - new Date(dateString)) / 1000);
     if (seconds < 60) return 'just now';
@@ -292,6 +378,7 @@ const Community = () => {
     const liked = selectedPost.likedBy?.includes(user?.uid);
     const commentCount = selectedPost.comments?.length || 0;
     return (
+      <>
       <div className="min-h-screen pt-28 pb-20 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
@@ -340,20 +427,85 @@ const Community = () => {
           >
             {/* Author row */}
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-base leading-none">{selectedPost.authorIcon}</span>
-              <span className="text-xs font-semibold text-gray-300 lowercase">{selectedPost.authorName}</span>
-              {selectedPost.isVerified && <VerifiedBadge size="xs" />}
+              {selectedPost.isVerified ? (
+                <button
+                  onClick={() => openProfile(selectedPost.authorId)}
+                  className="flex items-center gap-2 hover:opacity-75 transition-opacity"
+                >
+                  <span className="text-base leading-none">{selectedPost.authorIcon}</span>
+                  <span className="text-xs font-semibold text-gray-300 lowercase">{selectedPost.authorName}</span>
+                  <VerifiedBadge size="xs" />
+                </button>
+              ) : (
+                <>
+                  <span className="text-base leading-none">{selectedPost.authorIcon}</span>
+                  <span className="text-xs font-semibold text-gray-300 lowercase">{selectedPost.authorName}</span>
+                </>
+              )}
+              {selectedPost.authorId === user?.uid && (
+                <button
+                  onClick={() => {
+                    if (editMode) { setEditMode(false); }
+                    else { setEditMode(true); setEditForm({ title: selectedPost.title, content: selectedPost.content }); }
+                  }}
+                  className="ml-auto flex items-center gap-1 text-[11px] text-gray-600 hover:text-white transition-colors lowercase"
+                >
+                  {editMode ? <X className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                  {editMode ? 'cancel' : 'edit'}
+                </button>
+              )}
             </div>
 
-            {/* Title */}
-            <h1 className="text-xl font-display font-bold mb-3 leading-snug lowercase text-white">
-              {selectedPost.title}
-            </h1>
-
-            {/* Body */}
-            <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap lowercase mb-4">
-              {selectedPost.content}
-            </p>
+            {editMode ? (
+              <>
+                {/* Edit form */}
+                <input
+                  value={editForm.title}
+                  onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+                  className="w-full px-0 py-2 bg-transparent border-b border-white/[0.08] text-white text-xl font-display font-bold placeholder-gray-700 focus:outline-none focus:border-midnight-400/50 transition-colors lowercase mb-3"
+                />
+                <textarea
+                  value={editForm.content}
+                  onChange={e => setEditForm(p => ({ ...p, content: e.target.value }))}
+                  rows="4"
+                  className="w-full px-0 py-2 bg-transparent text-sm text-gray-300 placeholder-gray-700 focus:outline-none transition-colors resize-none lowercase leading-relaxed mb-3"
+                />
+                {/* Edit disclaimer */}
+                <div className="flex items-start gap-2 px-3 py-2.5 mb-4 rounded-lg bg-amber-500/[0.08] border border-amber-500/20">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-400/80 lowercase leading-relaxed">
+                    once saved, an "edited" label will be visible to all community members. edit history is not publicly shown, but may be reviewed by admins.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleEditPost}
+                    disabled={submitting || !editForm.title.trim() || !editForm.content.trim()}
+                    className="px-4 py-1.5 bg-midnight-400 hover:bg-midnight-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                  >
+                    {submitting ? 'saving...' : 'save'}
+                  </button>
+                  <button onClick={() => setEditMode(false)} className="px-4 py-1.5 text-gray-500 hover:text-white text-xs font-semibold uppercase tracking-wide transition-colors">
+                    cancel
+                  </button>
+                </div>
+                {error && <p className="text-xs text-crimson-400 mt-2 lowercase">{error}</p>}
+              </>
+            ) : (
+              <>
+                {/* Title */}
+                <h1 className="text-xl font-display font-bold mb-3 leading-snug lowercase text-white">
+                  {selectedPost.title}
+                  {selectedPost.edited && (
+                    <span className="ml-2 text-[10px] font-normal text-gray-600 lowercase align-middle">(edited)</span>
+                  )}
+                </h1>
+                {/* Body */}
+                <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap lowercase mb-4">
+                  {selectedPost.content}
+                </p>
+              </>
+            )}
 
             {/* Actions */}
             <div className="flex items-center gap-4 pt-3 border-t border-white/[0.06]">
@@ -370,6 +522,18 @@ const Community = () => {
                 <MessageSquare className="w-3.5 h-3.5" />
                 {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
               </span>
+              <button
+                onClick={(e) => toggleFollow(e, selectedPost.id)}
+                className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${
+                  followedPosts.has(selectedPost.id) ? 'text-amber-400' : 'text-gray-500 hover:text-amber-400'
+                }`}
+              >
+                {followedPosts.has(selectedPost.id)
+                  ? <BookmarkCheck className="w-3.5 h-3.5" />
+                  : <Bookmark className="w-3.5 h-3.5" />
+                }
+                {followedPosts.has(selectedPost.id) ? 'following' : 'follow'}
+              </button>
               {isQuestion && selectedPost.authorId === user?.uid && (
                 <button
                   onClick={() => handleResolve(selectedPost.id)}
@@ -435,9 +599,21 @@ const Community = () => {
                   className="glass-card px-4 py-3 border-l-4 border-l-white/[0.06]"
                 >
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-sm leading-none">{comment.authorIcon}</span>
-                    <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
-                    {comment.isVerified && <VerifiedBadge size="xs" />}
+                    {comment.isVerified ? (
+                      <button
+                        onClick={() => openProfile(comment.authorId)}
+                        className="flex items-center gap-2 hover:opacity-75 transition-opacity"
+                      >
+                        <span className="text-sm leading-none">{comment.authorIcon}</span>
+                        <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
+                        <VerifiedBadge size="xs" />
+                      </button>
+                    ) : (
+                      <>
+                        <span className="text-sm leading-none">{comment.authorIcon}</span>
+                        <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
+                      </>
+                    )}
                     <span className="text-[10px] text-gray-600 lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
                   </div>
                   <p className="text-sm text-gray-400 leading-relaxed lowercase pl-6">{comment.content}</p>
@@ -491,6 +667,117 @@ const Community = () => {
 
         </div>
       </div>
+
+      {/* ── Specialist profile modal ── */}
+      <AnimatePresence>
+        {specialistProfile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+            onClick={() => setSpecialistProfile(null)}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-md glass-card rounded-2xl border border-white/[0.1] overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => setSpecialistProfile(null)} className="absolute top-4 right-4 text-gray-600 hover:text-white transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+
+              {specialistProfile.loading ? (
+                <div className="p-10 flex justify-center">
+                  <div className="w-5 h-5 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-4xl">{specialistProfile.avatarIcon}</span>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base font-semibold text-white lowercase">{specialistProfile.username}</span>
+                          <BadgeCheck className="w-4 h-4 text-midnight-400" />
+                        </div>
+                        <p className="text-[11px] text-gray-500 lowercase mt-0.5">verified security specialist</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div>
+                        <p className="text-xl font-bold text-white">{specialistProfile.resolvedCount}</p>
+                        <p className="text-[10px] text-gray-600 lowercase">cases resolved</p>
+                      </div>
+                      {specialistProfile.avgRating && (
+                        <div>
+                          <p className="text-xl font-bold text-white flex items-center gap-1">
+                            {specialistProfile.avgRating}
+                            <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
+                          </p>
+                          <p className="text-[10px] text-gray-600 lowercase">avg rating</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {specialistProfile.bio && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">about</p>
+                      <p className="text-sm text-gray-400 lowercase leading-relaxed">{specialistProfile.bio}</p>
+                    </div>
+                  )}
+
+                  {specialistProfile.specializations.length > 0 && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">specializations</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {specialistProfile.specializations.map((s, i) => (
+                          <span key={i} className="px-2 py-1 rounded-md bg-midnight-400/10 border border-midnight-400/20 text-[11px] text-midnight-300 lowercase">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {specialistProfile.recentFeedback.length > 0 && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3">recent feedback</p>
+                      <div className="space-y-3">
+                        {specialistProfile.recentFeedback.map((r, i) => (
+                          <div key={i}>
+                            <div className="flex items-center gap-0.5 mb-1">
+                              {[1,2,3,4,5].map(s => (
+                                <Star key={s} className={`w-3 h-3 ${s <= r.feedback.rating ? 'text-amber-400 fill-current' : 'text-gray-700'}`} />
+                              ))}
+                            </div>
+                            <p className="text-xs text-gray-400 lowercase italic">"{r.feedback.comment}"</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="px-6 py-4">
+                    <a
+                      href="/request-support"
+                      onClick={() => setSpecialistProfile(null)}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                    >
+                      request support from this specialist
+                    </a>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      </>
     );
   }
 
@@ -747,21 +1034,43 @@ const Community = () => {
                         <div className="flex-1 min-w-0">
                           <h3 className="text-base font-semibold text-white lowercase mb-1.5 group-hover:text-midnight-400 transition-colors leading-snug">
                             {post.title}
+                            {post.edited && <span className="ml-2 text-[10px] font-normal text-gray-600 align-middle">(edited)</span>}
                           </h3>
                           <p className="text-sm text-gray-500 lowercase line-clamp-2 mb-4 leading-relaxed">
                             {post.content}
                           </p>
                           <div className="flex items-center gap-4 text-xs text-gray-500 lowercase">
-                            <span className="flex items-center gap-1.5">
-                              <span className="text-base">{post.authorIcon}</span> {post.authorName}
-                              {post.isVerified && <VerifiedBadge size="xs" />}
-                            </span>
+                            {post.isVerified ? (
+                              <button
+                                onClick={e => { e.stopPropagation(); openProfile(post.authorId); }}
+                                className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
+                              >
+                                <span className="text-base">{post.authorIcon}</span>
+                                <span className="text-gray-300 font-semibold">{post.authorName}</span>
+                                <VerifiedBadge size="xs" />
+                              </button>
+                            ) : (
+                              <span className="flex items-center gap-1.5">
+                                <span className="text-base">{post.authorIcon}</span> {post.authorName}
+                              </span>
+                            )}
                             <span>{timeAgo(post.createdAt)}</span>
                             <span>{categories.find(c => c.id === post.category)?.name}</span>
                             <button onClick={(e) => handleLike(e, post.id)}
                               className={`flex items-center gap-1.5 ml-auto transition-colors ${liked ? 'text-crimson-400' : 'hover:text-crimson-400'}`}>
                               <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
                               {post.likes || 0}
+                            </button>
+                            <button
+                              onClick={(e) => toggleFollow(e, post.id)}
+                              className={`flex items-center gap-1.5 transition-colors ${
+                                followedPosts.has(post.id) ? 'text-amber-400' : 'hover:text-amber-400'
+                              }`}
+                            >
+                              {followedPosts.has(post.id)
+                                ? <BookmarkCheck className="w-3.5 h-3.5" />
+                                : <Bookmark className="w-3.5 h-3.5" />
+                              }
                             </button>
                           </div>
                         </div>
@@ -783,8 +1092,17 @@ const Community = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-xs font-semibold text-gray-300 lowercase">{post.authorName}</span>
-                          {post.isVerified && <VerifiedBadge size="xs" />}
+                          {post.isVerified ? (
+                            <button
+                              onClick={e => { e.stopPropagation(); openProfile(post.authorId); }}
+                              className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
+                            >
+                              <span className="text-xs font-semibold text-gray-300 lowercase">{post.authorName}</span>
+                              <VerifiedBadge size="xs" />
+                            </button>
+                          ) : (
+                            <span className="text-xs font-semibold text-gray-300 lowercase">{post.authorName}</span>
+                          )}
                           <span className="text-[10px] text-gray-700">·</span>
                           <span className="text-xs text-gray-600 lowercase">{timeAgo(post.createdAt)}</span>
                           <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600 ml-auto">
@@ -793,6 +1111,7 @@ const Community = () => {
                         </div>
                         <h3 className="text-base font-semibold text-white lowercase mb-1.5 group-hover:text-purple-400 transition-colors leading-snug">
                           {post.title}
+                          {post.edited && <span className="ml-2 text-[10px] font-normal text-gray-600 align-middle">(edited)</span>}
                         </h3>
                         <p className="text-sm text-gray-500 lowercase line-clamp-2 leading-relaxed mb-4">
                           {post.content}
@@ -807,6 +1126,17 @@ const Community = () => {
                             <MessageSquare className="w-3.5 h-3.5" />
                             {post.comments?.length || 0}
                           </span>
+                          <button
+                            onClick={(e) => toggleFollow(e, post.id)}
+                            className={`flex items-center gap-1.5 text-xs transition-colors lowercase ml-auto ${
+                              followedPosts.has(post.id) ? 'text-amber-400' : 'text-gray-500 hover:text-amber-400'
+                            }`}
+                          >
+                            {followedPosts.has(post.id)
+                              ? <BookmarkCheck className="w-3.5 h-3.5" />
+                              : <Bookmark className="w-3.5 h-3.5" />
+                            }
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -848,6 +1178,116 @@ const Community = () => {
           <NewsSidebar />
         </div>
       </div>
+
+      {/* ── Specialist profile modal ── */}
+      <AnimatePresence>
+        {specialistProfile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+            onClick={() => setSpecialistProfile(null)}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-md glass-card rounded-2xl border border-white/[0.1] overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => setSpecialistProfile(null)} className="absolute top-4 right-4 text-gray-600 hover:text-white transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+
+              {specialistProfile.loading ? (
+                <div className="p-10 flex justify-center">
+                  <div className="w-5 h-5 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-4xl">{specialistProfile.avatarIcon}</span>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base font-semibold text-white lowercase">{specialistProfile.username}</span>
+                          <BadgeCheck className="w-4 h-4 text-midnight-400" />
+                        </div>
+                        <p className="text-[11px] text-gray-500 lowercase mt-0.5">verified security specialist</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div>
+                        <p className="text-xl font-bold text-white">{specialistProfile.resolvedCount}</p>
+                        <p className="text-[10px] text-gray-600 lowercase">cases resolved</p>
+                      </div>
+                      {specialistProfile.avgRating && (
+                        <div>
+                          <p className="text-xl font-bold text-white flex items-center gap-1">
+                            {specialistProfile.avgRating}
+                            <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
+                          </p>
+                          <p className="text-[10px] text-gray-600 lowercase">avg rating</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {specialistProfile.bio && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">about</p>
+                      <p className="text-sm text-gray-400 lowercase leading-relaxed">{specialistProfile.bio}</p>
+                    </div>
+                  )}
+
+                  {specialistProfile.specializations.length > 0 && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">specializations</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {specialistProfile.specializations.map((s, i) => (
+                          <span key={i} className="px-2 py-1 rounded-md bg-midnight-400/10 border border-midnight-400/20 text-[11px] text-midnight-300 lowercase">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {specialistProfile.recentFeedback.length > 0 && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3">recent feedback</p>
+                      <div className="space-y-3">
+                        {specialistProfile.recentFeedback.map((r, i) => (
+                          <div key={i}>
+                            <div className="flex items-center gap-0.5 mb-1">
+                              {[1,2,3,4,5].map(s => (
+                                <Star key={s} className={`w-3 h-3 ${s <= r.feedback.rating ? 'text-amber-400 fill-current' : 'text-gray-700'}`} />
+                              ))}
+                            </div>
+                            <p className="text-xs text-gray-400 lowercase italic">"{r.feedback.comment}"</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="px-6 py-4">
+                    <a
+                      href="/request-support"
+                      onClick={() => setSpecialistProfile(null)}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                    >
+                      request support from this specialist
+                    </a>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
