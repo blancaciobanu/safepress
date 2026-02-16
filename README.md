@@ -29,9 +29,10 @@ Visit `http://localhost:5174` in your browser.
 - **Smart Resource Filtering** — Risk-based tool recommendations (25+ security tools, personalized by quiz results)
 - **OS Security Guides** — Step-by-step hardening for Windows, macOS, Linux, iOS, Android
 - **AI Security Section** — Safe AI usage, deepfake detection, privacy-respecting tools
-- **Crisis Mode** — Emergency guidance for 4 scenarios (hacked, source exposed, doxxed, phishing)
+- **Crisis Mode Overlay** — Fullscreen overlay triggered by a pill toggle in the header; 4 scenarios (hacked, source exposed, doxxed, phishing) with checklist, progress bar, and per-step "how?" guides; direct-call links to CPJ/RSF/EFF
 - **Community Hub** — Discussions, anonymous stories, and Q&A with likes, comments, and category filtering
 - **Support Request Workflow** — Journalists submit crisis requests, verified specialists claim and resolve them
+- **Specialist Dashboard** — Dedicated dashboard at `/specialist-dashboard` with tabbed request queue, stats (resolved/rating/active), profile sidebar, and feedback reviews
 - **Specialist Feedback & Rating** — Journalists rate specialists (1-5 stars + comment) after resolution
 - **User Authentication** — Secure login/signup with Firebase (anonymous identity system)
 - **Specialist Verification** — Admin dashboard for security expert approval
@@ -46,24 +47,26 @@ safepress/
 ├── src/
 │   ├── components/
 │   │   ├── layout/           # Header, Footer, MainLayout
+│   │   ├── CrisisOverlay.jsx # Fullscreen crisis mode overlay
 │   │   ├── ProtectedRoute.jsx
 │   │   ├── ProtectedAdminRoute.jsx
 │   │   └── VerifiedBadge.jsx
 │   ├── contexts/
-│   │   └── AuthContext.jsx   # Authentication state & methods
+│   │   ├── AuthContext.jsx   # Authentication state & methods
+│   │   └── CrisisContext.jsx # Crisis overlay state (open/active scenario)
 │   ├── firebase/
 │   │   └── config.js         # Firebase initialization (uses env vars)
 │   ├── utils/
 │   │   └── userUtils.js      # Anonymous identity generation
 │   ├── pages/
 │   │   ├── Home.jsx          # Landing page
-│   │   ├── Dashboard.jsx     # User dashboard (scores, requests, feedback)
+│   │   ├── Dashboard.jsx     # Journalist dashboard (scores, requests, feedback)
+│   │   ├── SpecialistDashboard.jsx # Specialist dashboard (queue, stats, profile)
 │   │   ├── SecurityScore.jsx # Security quiz (31 questions, 6 categories)
 │   │   ├── SecureSetup.jsx   # Interactive 31-task checklist
 │   │   ├── Resources.jsx     # OS guides, tools, AI security (3 tabs)
 │   │   ├── Community.jsx     # Discussions, stories, Q&A (3 tabs)
 │   │   ├── RequestSupport.jsx # Crisis support request form
-│   │   ├── CrisisMode.jsx   # Emergency guidance (4 scenarios)
 │   │   ├── AdminDashboard.jsx # Specialist verification management
 │   │   ├── Settings.jsx      # User settings
 │   │   ├── Login.jsx         # Login page
@@ -90,17 +93,19 @@ safepress/
 | Page | Route | Protected | Description |
 |------|-------|-----------|-------------|
 | Home | `/` | No | Landing page |
-| Dashboard | `/dashboard` | Yes | Scores, recommendations, support requests, feedback |
+| Dashboard | `/dashboard` | Yes | Journalist: scores, recommendations, requests, feedback |
+| Specialist Dashboard | `/specialist-dashboard` | Yes (specialist) | Tabbed request queue, stats, profile, feedback |
 | Security Quiz | `/security-score` | No | 31-question assessment with risk profiling |
 | Secure Setup | `/secure-setup` | No | Interactive checklist (31 tasks, progress tracking) |
 | Resources | `/resources` | No | OS guides, security tools, AI safety (3 tabs) |
 | Community | `/community` | No | Discussions, anonymous stories, Q&A (3 tabs) |
 | Request Support | `/request-support` | No | Submit crisis request to specialist |
-| Crisis Mode | `/crisis` | No | Emergency guidance (4 scenarios) |
 | Settings | `/settings` | Yes | Profile & password management |
 | Admin | `/admin` | Admin Only | Specialist verification dashboard |
 | Login | `/login` | No | User authentication |
 | Signup | `/signup` | No | Account creation (journalist or specialist) |
+
+> **Crisis Mode** is not a page — it's a fullscreen overlay triggered by the pill toggle in the header. Available on all pages.
 
 ## Firebase Setup
 

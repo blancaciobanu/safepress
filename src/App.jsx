@@ -1,8 +1,8 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
-import CrisisMode from './pages/CrisisMode';
+import SpecialistDashboard from './pages/SpecialistDashboard';
 import SecurityScore from './pages/SecurityScore';
 import SecureSetup from './pages/SecureSetup';
 import Resources from './pages/Resources';
@@ -44,7 +44,15 @@ function App() {
             </ProtectedAdminRoute>
           }
         />
-        <Route path="crisis" element={<CrisisMode />} />
+        <Route
+          path="specialist-dashboard"
+          element={
+            <ProtectedRoute>
+              <SpecialistDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="crisis" element={<Navigate to="/dashboard" replace />} />
         <Route path="security-score" element={<SecurityScore />} />
         <Route path="secure-setup" element={<SecureSetup />} />
         <Route path="resources" element={<Resources />} />

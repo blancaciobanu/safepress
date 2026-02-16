@@ -5,7 +5,7 @@ import {
   ArrowRight, Clock, ChevronRight, BookOpen, Headphones,
   Inbox, CheckCircle, User, Star, Send
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { doc, getDoc, collection, query, where, orderBy, getDocs, updateDoc } from 'firebase/firestore';
@@ -224,6 +224,11 @@ const Dashboard = () => {
   const daysSinceQuiz = hasQuizData
     ? Math.floor((new Date() - new Date(latestScore.completedAt)) / (1000 * 60 * 60 * 24))
     : null;
+
+  // Verified specialists have their own dedicated dashboard
+  if (isVerifiedSpecialist) {
+    return <Navigate to="/specialist-dashboard" replace />;
+  }
 
   if (loading) {
     return (

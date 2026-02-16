@@ -1,23 +1,23 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
-import { motion } from 'framer-motion';
+import CrisisOverlay from '../CrisisOverlay';
+import { useCrisis } from '../../contexts/CrisisContext';
 
 const MainLayout = () => {
+  const { isInCrisis } = useCrisis();
+
   return (
     <div className="min-h-screen bg-dark-900 scrollbar-thin">
       <Header />
-
-      {/* Main content area with padding for fixed header */}
-      <motion.main
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="pt-24 pb-12"
-      >
+      <CrisisOverlay />
+      {/*
+        Header height: ~96px (pt-24)
+        Crisis banner: ~40px
+        Total with crisis: ~136px → pt-36 (144px) gives safe clearance
+      */}
+      <main className={`pb-12 transition-[padding-top] duration-300 ${isInCrisis ? 'pt-36' : 'pt-24'}`}>
         <Outlet />
-      </motion.main>
-
-      {/* Optional: Footer can be added here later */}
+      </main>
     </div>
   );
 };
