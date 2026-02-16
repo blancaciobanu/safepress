@@ -691,11 +691,9 @@ const SecureSetup = () => {
                 : `${PRIORITY_BORDERS[task.priority] ?? 'border-l-white/10'} border-white/10 bg-white/[0.02] hover:bg-white/[0.04]`;
 
               return (
-                <motion.div
+                <div
                   key={task.id}
-                  layout
-                  transition={{ layout: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } }}
-                  className={`p-4 rounded-xl border border-l-4 transition-all ${borderClass}`}
+                  className={`p-4 rounded-xl border border-l-4 transition-all duration-300 ${borderClass}`}
                 >
                   <div className="flex items-start gap-3">
 
@@ -769,7 +767,7 @@ const SecureSetup = () => {
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
         </div>
