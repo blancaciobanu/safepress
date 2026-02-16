@@ -24,13 +24,13 @@ Visit `http://localhost:5174` in your browser.
 ## Features
 
 - **Security Quiz** — 31-question assessment across 6 categories with risk profiling (0-100% score)
-- **Personalized Dashboard** — "hello, username" greeting, score history, smart recommendations, quick links
+- **Gamified Dashboard** — animated progress rings, security rank labels ("security aware", "security hardened"), 3-col stat cards, quest-style Up Next list, Explore grid
 - **Interactive Setup Checklist** — 31 actionable security tasks with progress tracking (synced to Firestore)
 - **Smart Resource Filtering** — Risk-based tool recommendations (25+ security tools, personalized by quiz results)
 - **OS Security Guides** — Step-by-step hardening for Windows, macOS, Linux, iOS, Android
 - **AI Security Section** — Safe AI usage, deepfake detection, privacy-respecting tools
 - **Crisis Mode Overlay** — Fullscreen overlay triggered by a pill toggle in the header; 4 scenarios (hacked, source exposed, doxxed, phishing) with checklist, progress bar, and per-step "how?" guides; direct-call links to CPJ/RSF/EFF
-- **Community Hub** — Discussions, anonymous stories, and Q&A with likes, comments, and category filtering
+- **Community Hub** — Discussions, anonymous stories, and Q&A with likes, comments, category filtering, and a reddit-style post detail view (2-column with search + Latest Threats sidebar)
 - **Support Request Workflow** — Journalists submit crisis requests, verified specialists claim and resolve them
 - **Specialist Dashboard** — Dedicated dashboard at `/specialist-dashboard` with tabbed request queue, stats (resolved/rating/active), profile sidebar, and feedback reviews
 - **Specialist Feedback & Rating** — Journalists rate specialists (1-5 stars + comment) after resolution
@@ -93,7 +93,7 @@ safepress/
 | Page | Route | Protected | Description |
 |------|-------|-----------|-------------|
 | Home | `/` | No | Landing page |
-| Dashboard | `/dashboard` | Yes | Journalist: scores, recommendations, requests, feedback |
+| Dashboard | `/dashboard` | Yes | Journalist: gamified progress rings, rank label, stat cards, Up Next, requests, feedback |
 | Specialist Dashboard | `/specialist-dashboard` | Yes (specialist) | Tabbed request queue, stats, profile, feedback |
 | Security Quiz | `/security-score` | No | 31-question assessment with risk profiling |
 | Secure Setup | `/secure-setup` | No | Interactive checklist (31 tasks, progress tracking) |
