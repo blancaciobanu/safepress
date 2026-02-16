@@ -67,16 +67,9 @@ const ProgressRing = ({ progress, color, size = 52, strokeWidth = 3.5 }) => {
   );
 };
 
-// ── main component ────────────────────────────────────────────────────────────
+// ── data (module-level — never recreated on render) ──────────────────────────
 
-const SecureSetup = () => {
-  const { user } = useAuth();
-  const [completedTasks,   setCompletedTasks]   = useState(new Set());
-  const [loading,          setLoading]           = useState(true);
-  const [selectedCategory, setSelectedCategory]  = useState(null);
-
-  // ── data ────────────────────────────────────────────────────────────────────
-  const setupTasks = {
+const setupTasks = {
     password: {
       name: 'password security',
       icon: Lock,
@@ -394,7 +387,15 @@ const SecureSetup = () => {
         },
       ],
     },
-  };
+};
+
+// ── main component ────────────────────────────────────────────────────────────
+
+const SecureSetup = () => {
+  const { user } = useAuth();
+  const [completedTasks,   setCompletedTasks]   = useState(new Set());
+  const [loading,          setLoading]           = useState(true);
+  const [selectedCategory, setSelectedCategory]  = useState(null);
 
   // ── Firebase ─────────────────────────────────────────────────────────────────
 
@@ -615,15 +616,7 @@ const SecureSetup = () => {
         </div>
 
         {/* Task grid */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={selectedCategory ?? 'all'}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.25 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-3"
-          >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {filteredTasks.map((task) => {
               const isCompleted = completedTasks.has(task.id);
               const borderClass = isCompleted
@@ -710,8 +703,7 @@ const SecureSetup = () => {
                 </div>
               );
             })}
-          </motion.div>
-        </AnimatePresence>
+        </div>
 
         {/* Footer CTA */}
         {!user && (
