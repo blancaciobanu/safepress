@@ -421,8 +421,8 @@ const SecureSetup = () => {
             const latest = scores[scores.length - 1];
             const QUIZ_TO_SETUP = { password: 'password', device: 'device', communication: 'communication', data: 'data', physical: 'physical' };
             const weak = Object.entries(latest.categoryScores ?? {})
-              .filter(([k, v]) => QUIZ_TO_SETUP[k] && v.percentage < 70)
-              .sort((a, b) => a[1].percentage - b[1].percentage)
+              .filter(([k, v]) => QUIZ_TO_SETUP[k] && v.score < 70)
+              .sort((a, b) => a[1].score - b[1].score)
               .map(([k]) => QUIZ_TO_SETUP[k]);
             setWeakCategories(weak);
           }
