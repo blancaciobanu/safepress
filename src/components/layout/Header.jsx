@@ -50,36 +50,74 @@ const Header = () => {
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
 
-      {/* ── Crisis toggle — floating, same position as on the crisis overlay ── */}
-      <div className="fixed top-4 right-4 z-[60] flex items-center gap-2">
-        <span className={`hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
-          isInCrisis ? 'text-crimson-400' : 'text-gray-600'
-        }`}>
-          {isInCrisis ? 'Crisis Active' : 'Crisis'}
-        </span>
-        <button
-          onClick={toggleOverlay}
-          role="switch"
-          aria-checked={overlayOpen}
-          className="relative flex-shrink-0 w-20 h-10 rounded-full transition-colors duration-200 focus:outline-none"
-          style={{
-            backgroundColor: overlayOpen
-              ? 'var(--crimson-500, #e53e3e)'
-              : isInCrisis
-                ? 'rgba(229,62,62,0.25)'
-                : 'rgba(255,255,255,0.08)',
-            border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
-          }}
-        >
-          <span
-            className="absolute top-[4px] w-8 h-8 rounded-full bg-white transition-transform duration-200"
+      {/* ── Crisis toggle + auth — stacked fixed top-right ── */}
+      <div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-1.5">
+
+        {/* Crisis row */}
+        <div className="flex items-center gap-2">
+          <span className={`hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
+            isInCrisis ? 'text-crimson-400' : 'text-gray-600'
+          }`}>
+            {isInCrisis ? 'Crisis Active' : 'Crisis'}
+          </span>
+          <button
+            onClick={toggleOverlay}
+            role="switch"
+            aria-checked={overlayOpen}
+            className="relative flex-shrink-0 w-20 h-10 rounded-full transition-colors duration-200 focus:outline-none"
             style={{
-              left: 4,
-              transform: overlayOpen ? 'translateX(40px)' : 'translateX(0)',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+              backgroundColor: overlayOpen
+                ? 'var(--crimson-500, #e53e3e)'
+                : isInCrisis
+                  ? 'rgba(229,62,62,0.25)'
+                  : 'rgba(255,255,255,0.08)',
+              border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
             }}
-          />
-        </button>
+          >
+            <span
+              className="absolute top-[4px] w-8 h-8 rounded-full bg-white transition-transform duration-200"
+              style={{
+                left: 4,
+                transform: overlayOpen ? 'translateX(40px)' : 'translateX(0)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+              }}
+            />
+          </button>
+        </div>
+
+        {/* Auth row — directly below crisis toggle */}
+        {user ? (
+          <div className="flex items-center gap-2">
+            <Link
+              to="/settings"
+              className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition-colors lowercase"
+            >
+              <span className="text-sm leading-none">{user.avatarIcon || '🔒'}</span>
+              <span className="hidden sm:inline truncate max-w-[100px]">{user.username || user.email}</span>
+              {isVerified && <VerifiedBadge size="xs" />}
+            </Link>
+            <span className="text-gray-700 text-[10px] hidden sm:inline">·</span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-gray-300 transition-colors lowercase"
+            >
+              <LogOut className="w-3 h-3" />
+              <span className="hidden sm:inline">log out</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link to="/login" className="text-[11px] text-gray-500 hover:text-white transition-colors lowercase">
+              log in
+            </Link>
+            <Link
+              to="/signup"
+              className="px-3 py-1 bg-midnight-400 hover:bg-midnight-500 text-white rounded text-[11px] font-medium transition-all lowercase"
+            >
+              sign up
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* ── Main header ───────────────────────────────────────────────────── */}
@@ -91,13 +129,8 @@ const Header = () => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
-          {/* Top bar — flex-1 spacer | centred logo | flex-1 auth (pr-24 clears the floating toggle) */}
-          <div className="py-4 flex items-center border-b border-white/[0.04]">
-
-            {/* Left spacer */}
-            <div className="flex-1" />
-
-            {/* Logo */}
+          {/* Top bar — logo centered, standalone */}
+          <div className="py-4 flex items-center justify-center border-b border-white/[0.04]">
             <Link to="/" className="flex items-center gap-2.5 group flex-shrink-0">
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-midnight-400/10 border border-midnight-400/20 group-hover:bg-midnight-400/15 transition-colors">
                 <Shield className="w-3.5 h-3.5 text-midnight-400" />
@@ -106,44 +139,6 @@ const Header = () => {
                 safe<span className="text-midnight-400">press</span>
               </span>
             </Link>
-
-            {/* Auth — flex-1 keeps logo centred; pr-24 ensures buttons never slip under the floating toggle */}
-            <div className="flex-1 flex items-center justify-end gap-2 pr-24">
-              {user ? (
-                <>
-                  <Link
-                    to="/settings"
-                    className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-                  >
-                    <span className="text-base leading-none">{user.avatarIcon || '🔒'}</span>
-                    <span className="text-xs font-medium text-gray-400 truncate max-w-[120px]">{user.username || user.email}</span>
-                    {isVerified && <VerifiedBadge size="xs" />}
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-all text-xs font-medium"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    Log out
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    className="px-4 py-1.5 text-sm font-medium text-gray-400 hover:text-white transition-colors"
-                  >
-                    Log in
-                  </Link>
-                  <Link
-                    to="/signup"
-                    className="px-4 py-1.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-md text-sm font-medium transition-all"
-                  >
-                    Sign up
-                  </Link>
-                </>
-              )}
-            </div>
           </div>
 
           {/* Nav bar */}

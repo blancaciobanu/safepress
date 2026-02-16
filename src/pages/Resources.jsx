@@ -243,7 +243,7 @@ const Resources = () => {
 
   return (
     <div className="min-h-screen pt-32 pb-24 px-4">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-7xl mx-auto">
 
         {/* Page header */}
         <motion.div

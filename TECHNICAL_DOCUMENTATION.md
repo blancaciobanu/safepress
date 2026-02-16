@@ -1467,6 +1467,125 @@ Rewrote Dashboard from a generic layout to a focused overview:
 
 ---
 
-**Last Updated**: February 13, 2026
-**Version**: 3.1.0
-**Documentation**: Complete (includes Phases 1-16)
+### Phase 17: UI Modernization — Header Restructure, Wider Layouts & Gamified Dashboard
+**Visual Polish, Better Use of Screen Space, Engaging Progress Visualization**
+
+#### 17.1 Header Restructure (`src/components/layout/Header.jsx`)
+
+**Problem Solved**: Username/logout were competing visually with the crisis toggle, and the logo felt unbalanced when sharing the top bar with auth controls.
+
+**New structure**:
+- **Logo** is now centered and standalone in the top bar (`justify-center`, no auth elements)
+- **Crisis toggle + auth** are extracted into a single `fixed top-4 right-4 z-[60]` cluster using `flex flex-col items-end gap-1.5`
+- Auth row sits directly below the crisis toggle (username → `·` → log out)
+- Overlap between crisis toggle and auth controls is now geometrically impossible
+
+```jsx
+// Fixed top-right cluster
+<div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-1.5">
+  {/* Crisis row */}
+  <div className="flex items-center gap-2">
+    <span>Crisis / Crisis Active</span>
+    <button role="switch" ...toggle... />
+  </div>
+  {/* Auth row — directly below */}
+  {user ? (
+    <div className="flex items-center gap-2">
+      <Link to="/settings">{user.avatarIcon} {user.username}</Link>
+      <span>·</span>
+      <button onClick={handleLogout}><LogOut /> log out</button>
+    </div>
+  ) : (
+    <div><Link to="/login">log in</Link><Link to="/signup">sign up</Link></div>
+  )}
+</div>
+
+// Top bar: logo alone, centered
+<div className="py-4 flex items-center justify-center border-b border-white/[0.04]">
+  <Link to="/">...safepress logo...</Link>
+</div>
+```
+
+#### 17.2 Page Widening
+
+All main content pages changed from narrow containers to `max-w-7xl` (1280px) to eliminate excessive dead space on wider displays:
+
+| Page | Before | After |
+|------|--------|-------|
+| Dashboard | `max-w-6xl` | `max-w-7xl` |
+| Resources | `max-w-5xl` | `max-w-7xl` |
+| SecureSetup | `max-w-5xl` | `max-w-7xl` |
+| Community (feed) | `max-w-6xl` | `max-w-7xl` |
+| Community (post detail) | `max-w-2xl` | `max-w-7xl` |
+
+#### 17.3 Gamified Dashboard Redesign (`src/pages/Dashboard.jsx`)
+
+**Problem Solved**: Dashboard looked "outdated" — generic greeting, flat metric cards, no sense of progression.
+
+**New helpers defined outside component**:
+```javascript
+// Animated SVG progress ring
+const ProgressRing = ({ pct, size = 80, stroke = 6, color = '#6366F1' }) => {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.min(pct, 100) / 100);
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <circle ... stroke="rgba(255,255,255,0.05)" />        {/* track */}
+      <motion.circle ... animate={{ strokeDashoffset: offset }} />  {/* fill */}
+    </svg>
+  );
+};
+
+// Security rank label + color for a given overall %
+const getLevelInfo = (pct) => {
+  if (pct >= 100) return { label: 'security hardened',  color: '#84CC16' };
+  if (pct >= 75)  return { label: 'security conscious', color: '#6366F1' };
+  if (pct >= 50)  return { label: 'security aware',     color: '#2DD4BF' };
+  if (pct >= 25)  return { label: 'building habits',    color: '#FBBF24' };
+  return                 { label: 'getting started',    color: '#6B7280' };
+};
+
+// Ring color helpers (hex — can't use Tailwind JIT for dynamic hex)
+const SCORE_HEX = (score) => score >= 80 ? '#84CC16' : score >= 60 ? '#F59E0B' : '#EF4444';
+const SETUP_HEX = (pct)   => pct >= 80 ? '#84CC16' : pct >= 40 ? '#F59E0B' : pct > 0 ? '#EF4444' : '#374151';
+```
+
+**New layout structure**:
+1. **Greeting row** (left-aligned): avatar icon box + "hello, username" + rank label in level color
+2. **3-col stat cards**: Security Score (ring + number), Secure Setup (ring + %), Priority action
+3. **2-col section**: "Up Next" quest-style hover list (left) + "Explore" 2×2 colored icon cards (right)
+4. **My Requests / Support Requests** wrapped in glass card (unchanged logic)
+
+**Note**: Inline styles used for hex color values because Tailwind JIT cannot safely purge arbitrary dynamic color strings.
+
+#### 17.4 Community Post Detail — Reddit-Style 2-Column Layout (`src/pages/Community.jsx`)
+
+**Problem Solved**: Post detail view was a single, near-empty column — the right side of the screen was wasted.
+
+**New structure**:
+```jsx
+<div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
+  {/* Left: full post + comments (unchanged) */}
+  <div>...</div>
+
+  {/* Right sidebar */}
+  <div className="hidden lg:block space-y-4">
+    {/* Search bar — submits back to feed with query */}
+    <form onSubmit={(e) => { e.preventDefault(); setSearchQuery(sidebarSearch); setSelectedPost(null); }}>
+      <input type="text" value={sidebarSearch} onChange={e => setSidebarSearch(e.target.value)}
+        placeholder="search discussions..." />
+    </form>
+    {/* Latest Threats sidebar (already used in main feed) */}
+    <NewsSidebar />
+  </div>
+</div>
+```
+
+**Bug fixed**: `NewsSidebar` was defined with `const` after the `if (selectedPost) { return ...; }` early return block, making it inaccessible when `selectedPost` was truthy. Fix: moved `NewsSidebar` definition to before the early return. Added `sidebarSearch` state (separate from `searchQuery`) to avoid affecting the feed until form submit.
+
+---
+
+**Last Updated**: February 16, 2026
+**Version**: 3.2.0
+**Documentation**: Complete (includes Phases 1-17)
