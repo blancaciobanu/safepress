@@ -108,6 +108,37 @@ const Header = () => {
     setNotifLoading(false);
   };
 
+  // Count notifications on mount so badge appears without opening the bell
+  useEffect(() => {
+    if (!user) { setNotifCount(0); return; }
+    (async () => {
+      try {
+        const userSnap = await getDoc(doc(db, 'users', user.uid));
+        const userData = userSnap.data() || {};
+        const lastSeen = userData.notifLastSeen || new Date(0).toISOString();
+        const followedPostIds = userData.followedPosts || [];
+        let count = 0;
+        const reqSnap = await getDocs(
+          query(collection(db, 'support-requests'), where('requesterId', '==', user.uid))
+        );
+        reqSnap.docs.forEach(d => {
+          const req = d.data();
+          if (req.status === 'claimed' && req.claimedBy) count++;
+          if (req.status === 'resolved') count++;
+        });
+        for (const postId of followedPostIds) {
+          const postSnap = await getDoc(doc(db, 'community-posts', postId));
+          if (!postSnap.exists()) continue;
+          const newReplies = (postSnap.data().comments || []).filter(
+            c => c.createdAt > lastSeen && c.authorId !== user.uid
+          ).length;
+          if (newReplies > 0) count++;
+        }
+        setNotifCount(count);
+      } catch { /* silent */ }
+    })();
+  }, [user?.uid]);
+
   // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e) => {

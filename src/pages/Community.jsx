@@ -27,6 +27,29 @@ const categories = [
   { id: 'general', name: 'general', icon: MessageSquare },
 ];
 
+// ── Avatar helpers ────────────────────────────────────────────────
+const AVATAR_COLORS = [
+  '#4361EE', '#A78BFA', '#2DD4BF', '#F59E0B', '#EF4444',
+  '#10B981', '#EC4899', '#3B82F6', '#F97316', '#8B5CF6',
+];
+const getAvatarColor = (name = '') => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+};
+const AVATAR_SIZES = { xs: [20, 9], sm: [28, 11], md: [36, 14], lg: [44, 18] };
+const UserAvatar = ({ name = '', size = 'md' }) => {
+  const [dim, fs] = AVATAR_SIZES[size] ?? AVATAR_SIZES.md;
+  return (
+    <div
+      style={{ width: dim, height: dim, backgroundColor: getAvatarColor(name), fontSize: fs, flexShrink: 0 }}
+      className="rounded-full flex items-center justify-center font-bold text-white select-none"
+    >
+      {(name.charAt(0) || '?').toUpperCase()}
+    </div>
+  );
+};
+
 const Community = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -435,13 +458,13 @@ const Community = () => {
                   onClick={() => openProfile(selectedPost.authorId)}
                   className="flex items-center gap-2 hover:opacity-75 transition-opacity"
                 >
-                  <span className="text-base leading-none">{selectedPost.authorIcon}</span>
+                  <UserAvatar name={selectedPost.authorName} size="lg" />
                   <span className="text-xs font-semibold text-gray-300 lowercase">{selectedPost.authorName}</span>
                   <VerifiedBadge size="xs" />
                 </button>
               ) : (
                 <>
-                  <span className="text-base leading-none">{selectedPost.authorIcon}</span>
+                  <UserAvatar name={selectedPost.authorName} size="lg" />
                   <span className="text-xs font-semibold text-gray-300 lowercase">{selectedPost.authorName}</span>
                 </>
               )}
@@ -465,13 +488,13 @@ const Community = () => {
                 <input
                   value={editForm.title}
                   onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
-                  className="w-full px-0 py-2 bg-transparent border-b border-white/[0.08] text-white text-xl font-display font-bold placeholder-gray-700 focus:outline-none focus:border-midnight-400/50 transition-colors lowercase mb-3"
+                  className="w-full px-0 py-2 bg-transparent border-b border-white/[0.08] text-white text-xl font-display font-bold placeholder-gray-700 focus:outline-none focus:border-midnight-400/50 transition-colors mb-3"
                 />
                 <textarea
                   value={editForm.content}
                   onChange={e => setEditForm(p => ({ ...p, content: e.target.value }))}
                   rows="4"
-                  className="w-full px-0 py-2 bg-transparent text-sm text-gray-300 placeholder-gray-700 focus:outline-none transition-colors resize-none lowercase leading-relaxed mb-3"
+                  className="w-full px-0 py-2 bg-transparent text-sm text-gray-300 placeholder-gray-700 focus:outline-none transition-colors resize-none leading-relaxed mb-3"
                 />
                 {/* Edit disclaimer */}
                 <div className="flex items-start gap-2 px-3 py-2.5 mb-4 rounded-lg bg-amber-500/[0.08] border border-amber-500/20">
@@ -497,14 +520,14 @@ const Community = () => {
             ) : (
               <>
                 {/* Title */}
-                <h1 className="text-xl font-display font-bold mb-3 leading-snug lowercase text-white">
+                <h1 className="text-xl font-display font-bold mb-3 leading-snug text-white">
                   {selectedPost.title}
                   {selectedPost.edited && (
                     <span className="ml-2 text-[10px] font-normal text-gray-600 lowercase align-middle">(edited)</span>
                   )}
                 </h1>
                 {/* Body */}
-                <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap lowercase mb-4">
+                <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap mb-4">
                   {selectedPost.content}
                 </p>
               </>
@@ -556,13 +579,13 @@ const Community = () => {
             {user ? (
               <div className="glass-card p-4 mb-4">
                 <div className="flex gap-2.5 items-start">
-                  <span className="text-base leading-none mt-2 flex-shrink-0">{user.avatarIcon || '🔒'}</span>
+                  <UserAvatar name={user.username || ''} size="md" />
                   <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder={isQuestion ? 'write your answer...' : 'add a reply...'}
                     rows="2"
-                    className="flex-1 px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-midnight-400/40 transition-colors resize-none lowercase leading-relaxed"
+                    className="flex-1 px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-midnight-400/40 transition-colors resize-none leading-relaxed"
                   />
                   <button
                     onClick={handleAddComment}
@@ -607,19 +630,19 @@ const Community = () => {
                         onClick={() => openProfile(comment.authorId)}
                         className="flex items-center gap-2 hover:opacity-75 transition-opacity"
                       >
-                        <span className="text-sm leading-none">{comment.authorIcon}</span>
+                        <UserAvatar name={comment.authorName} size="sm" />
                         <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
                         <VerifiedBadge size="xs" />
                       </button>
                     ) : (
                       <>
-                        <span className="text-sm leading-none">{comment.authorIcon}</span>
+                        <UserAvatar name={comment.authorName} size="sm" />
                         <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
                       </>
                     )}
                     <span className="text-[10px] text-gray-600 lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
                   </div>
-                  <p className="text-sm text-gray-400 leading-relaxed lowercase pl-6">{comment.content}</p>
+                  <p className="text-sm text-gray-400 leading-relaxed pl-9">{comment.content}</p>
                 </div>
               ))}
 
@@ -935,7 +958,7 @@ const Community = () => {
                   onChange={(e) => setNewPost(prev => ({ ...prev, title: e.target.value }))}
                   placeholder={isQA ? 'your question...' : 'title...'}
                   required
-                  className="w-full px-0 py-3 bg-transparent border-b border-white/[0.08] text-white text-lg font-display font-bold placeholder-gray-700 focus:outline-none focus:border-midnight-400/50 transition-colors lowercase mb-4"
+                  className="w-full px-0 py-3 bg-transparent border-b border-white/[0.08] text-white text-lg font-display font-bold placeholder-gray-700 focus:outline-none focus:border-midnight-400/50 transition-colors mb-4"
                 />
 
                 <textarea
@@ -944,7 +967,7 @@ const Community = () => {
                   placeholder={isQA ? 'add context to your question...' : 'share your experience or thoughts...'}
                   required
                   rows="4"
-                  className="w-full px-0 py-2 bg-transparent text-white text-sm placeholder-gray-700 focus:outline-none transition-colors resize-none lowercase leading-relaxed"
+                  className="w-full px-0 py-2 bg-transparent text-white text-sm placeholder-gray-700 focus:outline-none transition-colors resize-none leading-relaxed"
                 />
 
                 {error && <p className="text-xs text-crimson-400 mb-3 lowercase">{error}</p>}
@@ -1035,11 +1058,11 @@ const Community = () => {
 
                         {/* content */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-semibold text-white lowercase mb-1.5 group-hover:text-midnight-400 transition-colors leading-snug">
+                          <h3 className="text-base font-semibold text-white mb-1.5 group-hover:text-midnight-400 transition-colors leading-snug">
                             {post.title}
                             {post.edited && <span className="ml-2 text-[10px] font-normal text-gray-600 align-middle">(edited)</span>}
                           </h3>
-                          <p className="text-sm text-gray-500 lowercase line-clamp-2 mb-4 leading-relaxed">
+                          <p className="text-sm text-gray-500 line-clamp-2 mb-4 leading-relaxed">
                             {post.content}
                           </p>
                           <div className="flex items-center gap-4 text-xs text-gray-500 lowercase">
@@ -1048,13 +1071,14 @@ const Community = () => {
                                 onClick={e => { e.stopPropagation(); openProfile(post.authorId); }}
                                 className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
                               >
-                                <span className="text-base">{post.authorIcon}</span>
+                                <UserAvatar name={post.authorName} size="xs" />
                                 <span className="text-gray-300 font-semibold">{post.authorName}</span>
                                 <VerifiedBadge size="xs" />
                               </button>
                             ) : (
                               <span className="flex items-center gap-1.5">
-                                <span className="text-base">{post.authorIcon}</span> {post.authorName}
+                                <UserAvatar name={post.authorName} size="xs" />
+                                {post.authorName}
                               </span>
                             )}
                             <span>{timeAgo(post.createdAt)}</span>
@@ -1090,9 +1114,7 @@ const Community = () => {
                     className="group border border-l-4 border-white/[0.08] border-l-purple-500/30 rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
                   >
                     <div className="flex items-start gap-3.5">
-                      <div className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center flex-shrink-0 text-lg">
-                        {post.authorIcon}
-                      </div>
+                      <UserAvatar name={post.authorName} size="md" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
                           {post.isVerified ? (
@@ -1112,11 +1134,11 @@ const Community = () => {
                             {categories.find(c => c.id === post.category)?.name}
                           </span>
                         </div>
-                        <h3 className="text-base font-semibold text-white lowercase mb-1.5 group-hover:text-purple-400 transition-colors leading-snug">
+                        <h3 className="text-base font-semibold text-white mb-1.5 group-hover:text-purple-400 transition-colors leading-snug">
                           {post.title}
                           {post.edited && <span className="ml-2 text-[10px] font-normal text-gray-600 align-middle">(edited)</span>}
                         </h3>
-                        <p className="text-sm text-gray-500 lowercase line-clamp-2 leading-relaxed mb-4">
+                        <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed mb-4">
                           {post.content}
                         </p>
                         <div className="flex items-center gap-4 pt-3 border-t border-white/[0.05]">
