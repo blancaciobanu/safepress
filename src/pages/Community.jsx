@@ -4,7 +4,7 @@ import {
   Plus, ArrowLeft, CheckCircle2, X, Search,
   Shield, Smartphone, Lock, Radio, Scale,
   Newspaper, ExternalLink, AlertTriangle, Bookmark, BookmarkCheck,
-  Pencil, Star, BadgeCheck
+  Pencil, Pen, Star, BadgeCheck
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,15 +37,17 @@ const getAvatarColor = (name = '') => {
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 };
-const AVATAR_SIZES = { xs: [20, 9], sm: [28, 11], md: [36, 14], lg: [44, 18] };
-const UserAvatar = ({ name = '', size = 'md' }) => {
-  const [dim, fs] = AVATAR_SIZES[size] ?? AVATAR_SIZES.md;
+// dim = circle diameter (px), icon = icon size (px)
+const AVATAR_SIZES = { xs: { dim: 20, icon: 10 }, sm: { dim: 28, icon: 13 }, md: { dim: 36, icon: 16 }, lg: { dim: 44, icon: 20 } };
+const UserAvatar = ({ name = '', accountType = 'journalist', size = 'md' }) => {
+  const { dim, icon } = AVATAR_SIZES[size] ?? AVATAR_SIZES.md;
+  const Icon = accountType === 'specialist' ? Shield : Pen;
   return (
     <div
-      style={{ width: dim, height: dim, backgroundColor: getAvatarColor(name), fontSize: fs, flexShrink: 0 }}
-      className="rounded-full flex items-center justify-center font-bold text-white select-none"
+      style={{ width: dim, height: dim, backgroundColor: getAvatarColor(name), flexShrink: 0 }}
+      className="rounded-full flex items-center justify-center text-white"
     >
-      {(name.charAt(0) || '?').toUpperCase()}
+      <Icon style={{ width: icon, height: icon }} strokeWidth={2.5} />
     </div>
   );
 };
@@ -452,29 +454,34 @@ const Community = () => {
             }`}
           >
             {/* Author row */}
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-3 mb-4">
               {selectedPost.isVerified ? (
-                <button
-                  onClick={() => openProfile(selectedPost.authorId)}
-                  className="flex items-center gap-2 hover:opacity-75 transition-opacity"
-                >
-                  <UserAvatar name={selectedPost.authorName} size="lg" />
-                  <span className="text-xs font-semibold text-gray-300 lowercase">{selectedPost.authorName}</span>
-                  <VerifiedBadge size="xs" />
+                <button onClick={() => openProfile(selectedPost.authorId)} className="hover:opacity-75 transition-opacity flex-shrink-0">
+                  <UserAvatar name={selectedPost.authorName} accountType={selectedPost.authorType} size="md" />
                 </button>
               ) : (
-                <>
-                  <UserAvatar name={selectedPost.authorName} size="lg" />
-                  <span className="text-xs font-semibold text-gray-300 lowercase">{selectedPost.authorName}</span>
-                </>
+                <UserAvatar name={selectedPost.authorName} accountType={selectedPost.authorType} size="md" />
               )}
+              <div className="flex-1 min-w-0">
+                {selectedPost.isVerified ? (
+                  <button onClick={() => openProfile(selectedPost.authorId)} className="flex items-center gap-1.5 hover:opacity-75 transition-opacity">
+                    <span className="text-sm font-semibold text-gray-200 lowercase">{selectedPost.authorName}</span>
+                    <VerifiedBadge size="xs" />
+                  </button>
+                ) : (
+                  <span className="text-sm font-semibold text-gray-200 lowercase">{selectedPost.authorName}</span>
+                )}
+                <p className="text-[11px] text-gray-600 lowercase mt-0.5">
+                  {selectedPost.authorType === 'specialist' ? 'security specialist' : 'journalist'}
+                </p>
+              </div>
               {selectedPost.authorId === user?.uid && (
                 <button
                   onClick={() => {
                     if (editMode) { setEditMode(false); }
                     else { setEditMode(true); setEditForm({ title: selectedPost.title, content: selectedPost.content }); }
                   }}
-                  className="ml-auto flex items-center gap-1 text-[11px] text-gray-600 hover:text-white transition-colors lowercase"
+                  className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-white transition-colors lowercase flex-shrink-0"
                 >
                   {editMode ? <X className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
                   {editMode ? 'cancel' : 'edit'}
@@ -578,25 +585,29 @@ const Community = () => {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
             {user ? (
               <div className="glass-card p-4 mb-4">
-                <div className="flex gap-2.5 items-start">
-                  <UserAvatar name={user.username || ''} size="md" />
-                  <textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder={isQuestion ? 'write your answer...' : 'add a reply...'}
-                    rows="2"
-                    className="flex-1 px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-midnight-400/40 transition-colors resize-none leading-relaxed"
-                  />
-                  <button
-                    onClick={handleAddComment}
-                    disabled={!newComment.trim() || submitting}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-midnight-400 hover:bg-midnight-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all flex-shrink-0 mt-0.5"
-                  >
-                    <Send className="w-3 h-3" />
-                    {submitting ? '...' : isQuestion ? 'answer' : 'reply'}
-                  </button>
+                <div className="flex gap-3 items-start">
+                  <UserAvatar name={user.username || ''} accountType={user.accountType} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder={isQuestion ? 'write your answer...' : 'add a reply...'}
+                      rows="2"
+                      className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-midnight-400/40 transition-colors resize-none leading-relaxed"
+                    />
+                    <div className="flex justify-end mt-2">
+                      <button
+                        onClick={handleAddComment}
+                        disabled={!newComment.trim() || submitting}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-midnight-400 hover:bg-midnight-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                      >
+                        <Send className="w-3 h-3" />
+                        {submitting ? '...' : isQuestion ? 'answer' : 'reply'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                {error && <p className="text-xs text-crimson-400 mt-2 lowercase pl-9">{error}</p>}
+                {error && <p className="text-xs text-crimson-400 mt-2 lowercase">{error}</p>}
               </div>
             ) : (
               <div className="flex items-center justify-between gap-4 px-5 py-3.5 mb-4 border border-white/[0.06] rounded-xl bg-white/[0.02]">
@@ -624,25 +635,33 @@ const Community = () => {
                   key={index}
                   className="glass-card px-4 py-3 border-l-4 border-l-white/[0.06]"
                 >
-                  <div className="flex items-center gap-2 mb-1.5">
+                  <div className="flex gap-3 items-start">
+                    {/* Avatar — clickable if verified */}
                     {comment.isVerified ? (
-                      <button
-                        onClick={() => openProfile(comment.authorId)}
-                        className="flex items-center gap-2 hover:opacity-75 transition-opacity"
-                      >
-                        <UserAvatar name={comment.authorName} size="sm" />
-                        <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
-                        <VerifiedBadge size="xs" />
+                      <button onClick={() => openProfile(comment.authorId)} className="hover:opacity-75 transition-opacity flex-shrink-0 mt-0.5">
+                        <UserAvatar name={comment.authorName} accountType={comment.authorType} size="sm" />
                       </button>
                     ) : (
-                      <>
-                        <UserAvatar name={comment.authorName} size="sm" />
-                        <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
-                      </>
+                      <div className="flex-shrink-0 mt-0.5">
+                        <UserAvatar name={comment.authorName} accountType={comment.authorType} size="sm" />
+                      </div>
                     )}
-                    <span className="text-[10px] text-gray-600 lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
+                    {/* Content column */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        {comment.isVerified ? (
+                          <button onClick={() => openProfile(comment.authorId)} className="flex items-center gap-1.5 hover:opacity-75 transition-opacity">
+                            <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
+                            <VerifiedBadge size="xs" />
+                          </button>
+                        ) : (
+                          <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
+                        )}
+                        <span className="text-[10px] text-gray-600 lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
+                      </div>
+                      <p className="text-sm text-gray-400 leading-relaxed">{comment.content}</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-400 leading-relaxed pl-9">{comment.content}</p>
                 </div>
               ))}
 
@@ -1071,13 +1090,13 @@ const Community = () => {
                                 onClick={e => { e.stopPropagation(); openProfile(post.authorId); }}
                                 className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
                               >
-                                <UserAvatar name={post.authorName} size="xs" />
+                                <UserAvatar name={post.authorName} accountType={post.authorType} size="xs" />
                                 <span className="text-gray-300 font-semibold">{post.authorName}</span>
                                 <VerifiedBadge size="xs" />
                               </button>
                             ) : (
                               <span className="flex items-center gap-1.5">
-                                <UserAvatar name={post.authorName} size="xs" />
+                                <UserAvatar name={post.authorName} accountType={post.authorType} size="xs" />
                                 {post.authorName}
                               </span>
                             )}
@@ -1114,7 +1133,7 @@ const Community = () => {
                     className="group border border-l-4 border-white/[0.08] border-l-purple-500/30 rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
                   >
                     <div className="flex items-start gap-3.5">
-                      <UserAvatar name={post.authorName} size="md" />
+                      <UserAvatar name={post.authorName} accountType={post.authorType} size="sm" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
                           {post.isVerified ? (
