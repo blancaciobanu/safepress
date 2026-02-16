@@ -2,8 +2,10 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
@@ -13,108 +15,108 @@ const AuthContext = createContext({});
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // User is signed in, get additional data from Firestore
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         setUser({
-          uid: user.uid,
-          email: user.email,
-          metadata: user.metadata,
-          ...userDoc.data()
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          photoURL: firebaseUser.photoURL,
+          metadata: firebaseUser.metadata,
+          ...userDoc.data(),
         });
       } else {
         setUser(null);
       }
       setLoading(false);
     });
-
     return unsubscribe;
   }, []);
 
+  /* ── Email / password signup ─────────────────────────────────────────── */
   const signup = async (email, password, userData) => {
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    const { username, avatarIcon } = generateUserIdentity();
 
-      // Generate anonymous identity for privacy
+    const profile = {
+      email,
+      username,
+      avatarIcon,
+      realName: userData.realName,
+      createdAt: new Date().toISOString(),
+      securityScores: [],
+      accountType: userData.accountType || 'journalist',
+    };
+
+    if (userData.accountType === 'specialist') {
+      profile.verificationStatus = 'pending';
+      profile.verificationData = {
+        expertise: userData.expertise,
+        credentials: userData.credentials,
+        linkedinUrl: userData.linkedinUrl,
+        organization: userData.organization,
+        submittedAt: new Date().toISOString(),
+      };
+      profile.verificationDate = null;
+      profile.specialistProfile = { bio: '', expertiseAreas: [], certifications: [] };
+    }
+
+    await setDoc(doc(db, 'users', result.user.uid), profile);
+    return result;
+  };
+
+  /* ── Google sign-in ──────────────────────────────────────────────────── */
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    const result   = await signInWithPopup(auth, provider);
+
+    // First time with Google? Create a Firestore profile automatically.
+    const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+    if (!userDoc.exists()) {
       const { username, avatarIcon } = generateUserIdentity();
-
-      // Base user data
-      const baseUserData = {
-        email,
+      await setDoc(doc(db, 'users', result.user.uid), {
+        email: result.user.email,
         username,
         avatarIcon,
-        realName: userData.realName,
+        realName: result.user.displayName ?? '',
         createdAt: new Date().toISOString(),
         securityScores: [],
-        accountType: userData.accountType || 'journalist'
-      };
-
-      // Add specialist-specific fields if account type is specialist
-      if (userData.accountType === 'specialist') {
-        baseUserData.verificationStatus = 'pending'; // pending, approved, rejected
-        baseUserData.verificationData = {
-          expertise: userData.expertise,
-          credentials: userData.credentials,
-          linkedinUrl: userData.linkedinUrl,
-          organization: userData.organization,
-          submittedAt: new Date().toISOString()
-        };
-        baseUserData.verificationDate = null; // Set when approved
-        baseUserData.specialistProfile = {
-          bio: '',
-          expertiseAreas: [],
-          certifications: []
-        };
-      }
-
-      // Create user document in Firestore
-      await setDoc(doc(db, 'users', result.user.uid), baseUserData);
-
-      return result;
-    } catch (error) {
-      throw error;
+        accountType: 'journalist',
+      });
     }
+
+    return result;
   };
 
-  const login = async (email, password) => {
-    try {
-      return await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      throw error;
-    }
-  };
+  /* ── Email / password login ──────────────────────────────────────────── */
+  const login = (email, password) =>
+    signInWithEmailAndPassword(auth, email, password);
 
-  const logout = async () => {
-    try {
-      return await signOut(auth);
-    } catch (error) {
-      throw error;
-    }
-  };
+  /* ── Logout ──────────────────────────────────────────────────────────── */
+  const logout = () => signOut(auth);
 
-  const value = {
-    user,
-    loading,
-    signup,
-    login,
-    logout
-  };
+  const value = { user, loading, signup, login, loginWithGoogle, logout };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

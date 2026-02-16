@@ -342,32 +342,39 @@ const CrisisOverlay = () => {
     <AnimatePresence>
       {overlayOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          key="crisis-overlay"
+          initial={{ clipPath: 'circle(0% at calc(100% - 56px) 36px)' }}
+          animate={{ clipPath: 'circle(150% at calc(100% - 56px) 36px)' }}
+          exit={{ clipPath: 'circle(0% at calc(100% - 56px) 36px)' }}
+          transition={{ duration: 1.2, ease: [0.4, 0, 0.15, 1] }}
           className="fixed inset-0 z-[100] overflow-y-auto"
-          style={{ backgroundColor: '#FAF8F5' }}
+          style={{ backgroundColor: '#FAF8F5', filter: 'drop-shadow(0 0 30px rgba(250,248,245,0.5))' }}
         >
-          {/* ── Toggle pill — top right, always visible ── */}
-          <div className="fixed top-5 right-5 flex items-center gap-2 z-10">
-            <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A8680]">
+          {/* ── Toggle pill — same corner + same size as header toggle ── */}
+          <div className="fixed top-4 right-4 flex items-center gap-2" style={{ zIndex: 3 }}>
+            <span className="hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] text-[#8A8680]">
               Crisis
             </span>
             <button
               onClick={closeOverlay}
               role="switch"
               aria-checked={true}
-              className="relative flex-shrink-0 w-10 h-[22px] rounded-full focus:outline-none"
+              className="relative flex-shrink-0 w-20 h-10 rounded-full focus:outline-none"
               style={{ backgroundColor: '#e53e3e' }}
             >
               <span
-                className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white"
-                style={{ left: 2, transform: 'translateX(18px)', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}
+                className="absolute top-[4px] w-8 h-8 rounded-full bg-white"
+                style={{ left: 4, transform: 'translateX(40px)', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}
               />
             </button>
           </div>
 
+          {/* Content — fades in as the circle expands */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          >
           <AnimatePresence mode="wait">
 
             {/* ── Selection view ──────────────────────────────────────────── */}
@@ -708,6 +715,7 @@ const CrisisOverlay = () => {
             )}
 
           </AnimatePresence>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>

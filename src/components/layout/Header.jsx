@@ -50,6 +50,38 @@ const Header = () => {
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
 
+      {/* ── Corner crisis toggle — same position as overlay toggle ── */}
+      <div className="fixed top-4 right-4 z-[60] flex items-center gap-2">
+        <span className={`hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
+          isInCrisis ? 'text-crimson-400' : 'text-gray-600'
+        }`}>
+          {isInCrisis ? 'Crisis Active' : 'Crisis'}
+        </span>
+        <button
+          onClick={toggleOverlay}
+          role="switch"
+          aria-checked={overlayOpen}
+          className="relative flex-shrink-0 w-20 h-10 rounded-full transition-colors duration-200 focus:outline-none"
+          style={{
+            backgroundColor: overlayOpen
+              ? 'var(--crimson-500, #e53e3e)'
+              : isInCrisis
+                ? 'rgba(229,62,62,0.25)'
+                : 'rgba(255,255,255,0.08)',
+            border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
+          }}
+        >
+          <span
+            className="absolute top-[4px] w-8 h-8 rounded-full bg-white transition-transform duration-200"
+            style={{
+              left: 4,
+              transform: overlayOpen ? 'translateX(40px)' : 'translateX(0)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+            }}
+          />
+        </button>
+      </div>
+
       {/* ── Main header ───────────────────────────────────────────────────── */}
       <motion.header
         initial={{ y: -100, opacity: 0 }}
@@ -75,7 +107,7 @@ const Header = () => {
               </span>
             </Link>
 
-            {/* Auth */}
+            {/* Auth — pr-20 keeps content clear of the fixed crisis pill */}
             <div className="flex items-center gap-2 w-48 justify-end">
               {user ? (
                 <>
@@ -148,37 +180,6 @@ const Header = () => {
                 ))}
               </div>
 
-              {/* Crisis toggle — always visible, separated */}
-              <div className="flex items-center gap-2.5 ml-8 pl-8 border-l border-white/[0.08] py-3.5">
-                <span className={`text-[10px] font-bold uppercase tracking-[0.12em] transition-colors ${
-                  isInCrisis ? 'text-crimson-400' : 'text-gray-600'
-                }`}>
-                  {isInCrisis ? 'Crisis Active' : 'Crisis'}
-                </span>
-                <button
-                  onClick={toggleOverlay}
-                  role="switch"
-                  aria-checked={overlayOpen}
-                  className="relative flex-shrink-0 w-10 h-[22px] rounded-full transition-colors duration-200 focus:outline-none"
-                  style={{
-                    backgroundColor: overlayOpen
-                      ? 'var(--crimson-500, #e53e3e)'
-                      : isInCrisis
-                        ? 'rgba(229,62,62,0.25)'
-                        : 'rgba(255,255,255,0.08)',
-                    border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
-                  }}
-                >
-                  <span
-                    className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white transition-transform duration-200"
-                    style={{
-                      left: 2,
-                      transform: overlayOpen ? 'translateX(18px)' : 'translateX(0)',
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
-                    }}
-                  />
-                </button>
-              </div>
             </div>
 
             {/* Mobile menu button */}
@@ -212,35 +213,6 @@ const Header = () => {
                   {item.name}
                 </Link>
               ))}
-              {/* Mobile crisis toggle row */}
-              <div className="flex items-center justify-between px-3 py-2.5">
-                <span className={`text-xs font-bold uppercase tracking-[0.1em] ${isInCrisis ? 'text-crimson-400' : 'text-gray-500'}`}>
-                  {isInCrisis ? 'Crisis Active' : 'Crisis Mode'}
-                </span>
-                <button
-                  onClick={toggleOverlay}
-                  role="switch"
-                  aria-checked={overlayOpen}
-                  className="relative flex-shrink-0 w-10 h-[22px] rounded-full transition-colors duration-200 focus:outline-none"
-                  style={{
-                    backgroundColor: overlayOpen
-                      ? 'var(--crimson-500, #e53e3e)'
-                      : isInCrisis
-                        ? 'rgba(229,62,62,0.25)'
-                        : 'rgba(255,255,255,0.08)',
-                    border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
-                  }}
-                >
-                  <span
-                    className="absolute top-[2px] w-[18px] h-[18px] rounded-full bg-white transition-transform duration-200"
-                    style={{
-                      left: 2,
-                      transform: overlayOpen ? 'translateX(18px)' : 'translateX(0)',
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
-                    }}
-                  />
-                </button>
-              </div>
             </motion.div>
           )}
         </div>
