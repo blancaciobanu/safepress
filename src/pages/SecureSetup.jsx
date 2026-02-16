@@ -683,7 +683,15 @@ const SecureSetup = () => {
         </div>
 
         {/* Task grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <AnimatePresence mode="popLayout">
+        <motion.div
+          key={selectedCategory ?? 'all'}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-3"
+        >
             {filteredTasks.map((task) => {
               const isCompleted = completedTasks.has(task.id);
               const borderClass = isCompleted
@@ -770,7 +778,8 @@ const SecureSetup = () => {
                 </div>
               );
             })}
-        </div>
+        </motion.div>
+        </AnimatePresence>
 
         {/* Footer CTA */}
         {!user && (
