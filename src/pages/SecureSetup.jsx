@@ -453,14 +453,18 @@ const SecureSetup = () => {
     return Math.round(tasks.filter(t => completedTasks.has(t.id)).length / tasks.length * 100);
   };
 
-  const filteredTasks = useMemo(() => (
-    selectedCategory ? allTasks.filter(t => t.categoryKey === selectedCategory) : allTasks
-  ).sort((a, b) => {
+  const filteredTasks = useMemo(() => {
+    // always sort a copy — never mutate the module-level allTasks array
+    const base = selectedCategory
+      ? allTasks.filter(t => t.categoryKey === selectedCategory)
+      : [...allTasks];
+    return base.sort((a, b) => {
     const ac = completedTasks.has(a.id) ? 1 : 0;
     const bc = completedTasks.has(b.id) ? 1 : 0;
     if (ac !== bc) return ac - bc;
-    return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
-  }), [selectedCategory, completedTasks]);
+      return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
+    });
+  }, [selectedCategory, completedTasks]);
 
   // ── loading ───────────────────────────────────────────────────────────────────
 
@@ -629,9 +633,7 @@ const SecureSetup = () => {
                 <motion.div
                   key={task.id}
                   layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ layout: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } }}
                   className={`p-4 rounded-xl border border-l-4 transition-all ${borderClass}`}
                 >
                   <div className="flex items-start gap-3">

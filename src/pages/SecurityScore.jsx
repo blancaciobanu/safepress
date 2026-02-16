@@ -933,11 +933,8 @@ const SecurityScore = () => {
 
               <div className="space-y-3">
                 {currentQ.options.map((option, index) => (
-                  <motion.button
+                  <button
                     key={option.value}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
                     onClick={() => handleAnswer(currentQ.id, option.value, option.points)}
                     className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
                       currentAnswer?.value === option.value
@@ -963,7 +960,7 @@ const SecurityScore = () => {
                         {option.label}
                       </span>
                     </div>
-                  </motion.button>
+                  </button>
                 ))}
               </div>
             </motion.div>

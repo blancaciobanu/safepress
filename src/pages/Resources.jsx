@@ -12,9 +12,9 @@ const Resources = () => {
   const [selectedOS, setSelectedOS] = useState('windows');
 
   const tabs = [
-    { id: 'os-guides',    label: 'OS Security Guides', icon: Monitor },
-    { id: 'tools',        label: 'Recommended Tools',  icon: Wrench  },
-    { id: 'ai-security',  label: 'AI Security',        icon: Brain   },
+    { id: 'os-guides',   label: 'OS Security Guides', desc: 'step-by-step hardening for every platform', icon: Monitor },
+    { id: 'tools',       label: 'Recommended Tools',  desc: 'vetted apps for messaging, privacy & more', icon: Wrench  },
+    { id: 'ai-security', label: 'AI Security',        desc: 'threats, safe tools & what never to share', icon: Brain   },
   ];
 
   /* ─── Data ──────────────────────────────────────────────────────────────── */
@@ -264,27 +264,35 @@ const Resources = () => {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="flex justify-center mb-12"
+          className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-12"
         >
-        <div className="flex gap-1 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
           {tabs.map(tab => {
             const Icon = tab.icon;
+            const active = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-white/[0.08] text-white'
-                    : 'text-gray-500 hover:text-gray-300'
+                className={`flex flex-col items-center gap-3 p-5 rounded-2xl border transition-all text-center ${
+                  active
+                    ? 'bg-midnight-400/10 border-midnight-400/20 text-white'
+                    : 'bg-white/[0.02] border-white/[0.07] text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                {tab.label}
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  active ? 'bg-midnight-400/20' : 'bg-white/[0.05]'
+                }`}>
+                  <Icon className={`w-5 h-5 ${active ? 'text-midnight-400' : ''}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold lowercase leading-tight">{tab.label}</p>
+                  <p className={`text-[11px] mt-0.5 lowercase leading-snug ${active ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {tab.desc}
+                  </p>
+                </div>
               </button>
             );
           })}
-        </div>
         </motion.div>
 
         {/* Tab content */}
@@ -321,30 +329,20 @@ const Resources = () => {
               </div>
 
               {/* Steps for selected OS */}
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={selectedOS}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <p className="text-sm text-gray-500 mb-6">{currentOS.description}</p>
-                  <div className="space-y-3">
-                    {currentOS.steps.map((step, i) => (
-                      <div key={i} className="glass-card p-5 flex gap-4 items-start">
-                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-midnight-400/10 border border-midnight-400/20 flex items-center justify-center text-xs font-bold text-midnight-400">
-                          {i + 1}
-                        </span>
-                        <div>
-                          <h4 className="text-sm font-semibold text-white mb-1">{step.title}</h4>
-                          <p className="text-sm text-gray-400 leading-relaxed">{step.details}</p>
-                        </div>
-                      </div>
-                    ))}
+              <p className="text-sm text-gray-500 mb-6 lowercase">{currentOS.description}</p>
+              <div className="space-y-3">
+                {currentOS.steps.map((step, i) => (
+                  <div key={i} className="glass-card p-5 flex gap-4 items-start border-l-4 border-midnight-400/20">
+                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-midnight-400/10 border border-midnight-400/20 flex items-center justify-center text-xs font-bold text-midnight-400">
+                      {i + 1}
+                    </span>
+                    <div>
+                      <h4 className="text-sm font-semibold text-white mb-1 lowercase">{step.title}</h4>
+                      <p className="text-sm text-gray-400 leading-relaxed">{step.details}</p>
+                    </div>
                   </div>
-                </motion.div>
-              </AnimatePresence>
+                ))}
+              </div>
             </motion.div>
           )}
 
@@ -363,12 +361,13 @@ const Resources = () => {
                 return (
                   <div key={category.id}>
                     <div className="flex items-center gap-3 mb-5">
-                      <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center flex-shrink-0`}>
-                        <CategoryIcon className="w-4 h-4 text-white" />
+                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center flex-shrink-0`}>
+                        <CategoryIcon className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <h2 className="text-base font-semibold text-white">{category.name}</h2>
-                        <p className="text-xs text-gray-500">{category.description}</p>
+                        <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-0.5">category</p>
+                        <h2 className="text-sm font-semibold text-white lowercase">{category.name}</h2>
+                        <p className="text-xs text-gray-500 lowercase">{category.description}</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -415,12 +414,13 @@ const Resources = () => {
                 return (
                   <div key={category.id}>
                     <div className="flex items-center gap-3 mb-5">
-                      <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center flex-shrink-0`}>
-                        <CategoryIcon className="w-4 h-4 text-white" />
+                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center flex-shrink-0`}>
+                        <CategoryIcon className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <h2 className="text-base font-semibold text-white">{category.name}</h2>
-                        <p className="text-xs text-gray-500">{category.description}</p>
+                        <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-0.5">category</p>
+                        <h2 className="text-sm font-semibold text-white lowercase">{category.name}</h2>
+                        <p className="text-xs text-gray-500 lowercase">{category.description}</p>
                       </div>
                     </div>
 

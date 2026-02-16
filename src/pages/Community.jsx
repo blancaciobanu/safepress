@@ -501,19 +501,24 @@ const Community = () => {
           className="flex items-center justify-between gap-4 mb-8"
         >
           <div className="flex items-center gap-1.5 flex-wrap">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all lowercase ${
-                  activeCategory === cat.id
-                    ? 'bg-white/[0.1] text-white'
-                    : 'text-gray-600 hover:text-gray-400'
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
+            {categories.map((cat) => {
+              const CatIcon = cat.icon;
+              const active = activeCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all lowercase border ${
+                    active
+                      ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
+                      : 'border-transparent text-gray-600 hover:text-gray-300 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  {CatIcon && <CatIcon className="w-3 h-3" />}
+                  {cat.name}
+                </button>
+              );
+            })}
           </div>
           <button
             onClick={() => {
@@ -623,16 +628,13 @@ const Community = () => {
                 if (isQA) {
                   // ── Q&A Card: bordered, structured, status-first ──
                   return (
-                    <motion.div
+                    <div
                       key={post.id}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
                       onClick={() => setSelectedPost(post)}
-                      className={`group relative border rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] ${
+                      className={`group relative border border-l-4 rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] ${
                         post.resolved
-                          ? 'border-olive-500/20 bg-olive-500/[0.02]'
-                          : 'border-white/[0.08]'
+                          ? 'border-olive-500/20 border-l-olive-500/50 bg-olive-500/[0.02]'
+                          : 'border-white/[0.08] border-l-amber-500/40'
                       }`}
                     >
                       <div className="flex gap-4">
@@ -674,19 +676,16 @@ const Community = () => {
                           </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 }
 
                 // ── Discussion Card ──
                 return (
-                  <motion.div
+                  <div
                     key={post.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
                     onClick={() => setSelectedPost(post)}
-                    className="group border border-white/[0.08] rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
+                    className="group border border-l-4 border-white/[0.08] border-l-purple-500/30 rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
                   >
                     <div className="flex items-start gap-3.5">
                       <div className="w-9 h-9 rounded-lg bg-white/[0.05] border border-white/[0.08] flex items-center justify-center flex-shrink-0 text-lg">
@@ -721,7 +720,7 @@ const Community = () => {
                         </div>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>

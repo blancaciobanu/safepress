@@ -1,55 +1,55 @@
 /* Red Hat Display + Inter (editorial with character) */
-@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
 @theme {
-  /* Dark base colors - warmer, richer */
-  --color-dark-900: #0D0D12;
-  --color-dark-800: #16161D;
-  --color-dark-700: #1E1E28;
-  --color-dark-600: #272733;
+  /* Dark base — deep, near-black */
+  --color-dark-900: #0B0B11;
+  --color-dark-800: #13131C;
+  --color-dark-700: #1A1A27;
+  --color-dark-600: #222233;
 
-  /* Deep Crimson - urgency, breaking news */
+  /* Crimson — crisis only */
   --color-crimson-400: #EF4444;
   --color-crimson-500: #DC2626;
   --color-crimson-600: #B91C1C;
 
-  /* Midnight Blue - trust, depth, serious journalism */
-  --color-midnight-400: #3B82F6;
-  --color-midnight-500: #1E3A8A;
-  --color-midnight-600: #1E40AF;
+  /* Indigo — primary interactive (replaced generic blue) */
+  --color-midnight-400: #4361EE;
+  --color-midnight-500: #3451D1;
+  --color-midnight-600: #2540B0;
 
-  /* Warm Amber - investigation, truth */
+  /* Warm Amber */
   --color-amber-400: #FBBF24;
   --color-amber-500: #F59E0B;
   --color-amber-600: #D97706;
 
-  /* Steel Gray - neutral, professional */
+  /* Steel Gray */
   --color-steel-400: #94A3B8;
   --color-steel-500: #64748B;
   --color-steel-600: #475569;
 
-  /* Olive Green - verified, safe */
+  /* Olive — verified/safe */
   --color-olive-400: #84CC16;
   --color-olive-500: #65A30D;
   --color-olive-600: #4D7C0F;
 
-  /* Teal - fresh, modern, truth */
+  /* Teal */
   --color-teal-400: #2DD4BF;
   --color-teal-500: #14B8A6;
   --color-teal-600: #0D9488;
 
-  /* Purple - trust, integrity, truth */
+  /* Purple */
   --color-purple-400: #A78BFA;
   --color-purple-500: #8B5CF6;
   --color-purple-600: #7C3AED;
 
-  /* Font families - Bauhaus Editorial */
+  /* Fonts */
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-display: 'Red Hat Display', sans-serif;
 
-  /* Custom animations */
+  /* Animations */
   --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
   --animate-gradient-shift: gradient-shift 8s ease infinite;
@@ -57,138 +57,171 @@
   --animate-fade-in: fade-in 0.3s ease-out;
 }
 
-/* Keyframe animations */
+/* ─── Editorial gold tokens (decorative — not used on button backgrounds) ─── */
+:root {
+  --gold: #C9A84C;
+  --gold-dim: #A8872C;
+  --gold-bright: #E2C27A;
+}
+
+/* ─── Keyframes ─── */
 @keyframes glow-pulse {
-  0%, 100% {
-    box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3);
-  }
-  50% {
-    box-shadow: 0 12px 32px rgba(220, 38, 38, 0.5);
-  }
+  0%, 100% { box-shadow: 0 8px 24px rgba(220, 38, 38, 0.3); }
+  50%       { box-shadow: 0 12px 32px rgba(220, 38, 38, 0.5); }
 }
 
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  50%       { transform: translateY(-10px); }
 }
 
 @keyframes gradient-shift {
   0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+  50%       { background-position: 100% 50%; }
 }
 
 @keyframes slide-up {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  0%   { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fade-in {
-  0% { opacity: 0; }
+  0%   { opacity: 0; }
   100% { opacity: 1; }
 }
 
+/* ─── Base ─── */
 body {
-  background-color: #0D0D12;
-  color: white;
+  background-color: #0B0B11;
+  color: #EAE7E0;             /* Warm off-white — feels like quality paper */
   font-family: 'Inter', system-ui, sans-serif;
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  position: relative;
 }
 
-/* Premium mesh gradient background - Editorial */
+/* white still means white where explicitly used */
+.text-white { color: #ffffff !important; }
+
+/* ─── Background — editorial "newsroom at night" gradient ─── */
 body::before {
   content: '';
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background:
-    radial-gradient(
-      ellipse 80% 50% at 50% -20%,
-      rgba(100, 116, 139, 0.08),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 60% 50% at 0% 50%,
-      rgba(71, 85, 105, 0.10),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 60% 50% at 100% 50%,
-      rgba(100, 116, 139, 0.06),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 100% 80% at 50% 100%,
-      rgba(220, 38, 38, 0.04),
-      transparent
-    );
-  filter: blur(60px);
+    /* Warm gold glow — top-centre, like a lamp over a desk */
+    radial-gradient(ellipse 65% 35% at 50% -8%, rgba(201, 168, 76, 0.07), transparent),
+    /* Indigo wash — left */
+    radial-gradient(ellipse 55% 60% at -8% 45%, rgba(67, 97, 238, 0.07), transparent),
+    /* Indigo wash — right */
+    radial-gradient(ellipse 55% 60% at 108% 55%, rgba(67, 97, 238, 0.05), transparent),
+    /* Crimson ember — bottom */
+    radial-gradient(ellipse 100% 55% at 50% 110%, rgba(220, 38, 38, 0.04), transparent);
+  filter: blur(90px);
   z-index: -2;
   pointer-events: none;
 }
 
-/* Grain texture overlay for premium feel */
+/* ─── Grain texture — editorial tactility ─── */
 body::after {
   content: '';
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.5' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
-  opacity: 0.7;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.8' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.065'/%3E%3C/svg%3E");
+  opacity: 0.65;
   z-index: -1;
   pointer-events: none;
   mix-blend-mode: overlay;
 }
 
-/* Custom component classes */
+/* ─── Glass cards ─── */
+
+/* Standard surface — crisper than before */
 .glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.625rem;   /* 10px — sharper, more editorial */
 }
 
+/* Elevated — for featured/primary content */
+.glass-card-raised {
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.625rem;
+}
+
+/* Flat — for dense lists, sidebars */
+.glass-card-flat {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.5rem;
+}
+
+/* Gold-accented left border — editorial callout */
+.glass-card-accent {
+  background: rgba(201, 168, 76, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 2px solid var(--gold);
+  border-radius: 0 0.625rem 0.625rem 0;
+  padding-left: 1.25rem;
+}
+
+/* ─── Typography utilities ─── */
+
+/* Eyebrow / section label — the thing that makes editorial design feel editorial */
+.label {
+  font-size: 0.6875rem;          /* 11px */
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #64748B;                /* steel-500 */
+}
+
+/* Tabular numbers for scores, stats */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+/* Horizontal rule */
+.rule {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Brand gradient — gold editorial ─── */
 .gradient-text {
-  background: linear-gradient(135deg, #DC2626, #B91C1C);
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold), var(--gold-dim));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-size: 200% 200%;
-  animation: gradient-shift 4s ease infinite;
+  animation: gradient-shift 6s ease infinite;
 }
 
+/* ─── Buttons ─── */
 .btn-glass {
   background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(24px);
+  backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1.25rem;
   font-weight: 500;
-  transition: all 0.3s;
+  font-size: 0.875rem;
+  transition: all 0.2s;
 }
 
 .btn-glass:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
-.btn-glass:active {
-  transform: scale(0.95);
-}
+.btn-glass:active { transform: scale(0.97); }
 
 .btn-crisis {
   background: linear-gradient(135deg, #DC2626, #B91C1C);
@@ -208,163 +241,47 @@ body::after {
   border-color: rgba(220, 38, 38, 0.4);
 }
 
-.btn-crisis:active {
-  transform: scale(0.95);
-}
+.btn-crisis:active { transform: scale(0.95); }
 
+/* ─── Layout ─── */
 .section-container {
   max-width: 80rem;
-  margin-left: auto;
-  margin-right: auto;
+  margin-inline: auto;
   padding: 2rem 1rem;
 }
 
-@media (min-width: 640px) {
-  .section-container {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-}
+@media (min-width: 640px)  { .section-container { padding-inline: 1.5rem; } }
+@media (min-width: 1024px) { .section-container { padding-inline: 2rem; } }
 
-@media (min-width: 1024px) {
-  .section-container {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-}
-
-/* Scrollbar styling */
-.scrollbar-thin::-webkit-scrollbar {
-  width: 8px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-track {
-  background-color: #16161D;
-}
-
+/* ─── Scrollbar ─── */
+.scrollbar-thin::-webkit-scrollbar       { width: 6px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: #13131C; }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #DC2626, #1E3A8A);
+  background: linear-gradient(180deg, var(--gold-dim), #4361EE);
   border-radius: 9999px;
 }
-
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #B91C1C, #1E40AF);
+  background: linear-gradient(180deg, var(--gold), #3451D1);
 }
 
-/* Custom cursor - disabled but keeping for future use */
-.custom-cursor {
-  position: fixed;
-  width: 20px;
-  height: 20px;
-  border: 2px solid #DC2626;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 9999;
-  transition: width 0.3s, height 0.3s, border-color 0.3s;
-  mix-blend-mode: difference;
-}
-
-.custom-cursor-dot {
-  position: fixed;
-  width: 6px;
-  height: 6px;
-  background: #F59E0B;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 10000;
-  transition: transform 0.15s;
-}
-
-.custom-cursor.hover {
-  width: 50px;
-  height: 50px;
-  border-color: #F59E0B;
-  background: rgba(245, 158, 11, 0.1);
-}
-
-/* Magnetic effect */
-.magnetic {
-  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-}
-
-/* Glitch effect */
-.glitch {
-  position: relative;
-}
-
-.glitch::before,
-.glitch::after {
-  content: attr(data-text);
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.8;
-}
-
-.glitch::before {
-  animation: glitch-1 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
-  color: #DC2626;
-  z-index: -1;
-}
-
-.glitch::after {
-  animation: glitch-2 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite reverse;
-  color: #1E3A8A;
-  z-index: -2;
-}
-
+/* ─── Animations ─── */
 @keyframes glitch-1 {
-  0%, 100% {
-    transform: translate(0);
-    opacity: 0;
-  }
-  33% {
-    transform: translate(-2px, 2px);
-    opacity: 0.8;
-  }
-  66% {
-    transform: translate(2px, -2px);
-    opacity: 0.8;
-  }
+  0%, 100% { transform: translate(0); opacity: 0; }
+  33%       { transform: translate(-2px, 2px); opacity: 0.8; }
+  66%       { transform: translate(2px, -2px); opacity: 0.8; }
 }
 
 @keyframes glitch-2 {
-  0%, 100% {
-    transform: translate(0);
-    opacity: 0;
-  }
-  33% {
-    transform: translate(2px, -2px);
-    opacity: 0.8;
-  }
-  66% {
-    transform: translate(-2px, 2px);
-    opacity: 0.8;
-  }
-}
-
-/* Reveal animation for text */
-.reveal-text {
-  overflow: hidden;
-}
-
-.reveal-text span {
-  display: inline-block;
-  opacity: 0;
-  transform: translateY(100%);
-  animation: reveal 0.8s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+  0%, 100% { transform: translate(0); opacity: 0; }
+  33%       { transform: translate(2px, -2px); opacity: 0.8; }
+  66%       { transform: translate(-2px, 2px); opacity: 0.8; }
 }
 
 @keyframes reveal {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Bento box grid */
+/* ─── Bento grid (kept for future use) ─── */
 .bento-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
@@ -372,26 +289,13 @@ body::after {
   grid-auto-rows: minmax(200px, auto);
 }
 
-.bento-item {
-  grid-column: span 6;
-}
-
-.bento-item.large {
-  grid-column: span 8;
-}
-
-.bento-item.small {
-  grid-column: span 4;
-}
-
-.bento-item.tall {
-  grid-row: span 2;
-}
+.bento-item       { grid-column: span 6; }
+.bento-item.large { grid-column: span 8; }
+.bento-item.small { grid-column: span 4; }
+.bento-item.tall  { grid-row: span 2; }
 
 @media (max-width: 768px) {
   .bento-item,
   .bento-item.large,
-  .bento-item.small {
-    grid-column: span 12;
-  }
+  .bento-item.small { grid-column: span 12; }
 }
