@@ -24,6 +24,7 @@ const Resources = () => {
       id: 'windows',
       name: 'Windows',
       icon: Monitor,
+      color: '#4361EE',
       description: 'Harden your Windows system for maximum security.',
       steps: [
         { title: 'Enable Windows Defender', details: 'Settings → Update & Security → Windows Security → Virus & threat protection' },
@@ -39,6 +40,7 @@ const Resources = () => {
       id: 'macos',
       name: 'macOS',
       icon: Apple,
+      color: '#A78BFA',
       description: "Secure your Mac with Apple's built-in tools.",
       steps: [
         { title: 'Enable FileVault encryption', details: 'System Settings → Privacy & Security → FileVault → Turn On FileVault' },
@@ -54,6 +56,7 @@ const Resources = () => {
       id: 'linux',
       name: 'Linux',
       icon: Terminal,
+      color: '#84CC16',
       description: 'Lock down your Linux distribution.',
       steps: [
         { title: 'Enable full disk encryption (LUKS)', details: 'During install, or: sudo cryptsetup luksFormat /dev/sdX' },
@@ -69,6 +72,7 @@ const Resources = () => {
       id: 'ios',
       name: 'iOS',
       icon: Smartphone,
+      color: '#2DD4BF',
       description: 'Maximise privacy on your iPhone or iPad.',
       steps: [
         { title: 'Enable Face ID / Touch ID', details: 'Settings → Face ID & Passcode → Turn on for all features' },
@@ -84,6 +88,7 @@ const Resources = () => {
       id: 'android',
       name: 'Android',
       icon: Smartphone,
+      color: '#4CAF50',
       description: 'Harden your Android device security.',
       steps: [
         { title: 'Enable device encryption', details: 'Settings → Security → Encryption → Encrypt phone (usually on by default)' },
@@ -311,15 +316,20 @@ const Resources = () => {
               <div className="flex flex-wrap gap-2 mb-8">
                 {osGuides.map(os => {
                   const Icon = os.icon;
+                  const active = selectedOS === os.id;
                   return (
                     <button
                       key={os.id}
                       onClick={() => setSelectedOS(os.id)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
-                        selectedOS === os.id
-                          ? 'bg-midnight-400/10 text-midnight-400 border-midnight-400/20'
-                          : 'text-gray-500 hover:text-gray-200 hover:bg-white/5 border-transparent'
-                      }`}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border lowercase"
+                      style={active ? {
+                        backgroundColor: `${os.color}18`,
+                        borderColor: `${os.color}40`,
+                        color: os.color,
+                      } : {
+                        borderColor: 'transparent',
+                        color: '#6b7280',
+                      }}
                     >
                       <Icon className="w-4 h-4" />
                       {os.name}
@@ -332,8 +342,19 @@ const Resources = () => {
               <p className="text-sm text-gray-500 mb-6 lowercase">{currentOS.description}</p>
               <div className="space-y-3">
                 {currentOS.steps.map((step, i) => (
-                  <div key={i} className="glass-card p-5 flex gap-4 items-start border-l-4 border-midnight-400/20">
-                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-midnight-400/10 border border-midnight-400/20 flex items-center justify-center text-xs font-bold text-midnight-400">
+                  <div
+                    key={i}
+                    className="glass-card p-5 flex gap-4 items-start border-l-4"
+                    style={{ borderLeftColor: `${currentOS.color}60` }}
+                  >
+                    <span
+                      className="flex-shrink-0 w-7 h-7 rounded-full border flex items-center justify-center text-xs font-bold"
+                      style={{
+                        backgroundColor: `${currentOS.color}15`,
+                        borderColor: `${currentOS.color}35`,
+                        color: currentOS.color,
+                      }}
+                    >
                       {i + 1}
                     </span>
                     <div>
@@ -365,7 +386,7 @@ const Resources = () => {
                         <CategoryIcon className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-0.5">category</p>
+                        <p className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-0.5">category</p>
                         <h2 className="text-sm font-semibold text-white lowercase">{category.name}</h2>
                         <p className="text-xs text-gray-500 lowercase">{category.description}</p>
                       </div>
@@ -418,7 +439,7 @@ const Resources = () => {
                         <CategoryIcon className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-0.5">category</p>
+                        <p className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-0.5">category</p>
                         <h2 className="text-sm font-semibold text-white lowercase">{category.name}</h2>
                         <p className="text-xs text-gray-500 lowercase">{category.description}</p>
                       </div>

@@ -464,33 +464,50 @@ const Community = () => {
           </p>
         </motion.div>
 
-        {/* Tab Switcher */}
+        {/* Tab Switcher — visual cards */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="flex justify-center mb-10"
+          className="grid grid-cols-2 gap-3 mb-10 max-w-lg mx-auto"
         >
-          <div className="inline-flex bg-white/[0.03] border border-white/[0.08] rounded-xl p-1">
-            <button
-              onClick={() => { setActiveTab('discussions'); setActiveCategory('all'); setShowNewPost(false); }}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all lowercase ${
-                !isQA ? 'bg-white/[0.08] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              <MessageSquare className="w-4 h-4" />
-              discussions
-            </button>
-            <button
-              onClick={() => { setActiveTab('qa'); setActiveCategory('all'); setShowNewPost(false); }}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all lowercase ${
-                isQA ? 'bg-white/[0.08] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'
-              }`}
-            >
-              <HelpCircle className="w-4 h-4" />
-              q&a
-            </button>
-          </div>
+          {[
+            { id: 'discussions', label: 'discussions', desc: 'share experiences & insights', icon: MessageSquare, color: '#A78BFA', type: 'discussion' },
+            { id: 'qa',          label: 'q&a',         desc: 'ask questions, get answers',  icon: HelpCircle,   color: '#FBBF24', type: 'question'  },
+          ].map(tab => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            const count = posts.filter(p => p.type === tab.type).length;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); setShowNewPost(false); }}
+                className="flex flex-col items-center gap-2.5 p-5 rounded-2xl border transition-all text-center"
+                style={active ? {
+                  backgroundColor: `${tab.color}12`,
+                  borderColor: `${tab.color}35`,
+                  color: 'white',
+                } : {
+                  backgroundColor: 'rgba(255,255,255,0.02)',
+                  borderColor: 'rgba(255,255,255,0.07)',
+                  color: '#6b7280',
+                }}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: active ? `${tab.color}22` : 'rgba(255,255,255,0.05)' }}
+                >
+                  <Icon className="w-5 h-5" style={{ color: active ? tab.color : undefined }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold lowercase leading-tight">{tab.label}</p>
+                  <p className="text-[11px] mt-0.5 lowercase leading-snug" style={{ color: active ? 'rgba(255,255,255,0.45)' : '#4b5563' }}>
+                    {loading ? '—' : count} {count === 1 ? 'post' : 'posts'} · {tab.desc}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </motion.div>
 
         {/* Category pills + new post */}
@@ -693,11 +710,11 @@ const Community = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-sm font-medium text-gray-300 lowercase">{post.authorName}</span>
+                          <span className="text-xs font-semibold text-gray-300 lowercase">{post.authorName}</span>
                           {post.isVerified && <VerifiedBadge size="xs" />}
                           <span className="text-[10px] text-gray-700">·</span>
                           <span className="text-xs text-gray-600 lowercase">{timeAgo(post.createdAt)}</span>
-                          <span className="text-xs text-gray-700 lowercase ml-auto px-2 py-0.5 bg-white/[0.04] rounded">
+                          <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600 ml-auto">
                             {categories.find(c => c.id === post.category)?.name}
                           </span>
                         </div>
@@ -707,14 +724,14 @@ const Community = () => {
                         <p className="text-sm text-gray-500 lowercase line-clamp-2 leading-relaxed mb-4">
                           {post.content}
                         </p>
-                        <div className="flex items-center gap-5 pt-3 border-t border-white/[0.05]">
+                        <div className="flex items-center gap-4 pt-3 border-t border-white/[0.05]">
                           <button onClick={(e) => handleLike(e, post.id)}
-                            className={`flex items-center gap-2 text-sm transition-colors lowercase ${liked ? 'text-crimson-400' : 'text-gray-500 hover:text-crimson-400'}`}>
-                            <Heart className={`w-4.5 h-4.5 ${liked ? 'fill-current' : ''}`} />
+                            className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${liked ? 'text-crimson-400' : 'text-gray-500 hover:text-crimson-400'}`}>
+                            <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
                             {post.likes || 0}
                           </button>
-                          <span className="flex items-center gap-2 text-sm text-gray-500 lowercase">
-                            <MessageSquare className="w-4.5 h-4.5" />
+                          <span className="flex items-center gap-1.5 text-xs text-gray-500 lowercase">
+                            <MessageSquare className="w-3.5 h-3.5" />
                             {post.comments?.length || 0}
                           </span>
                         </div>

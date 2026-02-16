@@ -50,38 +50,6 @@ const Header = () => {
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
 
-      {/* ── Corner crisis toggle — same position as overlay toggle ── */}
-      <div className="fixed top-4 right-4 z-[60] flex items-center gap-2">
-        <span className={`hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
-          isInCrisis ? 'text-crimson-400' : 'text-gray-600'
-        }`}>
-          {isInCrisis ? 'Crisis Active' : 'Crisis'}
-        </span>
-        <button
-          onClick={toggleOverlay}
-          role="switch"
-          aria-checked={overlayOpen}
-          className="relative flex-shrink-0 w-20 h-10 rounded-full transition-colors duration-200 focus:outline-none"
-          style={{
-            backgroundColor: overlayOpen
-              ? 'var(--crimson-500, #e53e3e)'
-              : isInCrisis
-                ? 'rgba(229,62,62,0.25)'
-                : 'rgba(255,255,255,0.08)',
-            border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
-          }}
-        >
-          <span
-            className="absolute top-[4px] w-8 h-8 rounded-full bg-white transition-transform duration-200"
-            style={{
-              left: 4,
-              transform: overlayOpen ? 'translateX(40px)' : 'translateX(0)',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
-            }}
-          />
-        </button>
-      </div>
-
       {/* ── Main header ───────────────────────────────────────────────────── */}
       <motion.header
         initial={{ y: -100, opacity: 0 }}
@@ -91,14 +59,14 @@ const Header = () => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
-          {/* Top bar — logo centred, auth right */}
-          <div className="py-4 flex justify-between items-center border-b border-white/[0.04]">
+          {/* Top bar — left flex-1 spacer | centred logo | right flex-1 (crisis + auth) */}
+          <div className="py-4 flex items-center border-b border-white/[0.04] gap-4">
 
             {/* Left spacer */}
-            <div className="hidden md:block w-48" />
+            <div className="flex-1" />
 
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 group">
+            <Link to="/" className="flex items-center gap-2.5 group flex-shrink-0">
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-midnight-400/10 border border-midnight-400/20 group-hover:bg-midnight-400/15 transition-colors">
                 <Shield className="w-3.5 h-3.5 text-midnight-400" />
               </div>
@@ -107,37 +75,74 @@ const Header = () => {
               </span>
             </Link>
 
-            {/* Auth — pr-20 keeps content clear of the fixed crisis pill */}
-            <div className="flex items-center gap-2 w-48 justify-end">
+            {/* Right: crisis toggle + auth — always in header flow, never overlaps */}
+            <div className="flex-1 flex items-center justify-end gap-3 min-w-0">
+
+              {/* Crisis toggle */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className={`hidden sm:inline text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${
+                  isInCrisis ? 'text-crimson-400' : 'text-gray-600'
+                }`}>
+                  {isInCrisis ? 'crisis active' : 'crisis'}
+                </span>
+                <button
+                  onClick={toggleOverlay}
+                  role="switch"
+                  aria-checked={overlayOpen}
+                  className="relative flex-shrink-0 w-14 h-7 rounded-full transition-colors duration-200 focus:outline-none"
+                  style={{
+                    backgroundColor: overlayOpen
+                      ? 'var(--crimson-500, #e53e3e)'
+                      : isInCrisis
+                        ? 'rgba(229,62,62,0.25)'
+                        : 'rgba(255,255,255,0.08)',
+                    border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
+                  }}
+                >
+                  <span
+                    className="absolute top-[3px] w-[22px] h-[22px] rounded-full bg-white transition-transform duration-200"
+                    style={{
+                      left: 3,
+                      transform: overlayOpen ? 'translateX(28px)' : 'translateX(0)',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+                    }}
+                  />
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="h-5 w-px bg-white/[0.08] flex-shrink-0" />
+
+              {/* Auth */}
               {user ? (
                 <>
                   <Link
                     to="/settings"
-                    className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-all text-sm"
+                    className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-all text-sm min-w-0"
                   >
-                    <span className="text-base leading-none">{user.avatarIcon || '🔒'}</span>
-                    <span className="text-xs font-medium text-gray-400">{user.username || user.email}</span>
+                    <span className="text-base leading-none flex-shrink-0">{user.avatarIcon || '🔒'}</span>
+                    <span className="text-xs font-medium text-gray-400 truncate">{user.username || user.email}</span>
                     {isVerified && <VerifiedBadge size="xs" />}
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-all text-xs font-medium"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-all text-xs font-medium flex-shrink-0"
                   >
                     <LogOut className="w-3.5 h-3.5" />
-                    Log out
+                    <span className="hidden sm:inline">Log out</span>
                   </button>
                 </>
               ) : (
                 <>
                   <Link
                     to="/login"
-                    className="px-4 py-1.5 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                    className="px-4 py-1.5 text-sm font-medium text-gray-400 hover:text-white transition-colors flex-shrink-0"
                   >
                     Log in
                   </Link>
                   <Link
                     to="/signup"
-                    className="px-4 py-1.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-md text-sm font-medium transition-all"
+                    className="px-4 py-1.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-md text-sm font-medium transition-all flex-shrink-0"
                   >
                     Sign up
                   </Link>
