@@ -3,7 +3,7 @@ import {
   Lock, Smartphone, Database, MessageSquare, MapPin,
   Check, ExternalLink, Shield,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
@@ -389,6 +389,11 @@ const setupTasks = {
     },
 };
 
+// allTasks is stable — derived once from the module-level setupTasks constant
+const allTasks = Object.entries(setupTasks).flatMap(([key, cat]) =>
+  cat.tasks.map(t => ({ ...t, categoryKey: key }))
+);
+
 // ── main component ────────────────────────────────────────────────────────────
 
 const SecureSetup = () => {
@@ -438,9 +443,6 @@ const SecureSetup = () => {
 
   // ── derived ──────────────────────────────────────────────────────────────────
 
-  const allTasks = Object.entries(setupTasks).flatMap(([key, cat]) =>
-    cat.tasks.map(t => ({ ...t, categoryKey: key }))
-  );
   const totalTasks     = allTasks.length;
   const completedCount = allTasks.filter(t => completedTasks.has(t.id)).length;
   const overallPct     = Math.round((completedCount / totalTasks) * 100);
@@ -451,14 +453,14 @@ const SecureSetup = () => {
     return Math.round(tasks.filter(t => completedTasks.has(t.id)).length / tasks.length * 100);
   };
 
-  const filteredTasks = (
+  const filteredTasks = useMemo(() => (
     selectedCategory ? allTasks.filter(t => t.categoryKey === selectedCategory) : allTasks
   ).sort((a, b) => {
     const ac = completedTasks.has(a.id) ? 1 : 0;
     const bc = completedTasks.has(b.id) ? 1 : 0;
     if (ac !== bc) return ac - bc;
     return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
-  });
+  }), [selectedCategory, completedTasks]);
 
   // ── loading ───────────────────────────────────────────────────────────────────
 
@@ -624,8 +626,12 @@ const SecureSetup = () => {
                 : `${PRIORITY_BORDERS[task.priority] ?? 'border-l-white/10'} border-white/10 bg-white/[0.02] hover:bg-white/[0.04]`;
 
               return (
-                <div
+                <motion.div
                   key={task.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   className={`p-4 rounded-xl border border-l-4 transition-all ${borderClass}`}
                 >
                   <div className="flex items-start gap-3">
@@ -700,7 +706,7 @@ const SecureSetup = () => {
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
         </div>
