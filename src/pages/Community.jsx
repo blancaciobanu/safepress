@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, MessageSquare, HelpCircle, Heart, Send,
-  Plus, ArrowLeft, CheckCircle2, X,
+  Plus, ArrowLeft, CheckCircle2, X, Search,
   Shield, Smartphone, Lock, Radio, Scale,
   Newspaper, ExternalLink, AlertTriangle
 } from 'lucide-react';
@@ -42,6 +42,7 @@ const Community = () => {
   const [questionForm, setQuestionForm] = useState({ title: '', content: '', category: 'general' });
   const [newsArticles, setNewsArticles] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isQA = activeTab === 'qa';
   const currentTabType = isQA ? 'question' : 'discussion';
@@ -97,7 +98,11 @@ const Community = () => {
   const filteredPosts = posts.filter(post => {
     const matchesType = post.type === currentTabType;
     const matchesCategory = activeCategory === 'all' || post.category === activeCategory;
-    return matchesType && matchesCategory;
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch = !q ||
+      post.title.toLowerCase().includes(q) ||
+      post.content.toLowerCase().includes(q);
+    return matchesType && matchesCategory && matchesSearch;
   });
 
   const handleCreatePost = async (e) => {
@@ -449,7 +454,7 @@ const Community = () => {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-12"
+          className="text-center mb-6"
         >
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 mb-5">
             <Users className="w-7 h-7 text-purple-400" />
@@ -469,7 +474,7 @@ const Community = () => {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="flex justify-center mb-10"
+          className="flex justify-center mb-4"
         >
           <div className="flex gap-1 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
             {[
@@ -482,7 +487,7 @@ const Community = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); setShowNewPost(false); }}
+                  onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); setShowNewPost(false); setSearchQuery(''); }}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all lowercase"
                   style={active ? {
                     backgroundColor: `${tab.color}18`,
@@ -510,13 +515,38 @@ const Community = () => {
           </div>
         </motion.div>
 
-        {/* Category pills + new post */}
+        {/* Search + new post + category pills */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-center justify-between gap-4 mb-8"
+          className="flex flex-col gap-3 mb-6"
         >
+          {/* Search row */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={`search ${isQA ? 'questions' : 'discussions'}...`}
+                className="w-full pl-9 pr-4 py-2 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-midnight-400/40 transition-colors lowercase"
+              />
+            </div>
+            <button
+              onClick={() => {
+                if (!user) { navigate('/login'); return; }
+                setShowNewPost(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {isQA ? 'ask' : 'post'}
+            </button>
+          </div>
+
+          {/* Category pills */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {categories.map((cat) => {
               const CatIcon = cat.icon;
@@ -537,16 +567,6 @@ const Community = () => {
               );
             })}
           </div>
-          <button
-            onClick={() => {
-              if (!user) { navigate('/login'); return; }
-              setShowNewPost(true);
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {isQA ? 'ask' : 'post'}
-          </button>
         </motion.div>
 
         {/* New Post Form */}
@@ -626,15 +646,19 @@ const Community = () => {
               <p className="text-gray-600 text-[10px] tracking-widest uppercase">loading</p>
             </div>
           ) : filteredPosts.length === 0 ? (
-            <div className="text-center py-20">
+            <div className="text-center py-16">
               <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
-                {isQA ? <HelpCircle className="w-5 h-5 text-gray-600" /> : <MessageSquare className="w-5 h-5 text-gray-600" />}
+                {searchQuery.trim() ? <Search className="w-5 h-5 text-gray-600" /> : isQA ? <HelpCircle className="w-5 h-5 text-gray-600" /> : <MessageSquare className="w-5 h-5 text-gray-600" />}
               </div>
               <p className="text-gray-500 text-sm lowercase mb-1">
-                {activeCategory !== 'all' ? 'nothing here yet' : `no ${isQA ? 'questions' : 'discussions'} yet`}
+                {searchQuery.trim()
+                  ? `no results for "${searchQuery.trim()}"`
+                  : activeCategory !== 'all' ? 'nothing here yet' : `no ${isQA ? 'questions' : 'discussions'} yet`}
               </p>
               <p className="text-gray-600 text-xs lowercase">
-                be the first to {isQA ? 'ask something' : 'start a conversation'}
+                {searchQuery.trim()
+                  ? 'try different keywords or clear the search'
+                  : `be the first to ${isQA ? 'ask something' : 'start a conversation'}`}
               </p>
             </div>
           ) : (
