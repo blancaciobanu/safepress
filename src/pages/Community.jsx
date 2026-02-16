@@ -379,7 +379,7 @@ const Community = () => {
     const commentCount = selectedPost.comments?.length || 0;
     return (
       <>
-      <div className="min-h-screen pt-28 pb-20 px-4">
+      <div className="min-h-screen pt-32 pb-20 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
 
@@ -401,11 +401,14 @@ const Community = () => {
             </button>
             <span className="text-gray-700 text-xs">·</span>
             {isQuestion && (
-              <span className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
-                selectedPost.resolved ? 'bg-olive-500/15 text-olive-400' : 'bg-amber-500/10 text-amber-500'
-              }`}>
-                {selectedPost.resolved ? 'resolved' : 'open'}
-              </span>
+              <>
+                <span className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
+                  selectedPost.resolved ? 'bg-olive-500/15 text-olive-400' : 'bg-amber-500/10 text-amber-500'
+                }`}>
+                  {selectedPost.resolved ? 'resolved' : 'open'}
+                </span>
+                <span className="text-gray-700 text-xs">·</span>
+              </>
             )}
             <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600">
               {categories.find(c => c.id === selectedPost.category)?.name || selectedPost.category}
