@@ -464,50 +464,50 @@ const Community = () => {
           </p>
         </motion.div>
 
-        {/* Tab Switcher — visual cards */}
+        {/* Tab Switcher — compact pill bar */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="grid grid-cols-2 gap-3 mb-10 max-w-lg mx-auto"
+          className="flex justify-center mb-10"
         >
-          {[
-            { id: 'discussions', label: 'discussions', desc: 'share experiences & insights', icon: MessageSquare, color: '#A78BFA', type: 'discussion' },
-            { id: 'qa',          label: 'q&a',         desc: 'ask questions, get answers',  icon: HelpCircle,   color: '#FBBF24', type: 'question'  },
-          ].map(tab => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            const count = posts.filter(p => p.type === tab.type).length;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); setShowNewPost(false); }}
-                className="flex flex-col items-center gap-2.5 p-5 rounded-2xl border transition-all text-center"
-                style={active ? {
-                  backgroundColor: `${tab.color}12`,
-                  borderColor: `${tab.color}35`,
-                  color: 'white',
-                } : {
-                  backgroundColor: 'rgba(255,255,255,0.02)',
-                  borderColor: 'rgba(255,255,255,0.07)',
-                  color: '#6b7280',
-                }}
-              >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: active ? `${tab.color}22` : 'rgba(255,255,255,0.05)' }}
+          <div className="flex gap-1 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
+            {[
+              { id: 'discussions', label: 'discussions', icon: MessageSquare, color: '#A78BFA', type: 'discussion' },
+              { id: 'qa',          label: 'q&a',         icon: HelpCircle,   color: '#FBBF24', type: 'question'  },
+            ].map(tab => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              const count = posts.filter(p => p.type === tab.type).length;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); setShowNewPost(false); }}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all lowercase"
+                  style={active ? {
+                    backgroundColor: `${tab.color}18`,
+                    color: 'white',
+                  } : {
+                    color: '#6b7280',
+                  }}
                 >
-                  <Icon className="w-5 h-5" style={{ color: active ? tab.color : undefined }} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold lowercase leading-tight">{tab.label}</p>
-                  <p className="text-[11px] mt-0.5 lowercase leading-snug" style={{ color: active ? 'rgba(255,255,255,0.45)' : '#4b5563' }}>
-                    {loading ? '—' : count} {count === 1 ? 'post' : 'posts'} · {tab.desc}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
+                  <Icon className="w-4 h-4" style={{ color: active ? tab.color : undefined }} />
+                  {tab.label}
+                  {!loading && count > 0 && (
+                    <span
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none"
+                      style={{
+                        backgroundColor: active ? `${tab.color}25` : 'rgba(255,255,255,0.06)',
+                        color: active ? tab.color : '#6b7280',
+                      }}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </motion.div>
 
         {/* Category pills + new post */}

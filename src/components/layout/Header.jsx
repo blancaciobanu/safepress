@@ -50,6 +50,38 @@ const Header = () => {
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
 
+      {/* ── Crisis toggle — floating, same position as on the crisis overlay ── */}
+      <div className="fixed top-4 right-4 z-[60] flex items-center gap-2">
+        <span className={`hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
+          isInCrisis ? 'text-crimson-400' : 'text-gray-600'
+        }`}>
+          {isInCrisis ? 'Crisis Active' : 'Crisis'}
+        </span>
+        <button
+          onClick={toggleOverlay}
+          role="switch"
+          aria-checked={overlayOpen}
+          className="relative flex-shrink-0 w-20 h-10 rounded-full transition-colors duration-200 focus:outline-none"
+          style={{
+            backgroundColor: overlayOpen
+              ? 'var(--crimson-500, #e53e3e)'
+              : isInCrisis
+                ? 'rgba(229,62,62,0.25)'
+                : 'rgba(255,255,255,0.08)',
+            border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
+          }}
+        >
+          <span
+            className="absolute top-[4px] w-8 h-8 rounded-full bg-white transition-transform duration-200"
+            style={{
+              left: 4,
+              transform: overlayOpen ? 'translateX(40px)' : 'translateX(0)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
+            }}
+          />
+        </button>
+      </div>
+
       {/* ── Main header ───────────────────────────────────────────────────── */}
       <motion.header
         initial={{ y: -100, opacity: 0 }}
@@ -59,8 +91,8 @@ const Header = () => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
-          {/* Top bar — left flex-1 spacer | centred logo | right flex-1 (crisis + auth) */}
-          <div className="py-4 flex items-center border-b border-white/[0.04] gap-4">
+          {/* Top bar — flex-1 spacer | centred logo | flex-1 auth (pr-24 clears the floating toggle) */}
+          <div className="py-4 flex items-center border-b border-white/[0.04]">
 
             {/* Left spacer */}
             <div className="flex-1" />
@@ -75,74 +107,37 @@ const Header = () => {
               </span>
             </Link>
 
-            {/* Right: crisis toggle + auth — always in header flow, never overlaps */}
-            <div className="flex-1 flex items-center justify-end gap-3 min-w-0">
-
-              {/* Crisis toggle */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className={`hidden sm:inline text-[11px] font-bold uppercase tracking-[0.1em] transition-colors ${
-                  isInCrisis ? 'text-crimson-400' : 'text-gray-600'
-                }`}>
-                  {isInCrisis ? 'crisis active' : 'crisis'}
-                </span>
-                <button
-                  onClick={toggleOverlay}
-                  role="switch"
-                  aria-checked={overlayOpen}
-                  className="relative flex-shrink-0 w-14 h-7 rounded-full transition-colors duration-200 focus:outline-none"
-                  style={{
-                    backgroundColor: overlayOpen
-                      ? 'var(--crimson-500, #e53e3e)'
-                      : isInCrisis
-                        ? 'rgba(229,62,62,0.25)'
-                        : 'rgba(255,255,255,0.08)',
-                    border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
-                  }}
-                >
-                  <span
-                    className="absolute top-[3px] w-[22px] h-[22px] rounded-full bg-white transition-transform duration-200"
-                    style={{
-                      left: 3,
-                      transform: overlayOpen ? 'translateX(28px)' : 'translateX(0)',
-                      boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
-                    }}
-                  />
-                </button>
-              </div>
-
-              {/* Divider */}
-              <div className="h-5 w-px bg-white/[0.08] flex-shrink-0" />
-
-              {/* Auth */}
+            {/* Auth — flex-1 keeps logo centred; pr-24 ensures buttons never slip under the floating toggle */}
+            <div className="flex-1 flex items-center justify-end gap-2 pr-24">
               {user ? (
                 <>
                   <Link
                     to="/settings"
-                    className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-all text-sm min-w-0"
+                    className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-all"
                   >
-                    <span className="text-base leading-none flex-shrink-0">{user.avatarIcon || '🔒'}</span>
-                    <span className="text-xs font-medium text-gray-400 truncate">{user.username || user.email}</span>
+                    <span className="text-base leading-none">{user.avatarIcon || '🔒'}</span>
+                    <span className="text-xs font-medium text-gray-400 truncate max-w-[120px]">{user.username || user.email}</span>
                     {isVerified && <VerifiedBadge size="xs" />}
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-all text-xs font-medium flex-shrink-0"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-300 hover:bg-white/5 transition-all text-xs font-medium"
                   >
                     <LogOut className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Log out</span>
+                    Log out
                   </button>
                 </>
               ) : (
                 <>
                   <Link
                     to="/login"
-                    className="px-4 py-1.5 text-sm font-medium text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                    className="px-4 py-1.5 text-sm font-medium text-gray-400 hover:text-white transition-colors"
                   >
                     Log in
                   </Link>
                   <Link
                     to="/signup"
-                    className="px-4 py-1.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-md text-sm font-medium transition-all flex-shrink-0"
+                    className="px-4 py-1.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-md text-sm font-medium transition-all"
                   >
                     Sign up
                   </Link>
