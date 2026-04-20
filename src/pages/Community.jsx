@@ -4,13 +4,14 @@ import {
   Plus, ArrowLeft, CheckCircle2, X, Search,
   Shield, Smartphone, Lock, Radio, Scale,
   Newspaper, ExternalLink, AlertTriangle, Bookmark, BookmarkCheck,
-  Pencil, Pen, Star, BadgeCheck
+  Pencil, Pen, Star, BadgeCheck, Trash2, Flag, MoreHorizontal,
+  Clock, ArrowUp, EyeOff
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
-  collection, addDoc, getDocs, getDoc, doc, updateDoc,
+  collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc,
   arrayUnion, arrayRemove, increment, query, where
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -27,6 +28,14 @@ const categories = [
   { id: 'general', name: 'general', icon: MessageSquare },
 ];
 
+const REPORT_REASONS = [
+  { id: 'spam', label: 'spam or self-promotion' },
+  { id: 'harassment', label: 'harassment or abuse' },
+  { id: 'misinformation', label: 'misinformation or bad security advice' },
+  { id: 'off-topic', label: 'off-topic' },
+  { id: 'other', label: 'other' },
+];
+
 // ── Avatar helpers ────────────────────────────────────────────────
 const AVATAR_COLORS = [
   '#4361EE', '#A78BFA', '#2DD4BF', '#F59E0B', '#EF4444',
@@ -37,17 +46,74 @@ const getAvatarColor = (name = '') => {
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 };
-// dim = circle diameter (px), icon = icon size (px)
 const AVATAR_SIZES = { xs: { dim: 20, icon: 10 }, sm: { dim: 28, icon: 13 }, md: { dim: 36, icon: 16 }, lg: { dim: 44, icon: 20 } };
-const UserAvatar = ({ name = '', accountType = 'journalist', size = 'md' }) => {
+
+const UserAvatar = ({ name = '', accountType = 'journalist', anonymous = false, size = 'md' }) => {
   const { dim, icon } = AVATAR_SIZES[size] ?? AVATAR_SIZES.md;
-  const Icon = accountType === 'specialist' ? Shield : Pen;
+  const Icon = anonymous ? EyeOff : (accountType === 'specialist' ? Shield : Pen);
+  const bg = anonymous ? '#374151' : getAvatarColor(name);
   return (
     <div
-      style={{ width: dim, height: dim, backgroundColor: getAvatarColor(name), flexShrink: 0 }}
+      style={{ width: dim, height: dim, backgroundColor: bg, flexShrink: 0 }}
       className="rounded-full flex items-center justify-center text-white"
     >
       <Icon style={{ width: icon, height: icon }} strokeWidth={2.5} />
+    </div>
+  );
+};
+
+// ── Author display resolution ──────────────────────────────────────
+// Returns the values we should actually render for a post or comment.
+const resolveAuthor = (item) => {
+  if (item?.isAnonymous) {
+    return {
+      name: 'anonymous',
+      type: 'journalist',
+      anonymous: true,
+      verified: false,
+      status: null,
+      clickable: false,
+    };
+  }
+  const verified = item?.authorVerificationStatus === 'approved' || item?.isVerified === true;
+  const isSpecialist = item?.authorType === 'specialist';
+  return {
+    name: item?.authorName || 'user',
+    type: item?.authorType || 'journalist',
+    anonymous: false,
+    verified,
+    status: isSpecialist ? (item?.authorVerificationStatus || (verified ? 'approved' : 'pending')) : null,
+    clickable: !!item?.authorId,
+  };
+};
+
+const AuthorLine = ({ item, size = 'xs', onOpenProfile, className = '' }) => {
+  const a = resolveAuthor(item);
+  const clickable = a.clickable && onOpenProfile && !a.anonymous;
+  const Inner = (
+    <>
+      <span className="text-xs font-semibold text-gray-300 lowercase">{a.name}</span>
+      {a.type === 'specialist' && a.verified && <VerifiedBadge size="xs" />}
+      {a.type === 'specialist' && !a.verified && (
+        <span className="text-[9px] font-bold tracking-widest uppercase text-gray-500 bg-white/[0.04] border border-white/[0.08] px-1.5 py-0.5 rounded">
+          specialist · unverified
+        </span>
+      )}
+      {a.type === 'journalist' && !a.anonymous && (
+        <span className="text-[9px] font-bold tracking-widest uppercase text-gray-600">journalist</span>
+      )}
+      {a.anonymous && (
+        <span className="text-[9px] font-bold tracking-widest uppercase text-gray-600">anonymous</span>
+      )}
+    </>
+  );
+  return (
+    <div className={`flex items-center gap-1.5 ${className}`}>
+      {clickable ? (
+        <button onClick={(e) => { e.stopPropagation(); onOpenProfile(item.authorId, a.type); }} className="flex items-center gap-1.5 hover:opacity-75 transition-opacity">
+          {Inner}
+        </button>
+      ) : Inner}
     </div>
   );
 };
@@ -64,17 +130,23 @@ const Community = () => {
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', category: 'general' });
-  const [questionForm, setQuestionForm] = useState({ title: '', content: '', category: 'general' });
+  const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
+  const [questionForm, setQuestionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
   const [newsArticles, setNewsArticles] = useState([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarSearch, setSidebarSearch] = useState('');
-  const [followedPosts,     setFollowedPosts]     = useState(new Set());
-  const [editMode,          setEditMode]          = useState(false);
-  const [editForm,          setEditForm]          = useState({ title: '', content: '' });
-  const [specialistProfile, setSpecialistProfile] = useState(null);
-  const [profileLoading,    setProfileLoading]    = useState(false);
+  const [followedPosts, setFollowedPosts] = useState(new Set());
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', content: '' });
+  const [authorProfile, setAuthorProfile] = useState(null);
+  const [sortMode, setSortMode] = useState('newest');
+  const [deleteTarget, setDeleteTarget] = useState(null); // {type: 'post'|'comment', id, commentIndex?}
+  const [reportDialog, setReportDialog] = useState(null); // {type, postId, commentIndex?}
+  const [reportReason, setReportReason] = useState('spam');
+  const [reportNote, setReportNote] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   useEffect(() => {
     setFollowedPosts(new Set(user?.followedPosts || []));
@@ -102,7 +174,6 @@ const Community = () => {
     fetchPosts();
   }, []);
 
-  // Fetch cybersecurity news from RSS feeds
   useEffect(() => {
     const fetchNews = async () => {
       setNewsLoading(true);
@@ -131,15 +202,25 @@ const Community = () => {
     fetchNews();
   }, []);
 
-  const filteredPosts = posts.filter(post => {
-    const matchesType = post.type === currentTabType;
-    const matchesCategory = activeCategory === 'all' || post.category === activeCategory;
-    const q = searchQuery.trim().toLowerCase();
-    const matchesSearch = !q ||
-      post.title.toLowerCase().includes(q) ||
-      post.content.toLowerCase().includes(q);
-    return matchesType && matchesCategory && matchesSearch;
-  });
+  const filteredPosts = (() => {
+    const base = posts.filter(post => {
+      const matchesType = post.type === currentTabType;
+      const matchesCategory = activeCategory === 'all' || post.category === activeCategory;
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch = !q ||
+        post.title.toLowerCase().includes(q) ||
+        post.content.toLowerCase().includes(q);
+      return matchesType && matchesCategory && matchesSearch;
+    });
+
+    if (sortMode === 'top') {
+      return [...base].sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    }
+    if (sortMode === 'unanswered' && isQA) {
+      return base.filter(p => !p.comments?.length);
+    }
+    return base;
+  })();
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
@@ -147,25 +228,32 @@ const Community = () => {
     setSubmitting(true);
     setError('');
     try {
+      const anon = newPost.isAnonymous && !isQA;
+      const authorVerificationStatus = user.accountType === 'specialist'
+        ? (user.verificationStatus || 'pending')
+        : null;
       const postData = {
         type: currentTabType,
         title: newPost.title.trim(),
         content: newPost.content.trim(),
         authorId: user.uid,
-        authorName: user.username || 'anonymous',
-        authorIcon: user.avatarIcon || '🔒',
+        authorName: anon ? 'anonymous' : (user.username || 'anonymous'),
+        authorIcon: anon ? '🕶️' : (user.avatarIcon || '🔒'),
         authorType: user.accountType || 'journalist',
         isVerified: user.verificationStatus === 'approved',
+        authorVerificationStatus,
+        isAnonymous: anon,
         category: newPost.category,
         createdAt: new Date().toISOString(),
         likes: 0,
         likedBy: [],
         comments: [],
-        resolved: false
+        resolved: false,
+        acceptedCommentId: null,
       };
       const docRef = await addDoc(collection(db, 'community-posts'), postData);
       setPosts(prev => [{ id: docRef.id, ...postData }, ...prev]);
-      setNewPost({ title: '', content: '', category: 'general' });
+      setNewPost({ title: '', content: '', category: 'general', isAnonymous: false });
       setShowNewPost(false);
     } catch (err) {
       console.error('Error creating post:', err);
@@ -208,13 +296,16 @@ const Community = () => {
     setError('');
     try {
       const comment = {
+        id: `${user.uid}-${Date.now()}`,
         authorId: user.uid,
         authorName: user.username || 'anonymous',
         authorIcon: user.avatarIcon || '🔒',
         authorType: user.accountType || 'journalist',
         isVerified: user.verificationStatus === 'approved',
+        authorVerificationStatus: user.accountType === 'specialist' ? (user.verificationStatus || 'pending') : null,
         content: newComment.trim(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        deleted: false,
       };
       const postRef = doc(db, 'community-posts', selectedPost.id);
       await updateDoc(postRef, { comments: arrayUnion(comment) });
@@ -243,13 +334,28 @@ const Community = () => {
     }
   };
 
+  const handleAcceptAnswer = async (commentId) => {
+    if (!selectedPost || selectedPost.authorId !== user?.uid) return;
+    const newAccepted = selectedPost.acceptedCommentId === commentId ? null : commentId;
+    try {
+      await updateDoc(doc(db, 'community-posts', selectedPost.id), {
+        acceptedCommentId: newAccepted,
+      });
+      const updated = { ...selectedPost, acceptedCommentId: newAccepted };
+      setSelectedPost(updated);
+      setPosts(prev => prev.map(p => p.id === selectedPost.id ? updated : p));
+    } catch (err) {
+      console.error('Error accepting answer:', err);
+    }
+  };
+
   const toggleFollow = async (e, postId) => {
     e.stopPropagation();
     if (!user) { navigate('/login'); return; }
     const isFollowing = followedPosts.has(postId);
     setFollowedPosts(prev => {
       const next = new Set(prev);
-      isFollowing ? next.delete(postId) : next.add(postId);
+      if (isFollowing) next.delete(postId); else next.add(postId);
       return next;
     });
     try {
@@ -260,7 +366,7 @@ const Community = () => {
       console.error('Error toggling follow:', err);
       setFollowedPosts(prev => {
         const next = new Set(prev);
-        isFollowing ? next.add(postId) : next.delete(postId);
+        if (isFollowing) next.add(postId); else next.delete(postId);
         return next;
       });
     }
@@ -287,36 +393,113 @@ const Community = () => {
     setSubmitting(false);
   };
 
-  const openProfile = async (uid) => {
+  const handleDeletePost = async (postId) => {
+    try {
+      await deleteDoc(doc(db, 'community-posts', postId));
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      if (selectedPost?.id === postId) setSelectedPost(null);
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      setError('failed to delete — check your permissions.');
+    }
+  };
+
+  const handleDeleteComment = async (postId, commentIndex) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    const comments = post.comments || [];
+    const target = comments[commentIndex];
+    if (!target || target.authorId !== user?.uid) return;
+    const updated = comments.map((c, i) =>
+      i === commentIndex
+        ? { ...c, content: '[deleted]', authorName: 'deleted', authorId: null, deleted: true, authorType: 'journalist', isVerified: false, authorVerificationStatus: null }
+        : c
+    );
+    try {
+      await updateDoc(doc(db, 'community-posts', postId), { comments: updated });
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: updated } : p));
+      if (selectedPost?.id === postId) setSelectedPost(prev => ({ ...prev, comments: updated }));
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+    }
+  };
+
+  const submitReport = async () => {
+    if (!user || !reportDialog) return;
+    setReportSubmitting(true);
+    try {
+      await addDoc(collection(db, 'community-reports'), {
+        postId: reportDialog.postId,
+        commentId: reportDialog.commentIndex ?? null,
+        reportedBy: user.uid,
+        reason: reportReason,
+        note: reportNote.trim(),
+        status: 'open',
+        createdAt: new Date().toISOString(),
+      });
+      setReportSuccess(true);
+      setTimeout(() => {
+        setReportDialog(null);
+        setReportSuccess(false);
+        setReportReason('spam');
+        setReportNote('');
+      }, 1500);
+    } catch (err) {
+      console.error('Error filing report:', err);
+    }
+    setReportSubmitting(false);
+  };
+
+  const openProfile = async (uid, type = 'journalist') => {
     if (!uid) return;
-    setSpecialistProfile({ uid, loading: true });
-    setProfileLoading(true);
+    setAuthorProfile({ uid, loading: true, type });
     try {
       const userSnap = await getDoc(doc(db, 'users', uid));
       const userData = userSnap.data() || {};
-      const reqSnap = await getDocs(
-        query(collection(db, 'support-requests'), where('claimedBy', '==', uid), where('status', '==', 'resolved'))
-      );
-      const resolvedReqs = reqSnap.docs.map(d => d.data());
-      const ratings = resolvedReqs.filter(r => r.feedback?.rating).map(r => r.feedback.rating);
-      const avgRating = ratings.length ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : null;
-      const recentFeedback = resolvedReqs.filter(r => r.feedback?.comment).slice(-3).reverse();
-      setSpecialistProfile({
+      const isSpecialist = userData.accountType === 'specialist';
+
+      // Journalist or specialist post count + recent posts
+      const postsSnap = await getDocs(query(collection(db, 'community-posts'), where('authorId', '==', uid)));
+      const userPosts = postsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const visiblePosts = userPosts.filter(p => !p.isAnonymous);
+      const recentPosts = visiblePosts
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 3);
+
+      let resolvedCount = 0;
+      let avgRating = null;
+      let recentFeedback = [];
+      if (isSpecialist) {
+        const reqSnap = await getDocs(
+          query(collection(db, 'support-requests'), where('claimedBy', '==', uid), where('status', '==', 'resolved'))
+        );
+        const resolvedReqs = reqSnap.docs.map(d => d.data());
+        resolvedCount = resolvedReqs.length;
+        const ratings = resolvedReqs.filter(r => r.feedback?.rating).map(r => r.feedback.rating);
+        avgRating = ratings.length ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : null;
+        recentFeedback = resolvedReqs.filter(r => r.feedback?.comment).slice(-3).reverse();
+      }
+
+      setAuthorProfile({
         uid,
         loading: false,
-        username: userData.username || 'specialist',
+        type: userData.accountType || type,
+        username: userData.username || 'user',
         avatarIcon: userData.avatarIcon || '🔒',
-        bio: userData.bio || '',
-        specializations: userData.specializations || [],
-        resolvedCount: resolvedReqs.length,
+        bio: userData.specialistProfile?.bio || userData.bio || '',
+        specializations: userData.specialistProfile?.expertiseAreas || userData.specializations || [],
+        verified: userData.verificationStatus === 'approved',
+        createdAt: userData.createdAt,
+        postCount: visiblePosts.length,
+        recentPosts,
+        resolvedCount,
         avgRating,
         recentFeedback,
       });
     } catch (err) {
       console.error('Error loading profile:', err);
-      setSpecialistProfile(null);
+      setAuthorProfile(null);
     }
-    setProfileLoading(false);
   };
 
   const timeAgo = (dateString) => {
@@ -397,25 +580,340 @@ const Community = () => {
     </motion.aside>
   );
 
+  // ── Modals (rendered once at root) ─────────────────────────────────
+  const Modals = () => (
+    <>
+      {/* Delete confirm */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+            onClick={() => setDeleteTarget(null)}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className="relative w-full max-w-sm glass-card rounded-2xl border border-crimson-500/20 p-6"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-crimson-500/15 border border-crimson-500/25 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-crimson-400" />
+                </div>
+                <h3 className="text-base font-semibold text-white lowercase">
+                  delete {deleteTarget.type === 'post' ? 'post' : 'comment'}?
+                </h3>
+              </div>
+              <p className="text-sm text-gray-400 lowercase leading-relaxed mb-4">
+                {deleteTarget.type === 'post'
+                  ? 'this will permanently remove your post and all replies.'
+                  : 'the comment will be replaced with "[deleted]" so the thread stays readable.'}
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="px-4 py-2 text-gray-400 hover:text-white text-xs font-semibold tracking-wide uppercase transition-colors"
+                >
+                  cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (deleteTarget.type === 'post') {
+                      await handleDeletePost(deleteTarget.id);
+                    } else {
+                      await handleDeleteComment(deleteTarget.id, deleteTarget.commentIndex);
+                    }
+                    setDeleteTarget(null);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-crimson-500 hover:bg-crimson-600 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Report dialog */}
+      <AnimatePresence>
+        {reportDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+            onClick={() => !reportSubmitting && setReportDialog(null)}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className="relative w-full max-w-md glass-card rounded-2xl border border-white/[0.1] p-6"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
+                  <Flag className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white lowercase">report {reportDialog.type}</h3>
+                  <p className="text-[11px] text-gray-500 lowercase">an admin will review your report</p>
+                </div>
+              </div>
+
+              {reportSuccess ? (
+                <div className="py-6 text-center">
+                  <CheckCircle2 className="w-10 h-10 text-olive-500 mx-auto mb-2" />
+                  <p className="text-sm text-white lowercase">report filed — thank you</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">reason</p>
+                  <div className="space-y-1.5 mb-4">
+                    {REPORT_REASONS.map(r => (
+                      <label
+                        key={r.id}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                          reportReason === r.id
+                            ? 'bg-amber-500/[0.06] border-amber-500/25'
+                            : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="report-reason"
+                          value={r.id}
+                          checked={reportReason === r.id}
+                          onChange={() => setReportReason(r.id)}
+                          className="accent-amber-400"
+                        />
+                        <span className="text-sm text-gray-200 lowercase">{r.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <textarea
+                    value={reportNote}
+                    onChange={e => setReportNote(e.target.value)}
+                    rows="2"
+                    placeholder="optional: add context..."
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/40 transition-colors resize-none lowercase mb-4"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setReportDialog(null)}
+                      disabled={reportSubmitting}
+                      className="px-4 py-2 text-gray-400 hover:text-white text-xs font-semibold tracking-wide uppercase transition-colors disabled:opacity-50"
+                    >
+                      cancel
+                    </button>
+                    <button
+                      onClick={submitReport}
+                      disabled={reportSubmitting}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all disabled:opacity-50"
+                    >
+                      <Flag className="w-3.5 h-3.5" />
+                      {reportSubmitting ? 'filing...' : 'file report'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Author profile modal (journalist + specialist) */}
+      <AnimatePresence>
+        {authorProfile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+            onClick={() => setAuthorProfile(null)}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-md glass-card rounded-2xl border border-white/[0.1] overflow-hidden max-h-[85vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => setAuthorProfile(null)} className="absolute top-4 right-4 text-gray-600 hover:text-white transition-colors z-10">
+                <X className="w-4 h-4" />
+              </button>
+
+              {authorProfile.loading ? (
+                <div className="p-10 flex justify-center">
+                  <div className="w-5 h-5 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
+                    <div className="flex items-center gap-3 mb-4">
+                      <UserAvatar name={authorProfile.username} accountType={authorProfile.type} size="lg" />
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-base font-semibold text-white lowercase">{authorProfile.username}</span>
+                          {authorProfile.type === 'specialist' && authorProfile.verified && <BadgeCheck className="w-4 h-4 text-midnight-400" />}
+                        </div>
+                        <p className="text-[11px] text-gray-500 lowercase mt-0.5">
+                          {authorProfile.type === 'specialist'
+                            ? (authorProfile.verified ? 'verified security specialist' : 'specialist (unverified)')
+                            : 'journalist'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 flex-wrap">
+                      <div>
+                        <p className="text-xl font-bold text-white">{authorProfile.postCount}</p>
+                        <p className="text-[10px] text-gray-600 lowercase">community posts</p>
+                      </div>
+                      {authorProfile.type === 'specialist' && (
+                        <>
+                          <div>
+                            <p className="text-xl font-bold text-white">{authorProfile.resolvedCount}</p>
+                            <p className="text-[10px] text-gray-600 lowercase">cases resolved</p>
+                          </div>
+                          {authorProfile.avgRating && (
+                            <div>
+                              <p className="text-xl font-bold text-white flex items-center gap-1">
+                                {authorProfile.avgRating}
+                                <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
+                              </p>
+                              <p className="text-[10px] text-gray-600 lowercase">avg rating</p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {authorProfile.createdAt && (
+                        <div>
+                          <p className="text-sm font-semibold text-gray-300">{new Date(authorProfile.createdAt).toLocaleDateString()}</p>
+                          <p className="text-[10px] text-gray-600 lowercase">joined</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {authorProfile.bio && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">about</p>
+                      <p className="text-sm text-gray-400 lowercase leading-relaxed">{authorProfile.bio}</p>
+                    </div>
+                  )}
+
+                  {authorProfile.specializations?.length > 0 && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">specializations</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {authorProfile.specializations.map((s, i) => (
+                          <span key={i} className="px-2 py-1 rounded-md bg-midnight-400/10 border border-midnight-400/20 text-[11px] text-midnight-300 lowercase">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {authorProfile.recentPosts?.length > 0 && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">recent posts</p>
+                      <div className="space-y-2">
+                        {authorProfile.recentPosts.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => { setAuthorProfile(null); setSelectedPost(p); }}
+                            className="w-full text-left flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors"
+                          >
+                            <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mt-1 flex-shrink-0">
+                              {p.type === 'question' ? 'q' : 'd'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-gray-300 lowercase line-clamp-1">{p.title}</p>
+                              <p className="text-[10px] text-gray-600 lowercase">{timeAgo(p.createdAt)}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {authorProfile.type === 'specialist' && authorProfile.recentFeedback?.length > 0 && (
+                    <div className="px-6 py-4 border-b border-white/[0.06]">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3">recent feedback</p>
+                      <div className="space-y-3">
+                        {authorProfile.recentFeedback.map((r, i) => (
+                          <div key={i}>
+                            <div className="flex items-center gap-0.5 mb-1">
+                              {[1,2,3,4,5].map(s => (
+                                <Star key={s} className={`w-3 h-3 ${s <= r.feedback.rating ? 'text-amber-400 fill-current' : 'text-gray-700'}`} />
+                              ))}
+                            </div>
+                            <p className="text-xs text-gray-400 lowercase italic">"{r.feedback.comment}"</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {authorProfile.type === 'specialist' && authorProfile.verified && (
+                    <div className="px-6 py-4">
+                      <a
+                        href="/request-support"
+                        onClick={() => setAuthorProfile(null)}
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                      >
+                        request support from this specialist
+                      </a>
+                    </div>
+                  )}
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+
   // ── Post Detail View ──────────────────────────────────────────────
   if (selectedPost) {
     const isQuestion = selectedPost.type === 'question';
     const liked = selectedPost.likedBy?.includes(user?.uid);
     const commentCount = selectedPost.comments?.length || 0;
+    const isAuthor = selectedPost.authorId === user?.uid;
+
+    const orderedComments = (() => {
+      const list = (selectedPost.comments || []).map((c, i) => ({ ...c, __index: i }));
+      const acceptedId = selectedPost.acceptedCommentId;
+      if (!acceptedId) return list;
+      const accepted = list.find(c => c.id === acceptedId);
+      const rest = list.filter(c => c.id !== acceptedId);
+      return accepted ? [accepted, ...rest] : list;
+    })();
+
     return (
       <>
       <div className="min-h-screen pt-32 pb-20 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
-
-          {/* ── Main column ── */}
           <div className="min-w-0">
 
-          {/* Nav row: back + meta */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex items-center gap-3 mb-5"
+            className="flex items-center gap-3 mb-5 flex-wrap"
           >
             <button
               onClick={() => { setSelectedPost(null); setError(''); }}
@@ -442,7 +940,6 @@ const Community = () => {
             <span className="text-[10px] text-gray-600 lowercase">{timeAgo(selectedPost.createdAt)}</span>
           </motion.div>
 
-          {/* Post card */}
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -455,43 +952,56 @@ const Community = () => {
           >
             {/* Author row */}
             <div className="flex items-center gap-3 mb-4">
-              {selectedPost.isVerified ? (
-                <button onClick={() => openProfile(selectedPost.authorId)} className="hover:opacity-75 transition-opacity flex-shrink-0">
-                  <UserAvatar name={selectedPost.authorName} accountType={selectedPost.authorType} size="md" />
-                </button>
-              ) : (
-                <UserAvatar name={selectedPost.authorName} accountType={selectedPost.authorType} size="md" />
-              )}
+              <UserAvatar
+                name={selectedPost.authorName}
+                accountType={selectedPost.authorType}
+                anonymous={selectedPost.isAnonymous}
+                size="md"
+              />
               <div className="flex-1 min-w-0">
-                {selectedPost.isVerified ? (
-                  <button onClick={() => openProfile(selectedPost.authorId)} className="flex items-center gap-1.5 hover:opacity-75 transition-opacity">
-                    <span className="text-sm font-semibold text-gray-200 lowercase">{selectedPost.authorName}</span>
-                    <VerifiedBadge size="xs" />
-                  </button>
-                ) : (
-                  <span className="text-sm font-semibold text-gray-200 lowercase">{selectedPost.authorName}</span>
-                )}
+                <AuthorLine item={selectedPost} onOpenProfile={openProfile} />
                 <p className="text-[11px] text-gray-600 lowercase mt-0.5">
-                  {selectedPost.authorType === 'specialist' ? 'security specialist' : 'journalist'}
+                  {selectedPost.isAnonymous
+                    ? 'posted anonymously'
+                    : (selectedPost.authorType === 'specialist' ? 'security specialist' : 'journalist')}
                 </p>
               </div>
-              {selectedPost.authorId === user?.uid && (
-                <button
-                  onClick={() => {
-                    if (editMode) { setEditMode(false); }
-                    else { setEditMode(true); setEditForm({ title: selectedPost.title, content: selectedPost.content }); }
-                  }}
-                  className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-white transition-colors lowercase flex-shrink-0"
-                >
-                  {editMode ? <X className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
-                  {editMode ? 'cancel' : 'edit'}
-                </button>
-              )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {isAuthor && (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (editMode) setEditMode(false);
+                        else { setEditMode(true); setEditForm({ title: selectedPost.title, content: selectedPost.content }); }
+                      }}
+                      className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-white transition-colors lowercase"
+                    >
+                      {editMode ? <X className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                      {editMode ? 'cancel' : 'edit'}
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget({ type: 'post', id: selectedPost.id })}
+                      className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-crimson-400 transition-colors lowercase"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      delete
+                    </button>
+                  </>
+                )}
+                {!isAuthor && user && (
+                  <button
+                    onClick={() => { setReportDialog({ type: 'post', postId: selectedPost.id }); setReportReason('spam'); setReportNote(''); }}
+                    className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-amber-400 transition-colors lowercase"
+                  >
+                    <Flag className="w-3 h-3" />
+                    report
+                  </button>
+                )}
+              </div>
             </div>
 
             {editMode ? (
               <>
-                {/* Edit form */}
                 <input
                   value={editForm.title}
                   onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
@@ -503,11 +1013,10 @@ const Community = () => {
                   rows="4"
                   className="w-full px-0 py-2 bg-transparent text-sm text-gray-300 placeholder-gray-700 focus:outline-none transition-colors resize-none leading-relaxed mb-3"
                 />
-                {/* Edit disclaimer */}
                 <div className="flex items-start gap-2 px-3 py-2.5 mb-4 rounded-lg bg-amber-500/[0.08] border border-amber-500/20">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
                   <p className="text-[11px] text-amber-400/80 lowercase leading-relaxed">
-                    once saved, an "edited" label will be visible to all community members. edit history is not publicly shown, but may be reviewed by admins.
+                    once saved, an "edited" label will be visible to all community members.
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -526,21 +1035,18 @@ const Community = () => {
               </>
             ) : (
               <>
-                {/* Title */}
                 <h1 className="text-xl font-display font-bold mb-3 leading-snug text-white">
                   {selectedPost.title}
                   {selectedPost.edited && (
                     <span className="ml-2 text-[10px] font-normal text-gray-600 lowercase align-middle">(edited)</span>
                   )}
                 </h1>
-                {/* Body */}
                 <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap mb-4">
                   {selectedPost.content}
                 </p>
               </>
             )}
 
-            {/* Actions */}
             <div className="flex items-center gap-4 pt-3 border-t border-white/[0.06]">
               <button
                 onClick={(e) => handleLike(e, selectedPost.id)}
@@ -567,7 +1073,7 @@ const Community = () => {
                 }
                 {followedPosts.has(selectedPost.id) ? 'following' : 'follow'}
               </button>
-              {isQuestion && selectedPost.authorId === user?.uid && (
+              {isQuestion && isAuthor && (
                 <button
                   onClick={() => handleResolve(selectedPost.id)}
                   className={`flex items-center gap-1.5 text-xs transition-colors lowercase ml-auto ${
@@ -581,7 +1087,6 @@ const Community = () => {
             </div>
           </motion.div>
 
-          {/* ── Reply box ── */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
             {user ? (
               <div className="glass-card p-4 mb-4">
@@ -621,49 +1126,91 @@ const Community = () => {
               </div>
             )}
 
-            {/* Thread label */}
             {commentCount > 0 && (
               <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3 px-1">
                 {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
               </p>
             )}
 
-            {/* Comments thread */}
             <div className="space-y-2">
-              {(selectedPost.comments || []).map((comment, index) => (
-                <div
-                  key={index}
-                  className="glass-card px-4 py-3 border-l-4 border-l-white/[0.06]"
-                >
-                  <div className="flex gap-3 items-start">
-                    {/* Avatar — clickable if verified */}
-                    {comment.isVerified ? (
-                      <button onClick={() => openProfile(comment.authorId)} className="hover:opacity-75 transition-opacity flex-shrink-0 mt-0.5">
-                        <UserAvatar name={comment.authorName} accountType={comment.authorType} size="sm" />
-                      </button>
-                    ) : (
-                      <div className="flex-shrink-0 mt-0.5">
-                        <UserAvatar name={comment.authorName} accountType={comment.authorType} size="sm" />
+              {orderedComments.map((comment) => {
+                const index = comment.__index;
+                const isAccepted = selectedPost.acceptedCommentId && comment.id === selectedPost.acceptedCommentId;
+                const canAccept = isQuestion && isAuthor && !comment.deleted;
+                const canDelete = user && comment.authorId === user.uid && !comment.deleted;
+                const canReport = user && comment.authorId && comment.authorId !== user.uid && !comment.deleted;
+                return (
+                  <div
+                    key={comment.id ?? index}
+                    className={`glass-card px-4 py-3 border-l-4 ${
+                      isAccepted ? 'border-l-olive-500' : 'border-l-white/[0.06]'
+                    }`}
+                  >
+                    {isAccepted && (
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-olive-500" />
+                        <span className="text-[10px] font-bold tracking-widest uppercase text-olive-400">accepted answer</span>
                       </div>
                     )}
-                    {/* Content column */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        {comment.isVerified ? (
-                          <button onClick={() => openProfile(comment.authorId)} className="flex items-center gap-1.5 hover:opacity-75 transition-opacity">
-                            <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
-                            <VerifiedBadge size="xs" />
-                          </button>
-                        ) : (
-                          <span className="text-xs font-semibold text-gray-300 lowercase">{comment.authorName}</span>
-                        )}
-                        <span className="text-[10px] text-gray-600 lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
+                    <div className="flex gap-3 items-start">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <UserAvatar
+                          name={comment.authorName}
+                          accountType={comment.authorType}
+                          anonymous={comment.deleted}
+                          size="sm"
+                        />
                       </div>
-                      <p className="text-sm text-gray-400 leading-relaxed">{comment.content}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                          {comment.deleted ? (
+                            <span className="text-xs font-semibold text-gray-600 lowercase italic">deleted</span>
+                          ) : (
+                            <AuthorLine item={comment} onOpenProfile={openProfile} />
+                          )}
+                          <span className="text-[10px] text-gray-600 lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
+                        </div>
+                        <p className={`text-sm leading-relaxed ${comment.deleted ? 'text-gray-600 italic' : 'text-gray-400'}`}>
+                          {comment.content}
+                        </p>
+                        {(canAccept || canDelete || canReport) && (
+                          <div className="flex items-center gap-3 mt-2">
+                            {canAccept && (
+                              <button
+                                onClick={() => handleAcceptAnswer(comment.id)}
+                                className={`flex items-center gap-1 text-[11px] transition-colors lowercase ${
+                                  isAccepted ? 'text-olive-400' : 'text-gray-600 hover:text-olive-400'
+                                }`}
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                {isAccepted ? 'unmark answer' : 'mark as answer'}
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => setDeleteTarget({ type: 'comment', id: selectedPost.id, commentIndex: index })}
+                                className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-crimson-400 transition-colors lowercase"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                delete
+                              </button>
+                            )}
+                            {canReport && (
+                              <button
+                                onClick={() => { setReportDialog({ type: 'comment', postId: selectedPost.id, commentIndex: index }); setReportReason('spam'); setReportNote(''); }}
+                                className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-amber-400 transition-colors lowercase"
+                              >
+                                <Flag className="w-3 h-3" />
+                                report
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {commentCount === 0 && (
                 <p className="text-center text-gray-600 text-xs lowercase py-6">
@@ -673,13 +1220,10 @@ const Community = () => {
             </div>
           </motion.div>
 
-          </div>{/* end main column */}
+          </div>
 
-          {/* ── Sidebar (desktop) ── */}
           <div className="hidden lg:block">
             <div className="lg:sticky lg:top-32 space-y-4">
-
-              {/* Search bar — navigates back to feed */}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -698,14 +1242,12 @@ const Community = () => {
                   />
                 </div>
               </form>
-
               <NewsSidebar />
             </div>
           </div>
 
-          </div>{/* end grid */}
+          </div>
 
-          {/* ── Mobile sidebar (below comments) ── */}
           <div className="lg:hidden mt-10">
             <NewsSidebar />
           </div>
@@ -713,115 +1255,7 @@ const Community = () => {
         </div>
       </div>
 
-      {/* ── Specialist profile modal ── */}
-      <AnimatePresence>
-        {specialistProfile && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
-            onClick={() => setSpecialistProfile(null)}
-          >
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="relative w-full max-w-md glass-card rounded-2xl border border-white/[0.1] overflow-hidden"
-              onClick={e => e.stopPropagation()}
-            >
-              <button onClick={() => setSpecialistProfile(null)} className="absolute top-4 right-4 text-gray-600 hover:text-white transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-
-              {specialistProfile.loading ? (
-                <div className="p-10 flex justify-center">
-                  <div className="w-5 h-5 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <>
-                  <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="text-4xl">{specialistProfile.avatarIcon}</span>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-base font-semibold text-white lowercase">{specialistProfile.username}</span>
-                          <BadgeCheck className="w-4 h-4 text-midnight-400" />
-                        </div>
-                        <p className="text-[11px] text-gray-500 lowercase mt-0.5">verified security specialist</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div>
-                        <p className="text-xl font-bold text-white">{specialistProfile.resolvedCount}</p>
-                        <p className="text-[10px] text-gray-600 lowercase">cases resolved</p>
-                      </div>
-                      {specialistProfile.avgRating && (
-                        <div>
-                          <p className="text-xl font-bold text-white flex items-center gap-1">
-                            {specialistProfile.avgRating}
-                            <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
-                          </p>
-                          <p className="text-[10px] text-gray-600 lowercase">avg rating</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {specialistProfile.bio && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">about</p>
-                      <p className="text-sm text-gray-400 lowercase leading-relaxed">{specialistProfile.bio}</p>
-                    </div>
-                  )}
-
-                  {specialistProfile.specializations.length > 0 && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">specializations</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {specialistProfile.specializations.map((s, i) => (
-                          <span key={i} className="px-2 py-1 rounded-md bg-midnight-400/10 border border-midnight-400/20 text-[11px] text-midnight-300 lowercase">{s}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {specialistProfile.recentFeedback.length > 0 && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3">recent feedback</p>
-                      <div className="space-y-3">
-                        {specialistProfile.recentFeedback.map((r, i) => (
-                          <div key={i}>
-                            <div className="flex items-center gap-0.5 mb-1">
-                              {[1,2,3,4,5].map(s => (
-                                <Star key={s} className={`w-3 h-3 ${s <= r.feedback.rating ? 'text-amber-400 fill-current' : 'text-gray-700'}`} />
-                              ))}
-                            </div>
-                            <p className="text-xs text-gray-400 lowercase italic">"{r.feedback.comment}"</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="px-6 py-4">
-                    <a
-                      href="/request-support"
-                      onClick={() => setSpecialistProfile(null)}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
-                    >
-                      request support from this specialist
-                    </a>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Modals />
       </>
     );
   }
@@ -830,7 +1264,6 @@ const Community = () => {
   return (
     <div className="min-h-screen pt-32 pb-20 px-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -850,7 +1283,7 @@ const Community = () => {
           </p>
         </motion.div>
 
-        {/* Tab Switcher — compact pill bar */}
+        {/* Tab Switcher */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -860,7 +1293,7 @@ const Community = () => {
           <div className="flex gap-1 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
             {[
               { id: 'discussions', label: 'discussions', icon: MessageSquare, color: '#A78BFA', type: 'discussion' },
-              { id: 'qa',          label: 'q&a',         icon: HelpCircle,   color: '#FBBF24', type: 'question'  },
+              { id: 'qa',          label: 'q&a',         icon: HelpCircle,    color: '#FBBF24', type: 'question'  },
             ].map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -868,14 +1301,9 @@ const Community = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); setShowNewPost(false); setSearchQuery(''); }}
+                  onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); setShowNewPost(false); setSearchQuery(''); setSortMode('newest'); }}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all lowercase"
-                  style={active ? {
-                    backgroundColor: `${tab.color}18`,
-                    color: 'white',
-                  } : {
-                    color: '#6b7280',
-                  }}
+                  style={active ? { backgroundColor: `${tab.color}18`, color: 'white' } : { color: '#6b7280' }}
                 >
                   <Icon className="w-4 h-4" style={{ color: active ? tab.color : undefined }} />
                   {tab.label}
@@ -903,7 +1331,6 @@ const Community = () => {
           transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-col gap-3 mb-6"
         >
-          {/* Search row */}
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
@@ -927,7 +1354,6 @@ const Community = () => {
             </button>
           </div>
 
-          {/* Category pills */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {categories.map((cat) => {
               const CatIcon = cat.icon;
@@ -944,6 +1370,33 @@ const Community = () => {
                 >
                   {CatIcon && <CatIcon className="w-3 h-3" />}
                   {cat.name}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sort controls */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mr-1">sort</span>
+            {[
+              { id: 'newest', label: 'newest', icon: Clock },
+              { id: 'top', label: 'top', icon: ArrowUp },
+              ...(isQA ? [{ id: 'unanswered', label: 'unanswered', icon: HelpCircle }] : []),
+            ].map(opt => {
+              const OptIcon = opt.icon;
+              const active = sortMode === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => setSortMode(opt.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all lowercase border ${
+                    active
+                      ? 'bg-white/[0.06] border-white/[0.15] text-white'
+                      : 'border-transparent text-gray-600 hover:text-gray-300 hover:bg-white/[0.03]'
+                  }`}
+                >
+                  <OptIcon className="w-3 h-3" />
+                  {opt.label}
                 </button>
               );
             })}
@@ -991,7 +1444,7 @@ const Community = () => {
 
                 {error && <p className="text-xs text-crimson-400 mb-3 lowercase">{error}</p>}
 
-                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-white/[0.06]">
+                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-white/[0.06] flex-wrap">
                   <select
                     value={newPost.category}
                     onChange={(e) => setNewPost(prev => ({ ...prev, category: e.target.value }))}
@@ -1001,6 +1454,20 @@ const Community = () => {
                       <option key={cat.id} value={cat.id} className="bg-dark-900">{cat.name}</option>
                     ))}
                   </select>
+
+                  {!isQA && (
+                    <label className="flex items-center gap-2 text-xs text-gray-400 lowercase cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!newPost.isAnonymous}
+                        onChange={(e) => setNewPost(prev => ({ ...prev, isAnonymous: e.target.checked }))}
+                        className="accent-purple-400"
+                      />
+                      <EyeOff className="w-3.5 h-3.5" />
+                      post anonymously
+                    </label>
+                  )}
+
                   <div className="flex-1" />
                   <button type="button" onClick={() => { setShowNewPost(false); setError(''); }}
                     className="px-4 py-2 text-gray-500 hover:text-white text-xs font-semibold tracking-wide uppercase transition-colors">
@@ -1012,6 +1479,15 @@ const Community = () => {
                     {submitting ? 'posting...' : isQA ? 'ask' : 'post'}
                   </button>
                 </div>
+
+                {!isQA && newPost.isAnonymous && (
+                  <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-purple-500/[0.06] border border-purple-500/20">
+                    <EyeOff className="w-3.5 h-3.5 text-purple-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-purple-300/80 lowercase leading-relaxed">
+                      your username and avatar will be hidden from the community. you can still delete this post later.
+                    </p>
+                  </div>
+                )}
               </form>
             </motion.div>
           )}
@@ -1019,7 +1495,6 @@ const Community = () => {
 
         {/* Two-Column Layout: Posts + News Sidebar */}
         <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
-        {/* Posts Feed */}
         <div className="min-w-0">
           {loading ? (
             <div className="text-center py-20">
@@ -1032,9 +1507,11 @@ const Community = () => {
                 {searchQuery.trim() ? <Search className="w-5 h-5 text-gray-600" /> : isQA ? <HelpCircle className="w-5 h-5 text-gray-600" /> : <MessageSquare className="w-5 h-5 text-gray-600" />}
               </div>
               <p className="text-gray-500 text-sm lowercase mb-1">
-                {searchQuery.trim()
-                  ? `no results for "${searchQuery.trim()}"`
-                  : activeCategory !== 'all' ? 'nothing here yet' : `no ${isQA ? 'questions' : 'discussions'} yet`}
+                {sortMode === 'unanswered'
+                  ? 'no unanswered questions'
+                  : searchQuery.trim()
+                    ? `no results for "${searchQuery.trim()}"`
+                    : activeCategory !== 'all' ? 'nothing here yet' : `no ${isQA ? 'questions' : 'discussions'} yet`}
               </p>
               <p className="text-gray-600 text-xs lowercase">
                 {searchQuery.trim()
@@ -1044,11 +1521,11 @@ const Community = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredPosts.map((post, index) => {
+              {filteredPosts.map((post) => {
                 const liked = post.likedBy?.includes(user?.uid);
+                const categoryName = categories.find(c => c.id === post.category)?.name;
 
                 if (isQA) {
-                  // ── Q&A Card: bordered, structured, status-first ──
                   return (
                     <div
                       key={post.id}
@@ -1060,7 +1537,6 @@ const Community = () => {
                       }`}
                     >
                       <div className="flex gap-4">
-                        {/* status column */}
                         <div className="flex flex-col items-center gap-1 pt-0.5 min-w-[48px]">
                           <span className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
                             post.resolved
@@ -1075,7 +1551,6 @@ const Community = () => {
                           </span>
                         </div>
 
-                        {/* content */}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-base font-semibold text-white mb-1.5 group-hover:text-midnight-400 transition-colors leading-snug">
                             {post.title}
@@ -1084,24 +1559,13 @@ const Community = () => {
                           <p className="text-sm text-gray-500 line-clamp-2 mb-4 leading-relaxed">
                             {post.content}
                           </p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500 lowercase">
-                            {post.isVerified ? (
-                              <button
-                                onClick={e => { e.stopPropagation(); openProfile(post.authorId); }}
-                                className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
-                              >
-                                <UserAvatar name={post.authorName} accountType={post.authorType} size="xs" />
-                                <span className="text-gray-300 font-semibold">{post.authorName}</span>
-                                <VerifiedBadge size="xs" />
-                              </button>
-                            ) : (
-                              <span className="flex items-center gap-1.5">
-                                <UserAvatar name={post.authorName} accountType={post.authorType} size="xs" />
-                                {post.authorName}
-                              </span>
-                            )}
+                          <div className="flex items-center gap-4 text-xs text-gray-500 lowercase flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <UserAvatar name={post.authorName} accountType={post.authorType} anonymous={post.isAnonymous} size="xs" />
+                              <AuthorLine item={post} onOpenProfile={openProfile} />
+                            </div>
                             <span>{timeAgo(post.createdAt)}</span>
-                            <span>{categories.find(c => c.id === post.category)?.name}</span>
+                            <span>{categoryName}</span>
                             <button onClick={(e) => handleLike(e, post.id)}
                               className={`flex items-center gap-1.5 ml-auto transition-colors ${liked ? 'text-crimson-400' : 'hover:text-crimson-400'}`}>
                               <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
@@ -1125,7 +1589,6 @@ const Community = () => {
                   );
                 }
 
-                // ── Discussion Card ──
                 return (
                   <div
                     key={post.id}
@@ -1133,24 +1596,14 @@ const Community = () => {
                     className="group border border-l-4 border-white/[0.08] border-l-purple-500/30 rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
                   >
                     <div className="flex items-start gap-3.5">
-                      <UserAvatar name={post.authorName} accountType={post.authorType} size="sm" />
+                      <UserAvatar name={post.authorName} accountType={post.authorType} anonymous={post.isAnonymous} size="sm" />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          {post.isVerified ? (
-                            <button
-                              onClick={e => { e.stopPropagation(); openProfile(post.authorId); }}
-                              className="flex items-center gap-1.5 hover:opacity-75 transition-opacity"
-                            >
-                              <span className="text-xs font-semibold text-gray-300 lowercase">{post.authorName}</span>
-                              <VerifiedBadge size="xs" />
-                            </button>
-                          ) : (
-                            <span className="text-xs font-semibold text-gray-300 lowercase">{post.authorName}</span>
-                          )}
+                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                          <AuthorLine item={post} onOpenProfile={openProfile} />
                           <span className="text-[10px] text-gray-700">·</span>
                           <span className="text-xs text-gray-600 lowercase">{timeAgo(post.createdAt)}</span>
                           <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600 ml-auto">
-                            {categories.find(c => c.id === post.category)?.name}
+                            {categoryName}
                           </span>
                         </div>
                         <h3 className="text-base font-semibold text-white mb-1.5 group-hover:text-purple-400 transition-colors leading-snug">
@@ -1190,7 +1643,6 @@ const Community = () => {
             </div>
           )}
 
-          {/* Guidelines */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1211,127 +1663,17 @@ const Community = () => {
           </motion.div>
         </div>
 
-        {/* News Sidebar (desktop) */}
         <div className="hidden lg:block">
           <NewsSidebar />
         </div>
         </div>
 
-        {/* News Sidebar (mobile — below posts) */}
         <div className="lg:hidden mt-10">
           <NewsSidebar />
         </div>
       </div>
 
-      {/* ── Specialist profile modal ── */}
-      <AnimatePresence>
-        {specialistProfile && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
-            onClick={() => setSpecialistProfile(null)}
-          >
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="relative w-full max-w-md glass-card rounded-2xl border border-white/[0.1] overflow-hidden"
-              onClick={e => e.stopPropagation()}
-            >
-              <button onClick={() => setSpecialistProfile(null)} className="absolute top-4 right-4 text-gray-600 hover:text-white transition-colors">
-                <X className="w-4 h-4" />
-              </button>
-
-              {specialistProfile.loading ? (
-                <div className="p-10 flex justify-center">
-                  <div className="w-5 h-5 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <>
-                  <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="text-4xl">{specialistProfile.avatarIcon}</span>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-base font-semibold text-white lowercase">{specialistProfile.username}</span>
-                          <BadgeCheck className="w-4 h-4 text-midnight-400" />
-                        </div>
-                        <p className="text-[11px] text-gray-500 lowercase mt-0.5">verified security specialist</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div>
-                        <p className="text-xl font-bold text-white">{specialistProfile.resolvedCount}</p>
-                        <p className="text-[10px] text-gray-600 lowercase">cases resolved</p>
-                      </div>
-                      {specialistProfile.avgRating && (
-                        <div>
-                          <p className="text-xl font-bold text-white flex items-center gap-1">
-                            {specialistProfile.avgRating}
-                            <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
-                          </p>
-                          <p className="text-[10px] text-gray-600 lowercase">avg rating</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {specialistProfile.bio && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">about</p>
-                      <p className="text-sm text-gray-400 lowercase leading-relaxed">{specialistProfile.bio}</p>
-                    </div>
-                  )}
-
-                  {specialistProfile.specializations.length > 0 && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">specializations</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {specialistProfile.specializations.map((s, i) => (
-                          <span key={i} className="px-2 py-1 rounded-md bg-midnight-400/10 border border-midnight-400/20 text-[11px] text-midnight-300 lowercase">{s}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {specialistProfile.recentFeedback.length > 0 && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3">recent feedback</p>
-                      <div className="space-y-3">
-                        {specialistProfile.recentFeedback.map((r, i) => (
-                          <div key={i}>
-                            <div className="flex items-center gap-0.5 mb-1">
-                              {[1,2,3,4,5].map(s => (
-                                <Star key={s} className={`w-3 h-3 ${s <= r.feedback.rating ? 'text-amber-400 fill-current' : 'text-gray-700'}`} />
-                              ))}
-                            </div>
-                            <p className="text-xs text-gray-400 lowercase italic">"{r.feedback.comment}"</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="px-6 py-4">
-                    <a
-                      href="/request-support"
-                      onClick={() => setSpecialistProfile(null)}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
-                    >
-                      request support from this specialist
-                    </a>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Modals />
     </div>
   );
 };

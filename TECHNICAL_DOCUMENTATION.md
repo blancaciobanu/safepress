@@ -1586,6 +1586,172 @@ const SETUP_HEX = (pct)   => pct >= 80 ? '#84CC16' : pct >= 40 ? '#F59E0B' : pct
 
 ---
 
-**Last Updated**: February 16, 2026
-**Version**: 3.2.0
-**Documentation**: Complete (includes Phases 1-17)
+### Phase 18: Role Clarity, Community Uplift & Source Protection Playbook
+**Tightening the journalist/specialist UX, expanding community moderation, and adding the investigative-journalism narrative feature**
+
+Phase 18 is a three-stream update driven by three gaps:
+1. Role confusion between journalist and security specialist accounts (pending/rejected specialists were silently redirected; verified specialists saw a hybrid dashboard; Community lacked consistent role labels).
+2. Community lacked self-service moderation (no delete for own content, no true anonymous stories, no Q&A accepted-answer concept, no sort options, no unified journalist profile, no reporting path).
+3. The app had no content that spoke directly to investigative journalism's core operational concern: source protection.
+
+#### 18.1 Role Clarity
+
+**Signup flow (`src/pages/Signup.jsx`)**
+- Role selector is now rendered *above* the tagline so the copy reacts immediately to the user's choice.
+- Tagline is dynamic: "join thousands of journalists staying safe" for journalist, "help journalists protect themselves" for specialist.
+
+**AuthContext whitelist (`src/contexts/AuthContext.jsx`)**
+- Signup path now validates `accountType` against a whitelist, preventing `undefined` / junk values from the Google OAuth path:
+  ```js
+  const accountType = ['journalist', 'specialist'].includes(userData?.accountType) ? userData.accountType : 'journalist';
+  ```
+
+**Dashboard (`src/pages/Dashboard.jsx`)**
+- Verified specialists are auto-redirected to `/specialist-dashboard` (no hybrid view).
+- Pending specialists see a prominent amber banner (Clock icon) replacing the previous tiny amber chip.
+- Rejected specialists see a crimson banner showing `user.verificationRejectionReason` and a "review & reapply" CTA.
+
+**Specialist Dashboard (`src/pages/SpecialistDashboard.jsx`)**
+- Removed silent `navigate('/dashboard')` on unverified users.
+- Inline "pending review" and "rejected" states now render directly on the specialist dashboard, showing submitted credentials, expected timeline, rejection reason (if present), and a reapply CTA.
+
+**Admin Dashboard (`src/pages/AdminDashboard.jsx`)**
+- Reject flow now prompts the admin for an optional rejection reason via an inline textarea.
+- Reason is written to `users/{uid}.verificationRejectionReason` so the rejected specialist can read it on their own dashboard.
+
+**Request Support (`src/pages/RequestSupport.jsx`)**
+- New specialist-availability panel above the form: 3 avatar stack (verified badge on each), online-dot indicator, live count, "first contact within 24h" copy.
+- Specialists are queried by `accountType==specialist` + `verificationStatus==approved`, sorted by `verificationDate || createdAt`.
+- Success screen shows dynamic count: "X verified specialists are on call".
+
+**Community author labels (`src/pages/Community.jsx`)**
+- Every post/comment now renders an always-on role chip: "journalist" (default), "security specialist" (verified → existing `VerifiedBadge`; pending/rejected → neutral "specialist (unverified)" chip).
+- Implemented via a new `resolveAuthor(item)` helper + `AuthorLine` component that reads `authorType` and `authorVerificationStatus` (embedded on new posts/comments). Legacy rows fall back to the existing `isVerified` boolean.
+
+**New field**: `users/{uid}.verificationRejectionReason: string | null` (written by admin reject flow, read by Dashboard + SpecialistDashboard banners).
+
+#### 18.2 Community Uplift
+
+All community changes land in `src/pages/Community.jsx` and `firestore.rules`. New collection: `community-reports`.
+
+**Delete own posts & comments**
+- Rules (`firestore.rules`): `community-posts` delete rule changed to `allow delete: if isAdmin() || (isAuth() && resource.data.authorId == request.auth.uid);`
+- UI: inline delete button on author's own posts + comments. Confirmation modal before destructive action.
+- Posts are hard-deleted. Comments are soft-deleted: content replaced with `'[deleted]'` placeholder and `authorName` cleared, so thread structure (reply depth, accepted-answer pointer) remains intact.
+- Comments now carry an explicit `id: ${user.uid}-${Date.now()}` so they can be targeted by `handleDeleteComment` and `handleAcceptAnswer`.
+
+**True anonymous stories**
+- New schema field: `community-posts/{id}.isAnonymous: boolean` (default false).
+- New form field `isAnonymous` on the discussion post form (Q&A does not get this option — only discussions).
+- When true:
+  - `authorName` stored as `"anonymous"` and `authorIcon` set to a neutral placeholder.
+  - `authorType` is hidden in rendering (AuthorLine shows "anonymous" chip + gray EyeOff avatar).
+  - `authorId` is still stored (so the user can delete their own anonymous post) but is never rendered anywhere in Community.jsx.
+- Legacy rows without `isAnonymous` are treated as non-anonymous — no migration required.
+
+**Q&A accepted answer**
+- New schema field: `community-posts/{id}.acceptedCommentId: string | null` (default null).
+- When `type === 'question'` and the viewer is the question author, each comment shows a "mark as answer" button. Clicking writes `acceptedCommentId` to the post. Asker can un-mark.
+- Accepted comment renders at the top of the thread with an olive `border-l` stripe and a green "accepted answer" badge.
+- `resolved` status is kept independent — an asker can accept an answer without marking the whole question resolved.
+
+**Sort options**
+- Segmented control in feed header: `newest` (default) / `top` (by `likes`) / `unanswered` (Q&A tab only — filters to `comments.length === 0`).
+- Pure client-side sort over the already-fetched list. No new composite indexes required.
+
+**Unified author profile modal**
+- Previously only verified specialists had a clickable profile. Extended to every author.
+- Single `AuthorProfile` modal branches content by `authorType`:
+  - Specialists: existing verification details + bio + skills.
+  - Journalists: username + avatar, join date, total post count, 3 most recent posts (linked).
+- Opening a profile fetches the author's posts via a `where('authorId', '==', uid)` query to compute count + recent list.
+
+**Reporting & moderation**
+- New Firestore collection `community-reports/{reportId}`:
+  ```js
+  { postId, commentId: string | null, reportedBy: uid, reason, note, createdAt, status }
+  // reason: 'spam' | 'harassment' | 'misinformation' | 'off-topic' | 'other'
+  // status: 'open' | 'reviewed'
+  ```
+- Rules: `create` allowed by any authenticated user (must set `reportedBy == auth.uid`); `read/update/delete` admin-only.
+- UI: "report" menu item on every post + comment not authored by the viewer. Modal picks a reason + optional note.
+- Admin view: new **reports tab** in AdminDashboard with filter (open/reviewed/all), report cards enriched with post title / author / comment content, and actions: `markReportReviewed`, `deleteReport`, `deleteReportedPost`.
+- Admin tab switcher between `verifications` and `reports` with open-count badges.
+
+**Firestore rules additions**
+
+```
+match /community-reports/{reportId} {
+  allow create: if isAuth() && request.resource.data.reportedBy == request.auth.uid;
+  allow read, update, delete: if isAdmin();
+}
+```
+
+**Note**: Plan originally called for splitting `Community.jsx` into `PostCard.jsx` / `PostDetail.jsx` / `NewsSidebar.jsx` / `AuthorModal.jsx` / `ReportDialog.jsx` + a `useCommunityPosts` hook. The split was deferred to keep regression risk low; all features landed in-place in the existing single file.
+
+#### 18.3 Source Protection Playbook
+
+A new route `/source-protection` (public, no auth required — same as `/resources`) registered in `src/App.jsx`. Implemented in `src/pages/SourceProtection.jsx`.
+
+**Structure**
+- Teal-themed header (matches Phase 11 UI consistency pattern) with an `EyeOff` icon.
+- 5-tab segmented control:
+  1. **compartmentalization** — separating work life from source life (separate devices, accounts, browsers, Signal instances).
+  2. **first contact** — secure channels for initial outreach (SecureDrop, Signal usernames, burner email, dead drops); verification rituals.
+  3. **meeting & handoff** — in-person meeting hygiene, counter-surveillance, USB hygiene, airgap transfer, verification hashes.
+  4. **after publication** — source aftercare checklist (verifying source is OK, legal exposure check, metadata scrub, retention vs. secure deletion).
+  5. **legal protections** — shield laws overview, when to call a lawyer, what to do if subpoenaed, regional org contacts (CPJ, RSF, EFF, IPI).
+- Each tab renders a summary card + 4 accordion content cards (first open by default; individual toggle). All content is written inline as structured JSX data objects — no external API calls.
+
+**Interactive scenarios section** (shared across tabs, at bottom of page)
+- 3 scenario cards: "source says they're being followed", "editor wants source name in shared doc", "phishing email with unpublished detail".
+- Clicking opens a decision-tree modal: prompt → 3 choices → correct/incorrect consequence + follow-up text + link to related Resources / SecureSetup page.
+- Pure client-side; no persistence in v1.
+
+**Related-resources grid + citations footer**
+- Links out to `/resources`, `/secure-setup`, `/community`.
+- Citations footer acknowledges CPJ, Freedom of the Press Foundation, EFF, RSF so content is grounded, not invented.
+
+**Integration points (entry paths)**
+- **Home** (`src/pages/Home.jsx`): new `FeatureTile` with teal accent and `EyeOff` icon pointing to `/source-protection`. Tile uses a new `accent` prop on `FeatureTile` that switches icon bg/color and link color to teal.
+- **Dashboard** (`src/pages/Dashboard.jsx`): source-protection card added to both the compact Explore grid (2×2) and the wider Quick Links grid (md:grid-cols-4). Crisis Mode retained only on the Home page tile per the existing route `/crisis` redirect to `/dashboard`.
+- **Dashboard recommendations**: when `communication` category score < 70, the "Up Next" recommendation now reads "protect your sources & channels" and points to `/source-protection` (previously pointed to `/resources`).
+- **SecurityScore results** (`src/pages/SecurityScore.jsx`):
+  - Low communication-category guidance now reads "open the source protection playbook" → `/source-protection`.
+  - Risk Level Card adds a dedicated teal callout block for `high` / `critical` risk profiles linking into the playbook.
+- **SecureSetup** (`src/pages/SecureSetup.jsx`): every communication-category task now renders a "source playbook →" link alongside the existing "view tools" link.
+
+**No Firestore writes** from the SourceProtection page — it is informational + interactive only.
+
+#### 18.4 File-level summary
+
+| File | Change |
+|------|--------|
+| `src/App.jsx` | + `/source-protection` route |
+| `src/contexts/AuthContext.jsx` | accountType whitelist |
+| `src/pages/Signup.jsx` | dynamic tagline, role selector lifted |
+| `src/pages/Dashboard.jsx` | verified-specialist redirect, pending/rejected banners, source-protection cards, communication recommendation → playbook |
+| `src/pages/SpecialistDashboard.jsx` | inline pending/rejected states |
+| `src/pages/AdminDashboard.jsx` | rejection reason textarea, reports tab |
+| `src/pages/RequestSupport.jsx` | specialist-availability panel + success-screen count |
+| `src/pages/Community.jsx` | delete, anonymous stories, accepted answer, sort, unified profile, reporting, always-on role labels |
+| `src/pages/Home.jsx` | source-protection feature tile |
+| `src/pages/SecurityScore.jsx` | communication guidance + high/critical risk callout |
+| `src/pages/SecureSetup.jsx` | source-playbook link on communication tasks |
+| `src/pages/SourceProtection.jsx` | **new** — 5-tab playbook + scenarios |
+| `firestore.rules` | author-delete for community-posts, new `community-reports` rules |
+
+**Firestore schema deltas**
+- New: `users/{uid}.verificationRejectionReason: string | null`
+- New: `community-posts/{id}.isAnonymous: boolean`
+- New: `community-posts/{id}.acceptedCommentId: string | null`
+- New: `community-posts/{id}.authorVerificationStatus: 'pending' | 'approved' | 'rejected' | null` (embedded on new posts for role labels)
+- New collection: `community-reports/{reportId}`
+
+No new composite indexes required.
+
+---
+
+**Last Updated**: April 19, 2026
+**Version**: 3.3.0
+**Documentation**: Complete (includes Phases 1-18)

@@ -157,19 +157,19 @@ const SpecialistDashboard = () => {
   const [resolved,     setResolved]     = useState([]);
   const [activeTab,    setActiveTab]    = useState('open');
 
-  const isVerifiedSpecialist = user?.accountType === 'specialist' && user?.verificationStatus === 'approved';
+  const isSpecialist = user?.accountType === 'specialist';
+  const isVerifiedSpecialist = isSpecialist && user?.verificationStatus === 'approved';
+  const [reapplying, setReapplying] = useState(false);
 
-  // Redirect non-specialists
+  // Only redirect non-specialists; pending/rejected specialists stay here and see status
   useEffect(() => {
     if (!user) return;
-    if (user.accountType !== 'specialist') { navigate('/dashboard', { replace: true }); return; }
-    if (user.verificationStatus === 'pending') { navigate('/dashboard', { replace: true }); return; }
-    if (user.verificationStatus === 'rejected') { navigate('/dashboard', { replace: true }); return; }
+    if (user.accountType !== 'specialist') navigate('/dashboard', { replace: true });
   }, [user, navigate]);
 
-  // Fetch full user profile from Firestore (includes specialistProfile)
+  // Fetch full user profile from Firestore for all specialists (needed for credentials + rejection reason)
   useEffect(() => {
-    if (!isVerifiedSpecialist) return;
+    if (!isSpecialist) return;
     const fetch = async () => {
       try {
         const snap = await getDoc(doc(db, 'users', user.uid));
@@ -181,7 +181,25 @@ const SpecialistDashboard = () => {
       }
     };
     fetch();
-  }, [isVerifiedSpecialist, user]);
+  }, [isSpecialist, user]);
+
+  const handleReapply = async () => {
+    if (!user) return;
+    setReapplying(true);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        verificationStatus: 'pending',
+        verificationRejectionReason: null,
+        'verificationData.submittedAt': new Date().toISOString(),
+      });
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) setProfile(snap.data());
+    } catch (e) {
+      console.error('Error reapplying:', e);
+    } finally {
+      setReapplying(false);
+    }
+  };
 
   // Fetch open + claimed requests
   useEffect(() => {
@@ -251,12 +269,131 @@ const SpecialistDashboard = () => {
     }
   };
 
-  if (loading || !isVerifiedSpecialist) {
+  if (loading || !isSpecialist) {
     return (
       <div className="min-h-screen pt-32 flex items-center justify-center">
         <div className="text-center">
           <div className="w-6 h-6 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600 text-[10px] tracking-widest uppercase">loading</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Pending / rejected specialists see a status view instead of the dashboard
+  if (!isVerifiedSpecialist) {
+    const status = user.verificationStatus;
+    const vd = profile?.verificationData || {};
+    const submittedAt = vd.submittedAt ? new Date(vd.submittedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
+    const rejectionReason = profile?.verificationRejectionReason;
+
+    return (
+      <div className="min-h-screen pt-32 pb-20 px-4">
+        <div className="max-w-2xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+            className="text-center mb-8"
+          >
+            <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-5 border ${
+              status === 'rejected'
+                ? 'bg-crimson-500/10 border-crimson-500/20'
+                : 'bg-amber-500/10 border-amber-500/20'
+            }`}>
+              {status === 'rejected' ? (
+                <AlertTriangle className="w-7 h-7 text-crimson-500" />
+              ) : (
+                <Clock className="w-7 h-7 text-amber-500" />
+              )}
+            </div>
+
+            <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
+              {status === 'rejected' ? 'application not approved' : 'verification in review'}
+            </h1>
+
+            <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed" style={{ letterSpacing: '0.03em' }}>
+              {status === 'rejected'
+                ? 'your specialist application was not approved. you can update your credentials and reapply.'
+                : "we're reviewing your specialist credentials. you'll get access to the request queue once approved."}
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            className="border border-white/[0.08] rounded-2xl p-6 bg-white/[0.02] space-y-5"
+          >
+            {status === 'rejected' && rejectionReason && (
+              <div className="bg-crimson-500/5 border border-crimson-500/20 rounded-xl p-4">
+                <p className="text-[10px] text-crimson-400 uppercase tracking-widest font-bold mb-2">reason for rejection</p>
+                <p className="text-sm text-gray-300 lowercase leading-relaxed">{rejectionReason}</p>
+              </div>
+            )}
+
+            {status === 'pending' && (
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+                <p className="text-[10px] text-amber-400 uppercase tracking-widest font-bold mb-2">expected timeline</p>
+                <p className="text-sm text-gray-300 lowercase leading-relaxed">
+                  applications are typically reviewed within 2–3 business days. you'll be notified by email once a decision is made.
+                </p>
+              </div>
+            )}
+
+            <div>
+              <p className="text-[10px] text-gray-600 uppercase tracking-widest font-bold mb-3">your submission</p>
+              <div className="space-y-3 text-sm lowercase">
+                {vd.expertise && (
+                  <div>
+                    <span className="text-gray-600">expertise: </span>
+                    <span className="text-gray-300">{vd.expertise}</span>
+                  </div>
+                )}
+                {vd.organization && (
+                  <div>
+                    <span className="text-gray-600">organization: </span>
+                    <span className="text-gray-300">{vd.organization}</span>
+                  </div>
+                )}
+                {vd.credentials && (
+                  <div>
+                    <span className="text-gray-600">credentials: </span>
+                    <p className="text-gray-300 mt-1 leading-relaxed">{vd.credentials}</p>
+                  </div>
+                )}
+                {submittedAt && (
+                  <div>
+                    <span className="text-gray-600">submitted: </span>
+                    <span className="text-gray-300">{submittedAt}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {status === 'rejected' && (
+              <div className="pt-3 border-t border-white/[0.06]">
+                <button
+                  onClick={handleReapply}
+                  disabled={reapplying}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-midnight-400 hover:bg-midnight-500 disabled:opacity-50 text-white rounded-lg font-semibold transition-all lowercase"
+                >
+                  <Shield className="w-4 h-4" />
+                  {reapplying ? 'resubmitting...' : 'resubmit for review'}
+                </button>
+                <p className="text-xs text-gray-600 text-center mt-3 lowercase">
+                  update your credentials in settings, then click resubmit
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 text-xs text-gray-600 lowercase pt-3 border-t border-white/[0.06]">
+              <span>while you wait, explore the app:</span>
+              <a href="/resources" className="text-midnight-400 hover:text-midnight-300 transition-colors">resources →</a>
+              <span>·</span>
+              <a href="/community" className="text-midnight-400 hover:text-midnight-300 transition-colors">community →</a>
+            </div>
+          </motion.div>
         </div>
       </div>
     );

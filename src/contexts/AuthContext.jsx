@@ -47,6 +47,10 @@ export const AuthProvider = ({ children }) => {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     const { username, avatarIcon } = generateUserIdentity();
 
+    const accountType = ['journalist', 'specialist'].includes(userData?.accountType)
+      ? userData.accountType
+      : 'journalist';
+
     const profile = {
       email,
       username,
@@ -54,10 +58,10 @@ export const AuthProvider = ({ children }) => {
       realName: userData.realName,
       createdAt: new Date().toISOString(),
       securityScores: [],
-      accountType: userData.accountType || 'journalist',
+      accountType,
     };
 
-    if (userData.accountType === 'specialist') {
+    if (accountType === 'specialist') {
       profile.verificationStatus = 'pending';
       profile.verificationData = {
         expertise: userData.expertise,
@@ -67,6 +71,7 @@ export const AuthProvider = ({ children }) => {
         submittedAt: new Date().toISOString(),
       };
       profile.verificationDate = null;
+      profile.verificationRejectionReason = null;
       profile.specialistProfile = { bio: '', expertiseAreas: [], certifications: [] };
     }
 

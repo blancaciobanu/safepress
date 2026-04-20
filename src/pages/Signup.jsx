@@ -127,7 +127,9 @@ const Signup = () => {
           </h1>
 
           <p className="text-lg text-gray-400 font-sans lowercase leading-relaxed">
-            join thousands of journalists staying safe
+            {formData.accountType === 'specialist'
+              ? 'help journalists protect themselves'
+              : 'join thousands of journalists staying safe'}
           </p>
         </motion.div>
 
@@ -150,25 +152,66 @@ const Signup = () => {
             </motion.div>
           )}
 
-          {/* Google — journalist quick signup */}
-          <button
-            type="button"
-            onClick={handleGoogleSignup}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-white text-sm font-medium transition-all lowercase"
-          >
-            <GoogleIcon />
-            continue with google
-          </button>
-          <p className="text-xs text-gray-600 text-center mt-2 mb-4 lowercase">
-            creates a journalist account instantly
-          </p>
-
-          {/* Divider */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-xs text-gray-600 lowercase">or sign up with email</span>
-            <div className="flex-1 h-px bg-white/10" />
+          {/* Account Type Selection — lifted above tagline-reactive content */}
+          <div className="mb-6">
+            <label className="block text-sm font-sans text-gray-400 mb-3 lowercase">
+              i'm signing up as <span className="text-crimson-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: 'journalist', label: 'journalist', desc: 'seeking security guidance' },
+                { value: 'specialist', label: 'security specialist', desc: 'providing expertise' },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex flex-col gap-1 p-3 border rounded-lg cursor-pointer transition-colors ${
+                    formData.accountType === opt.value
+                      ? 'bg-midnight-400/10 border-midnight-400/40'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="accountType"
+                    value={opt.value}
+                    checked={formData.accountType === opt.value}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  <span className={`text-sm font-semibold lowercase ${
+                    formData.accountType === opt.value ? 'text-midnight-400' : 'text-white'
+                  }`}>
+                    {opt.label}
+                  </span>
+                  <span className="text-xs text-gray-500 lowercase">{opt.desc}</span>
+                </label>
+              ))}
+            </div>
           </div>
+
+          {/* Google — journalist quick signup (hidden for specialists since it skips credentials) */}
+          {formData.accountType === 'journalist' && (
+            <>
+              <button
+                type="button"
+                onClick={handleGoogleSignup}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-white text-sm font-medium transition-all lowercase"
+              >
+                <GoogleIcon />
+                continue with google
+              </button>
+              <p className="text-xs text-gray-600 text-center mt-2 mb-4 lowercase">
+                creates a journalist account instantly
+              </p>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-xs text-gray-600 lowercase">or sign up with email</span>
+                <div className="flex-1 h-px bg-white/10" />
+              </div>
+            </>
+          )}
 
           {/* Privacy Notice */}
           <div className="mb-6 p-4 bg-olive-500/10 border border-olive-500/20 rounded-lg">
@@ -258,48 +301,6 @@ const Signup = () => {
                   className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors"
                   placeholder="••••••••"
                 />
-              </div>
-            </div>
-
-            {/* Account Type Selection */}
-            <div className="pt-6 border-t border-white/10">
-              <label className="block text-sm font-sans text-gray-400 mb-3 lowercase">
-                account type <span className="text-crimson-500">*</span>
-              </label>
-              <div className="space-y-3">
-                <label className="flex items-start gap-3 p-4 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition-colors">
-                  <input
-                    type="radio"
-                    name="accountType"
-                    value="journalist"
-                    checked={formData.accountType === 'journalist'}
-                    onChange={handleChange}
-                    className="mt-1 w-4 h-4 text-midnight-400 focus:ring-midnight-400"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-white lowercase mb-1">journalist</p>
-                    <p className="text-xs text-gray-400 lowercase leading-relaxed">
-                      for journalists seeking digital security guidance and resources
-                    </p>
-                  </div>
-                </label>
-
-                <label className="flex items-start gap-3 p-4 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition-colors">
-                  <input
-                    type="radio"
-                    name="accountType"
-                    value="specialist"
-                    checked={formData.accountType === 'specialist'}
-                    onChange={handleChange}
-                    className="mt-1 w-4 h-4 text-midnight-400 focus:ring-midnight-400"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-white lowercase mb-1">security specialist</p>
-                    <p className="text-xs text-gray-400 lowercase leading-relaxed">
-                      for verified cybersecurity experts who can provide guidance to journalists
-                    </p>
-                  </div>
-                </label>
               </div>
             </div>
 

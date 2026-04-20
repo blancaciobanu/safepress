@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, AlertCircle, Lock, Users, ArrowRight, BookOpen, FileText, CheckCircle2 } from 'lucide-react';
+import { Shield, AlertCircle, Lock, Users, ArrowRight, BookOpen, FileText, CheckCircle2, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCrisis } from '../contexts/CrisisContext';
 
@@ -155,12 +155,21 @@ const Home = () => {
               delay={0.14}
             />
             <FeatureTile
+              icon={EyeOff}
+              title="Source Protection Playbook"
+              description="Operational-security playbook for investigative work — compartmentalization, first contact, meetings, publication, and legal protections, with interactive scenarios."
+              link="/source-protection"
+              linkLabel="Open the playbook"
+              delay={0.21}
+              accent="teal"
+            />
+            <FeatureTile
               icon={Users}
               title="Journalist Community"
               description="Anonymous stories, open discussions, and a Q&amp;A space where journalists share security experiences from the field."
               link="/community"
               linkLabel="Join the community"
-              delay={0.21}
+              delay={0.28}
             />
             <FeatureTile
               icon={FileText}
@@ -168,9 +177,9 @@ const Home = () => {
               description="Submit a crisis request and get matched with a verified digital security specialist for direct, personalised help."
               link="/request-support"
               linkLabel="Request support"
-              delay={0.28}
+              delay={0.35}
             />
-            <CrisisTile openOverlay={openOverlay} delay={0.35} />
+            <CrisisTile openOverlay={openOverlay} delay={0.42} />
           </div>
         </div>
       </section>
@@ -208,29 +217,36 @@ const Home = () => {
   );
 };
 
-const FeatureTile = ({ icon: Icon, title, description, link, linkLabel, delay }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 16 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
-    viewport={{ once: true, amount: 0.2 }}
-    className="glass-card p-7 flex flex-col gap-5 group hover:border-white/10 transition-colors"
-  >
-    <div className="inline-flex w-10 h-10 rounded-xl items-center justify-center bg-midnight-400/10">
-      <Icon className="w-5 h-5 text-midnight-400" />
-    </div>
-    <div className="flex-1">
-      <h3 className="text-sm font-semibold text-white mb-2 lowercase">{title}</h3>
-      <p className="text-sm text-gray-500 leading-relaxed lowercase">{description}</p>
-    </div>
-    <Link
-      to={link}
-      className="inline-flex items-center gap-1.5 text-xs font-semibold text-midnight-400 hover:text-midnight-300 lowercase transition-colors"
+const FeatureTile = ({ icon: Icon, title, description, link, linkLabel, delay, accent = 'midnight' }) => {
+  const iconBg = accent === 'teal' ? 'bg-teal-400/10' : 'bg-midnight-400/10';
+  const iconColor = accent === 'teal' ? 'text-teal-400' : 'text-midnight-400';
+  const linkColor = accent === 'teal'
+    ? 'text-teal-400 hover:text-teal-300'
+    : 'text-midnight-400 hover:text-midnight-300';
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
+      viewport={{ once: true, amount: 0.2 }}
+      className="glass-card p-7 flex flex-col gap-5 group hover:border-white/10 transition-colors"
     >
-      {linkLabel} <ArrowRight className="w-3 h-3" />
-    </Link>
-  </motion.div>
-);
+      <div className={`inline-flex w-10 h-10 rounded-xl items-center justify-center ${iconBg}`}>
+        <Icon className={`w-5 h-5 ${iconColor}`} />
+      </div>
+      <div className="flex-1">
+        <h3 className="text-sm font-semibold text-white mb-2 lowercase">{title}</h3>
+        <p className="text-sm text-gray-500 leading-relaxed lowercase">{description}</p>
+      </div>
+      <Link
+        to={link}
+        className={`inline-flex items-center gap-1.5 text-xs font-semibold ${linkColor} lowercase transition-colors`}
+      >
+        {linkLabel} <ArrowRight className="w-3 h-3" />
+      </Link>
+    </motion.div>
+  );
+};
 
 const CrisisTile = ({ openOverlay, delay }) => (
   <motion.div

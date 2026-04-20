@@ -30,15 +30,17 @@ Visit `http://localhost:5174` in your browser.
 - **OS Security Guides** — Step-by-step hardening for Windows, macOS, Linux, iOS, Android
 - **AI Security Section** — Safe AI usage, deepfake detection, privacy-respecting tools
 - **Crisis Mode Overlay** — Fullscreen overlay triggered by a pill toggle in the header; 4 scenarios (hacked, source exposed, doxxed, phishing) with checklist, progress bar, and per-step "how?" guides; direct-call links to CPJ/RSF/EFF
-- **Community Hub** — Discussions, anonymous stories, and Q&A with likes, comments, category filtering, and a reddit-style post detail view (2-column with search + Latest Threats sidebar)
-- **Support Request Workflow** — Journalists submit crisis requests, verified specialists claim and resolve them
+- **Community Hub** — Discussions, true anonymous stories, and Q&A with likes, comments, category filtering, always-on role labels (journalist / verified specialist / unverified specialist / anonymous), sort controls (newest / top / unanswered), accepted-answer on Q&A, self-service delete (hard-delete for posts, soft-delete `[deleted]` for comments), unified journalist/specialist profile modal, and user-reporting with 5 reasons
+- **Source Protection Playbook** — New `/source-protection` page: 5-tab investigative-journalism operational-security guide (compartmentalization, first contact, meeting & handoff, after publication, legal protections) with accordion content cards + 3 interactive decision-tree scenarios
+- **Support Request Workflow** — Journalists submit crisis requests, verified specialists claim and resolve them; request form shows live count and avatars of available verified specialists
 - **Specialist Dashboard** — Dedicated dashboard at `/specialist-dashboard` with tabbed request queue, stats (resolved/rating/active), profile sidebar, and feedback reviews
 - **Specialist Feedback & Rating** — Journalists rate specialists (1-5 stars + comment) after resolution
-- **User Authentication** — Secure login/signup with Firebase (anonymous identity system)
-- **Specialist Verification** — Admin dashboard for security expert approval
+- **Verification UX** — Dedicated pending/rejected banners with admin-written rejection reason and reapply CTA; verified specialists auto-redirected to specialist dashboard
+- **User Authentication** — Secure login/signup with Firebase (anonymous identity system); dynamic tagline and hardened `accountType` whitelist in signup
+- **Specialist Verification** — Admin dashboard for security expert approval, optional rejection reason textarea, and new **reports tab** for reviewing community-reported posts/comments
 - **Settings Page** — Profile management & password change
 - **Protected Routes** — Dashboard & Settings require login
-- **Firestore Security Rules** — Production rules deployed (not test mode)
+- **Firestore Security Rules** — Production rules deployed (not test mode); authors can delete their own posts/comments; `community-reports` collection admin-only for read/update/delete
 
 ## Project Structure
 
@@ -65,9 +67,10 @@ safepress/
 │   │   ├── SecurityScore.jsx # Security quiz (31 questions, 6 categories)
 │   │   ├── SecureSetup.jsx   # Interactive 31-task checklist
 │   │   ├── Resources.jsx     # OS guides, tools, AI security (3 tabs)
-│   │   ├── Community.jsx     # Discussions, stories, Q&A (3 tabs)
+│   │   ├── Community.jsx     # Discussions, stories, Q&A (3 tabs) with reporting + moderation
+│   │   ├── SourceProtection.jsx # 5-tab investigative playbook with interactive scenarios
 │   │   ├── RequestSupport.jsx # Crisis support request form
-│   │   ├── AdminDashboard.jsx # Specialist verification management
+│   │   ├── AdminDashboard.jsx # Specialist verification + community reports management
 │   │   ├── Settings.jsx      # User settings
 │   │   ├── Login.jsx         # Login page
 │   │   └── Signup.jsx        # Registration (journalist or specialist)
@@ -98,7 +101,8 @@ safepress/
 | Security Quiz | `/security-score` | No | 31-question assessment with risk profiling |
 | Secure Setup | `/secure-setup` | No | Interactive checklist (31 tasks, progress tracking) |
 | Resources | `/resources` | No | OS guides, security tools, AI safety (3 tabs) |
-| Community | `/community` | No | Discussions, anonymous stories, Q&A (3 tabs) |
+| Community | `/community` | No | Discussions, anonymous stories, Q&A (3 tabs) — with sort, reporting, accepted-answer, role labels |
+| Source Protection | `/source-protection` | No | Investigative-journalism playbook (5 tabs) with interactive scenarios |
 | Request Support | `/request-support` | No | Submit crisis request to specialist |
 | Settings | `/settings` | Yes | Profile & password management |
 | Admin | `/admin` | Admin Only | Specialist verification dashboard |
@@ -168,12 +172,28 @@ safepress/
   "authorName": "SecureReporter_4829",
   "authorIcon": "🦊",
   "authorType": "journalist",
+  "authorVerificationStatus": null,
   "category": "communication-security",
   "createdAt": "2026-02-12T...",
   "likes": 3,
   "likedBy": ["uid1", "uid2", "uid3"],
   "comments": [],
-  "resolved": false
+  "resolved": false,
+  "isAnonymous": false,
+  "acceptedCommentId": null
+}
+```
+
+**`community-reports/{reportId}`** — User reports of posts/comments
+```json
+{
+  "postId": "abc123",
+  "commentId": null,
+  "reportedBy": "uid",
+  "reason": "spam",
+  "note": "optional free-text context",
+  "status": "open",
+  "createdAt": "2026-04-19T..."
 }
 ```
 

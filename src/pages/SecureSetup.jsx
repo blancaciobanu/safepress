@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Lock, Smartphone, Database, MessageSquare, MapPin,
-  Check, ExternalLink, Shield, AlertTriangle,
+  Check, ExternalLink, Shield, AlertTriangle, ArrowRight,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
@@ -770,6 +770,14 @@ const SecureSetup = () => {
                             className="inline-flex items-center gap-1 text-xs text-midnight-400 hover:text-midnight-300 transition-colors font-semibold lowercase"
                           >
                             view tools <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        )}
+                        {task.categoryKey === 'communication' && (
+                          <Link
+                            to="/source-protection"
+                            className="inline-flex items-center gap-1 text-xs text-teal-400 hover:text-teal-300 transition-colors font-semibold lowercase"
+                          >
+                            source playbook <ArrowRight className="w-3 h-3" />
                           </Link>
                         )}
                       </div>

@@ -3,7 +3,7 @@ import {
   Shield, AlertTriangle, Book, Users, Zap,
   Lock, Smartphone, MessageSquare, Database, MapPin,
   ArrowRight, Clock, ChevronRight, BookOpen, Headphones,
-  Inbox, CheckCircle, User, Star, Send
+  Inbox, CheckCircle, User, Star, Send, EyeOff
 } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -244,7 +244,7 @@ const Dashboard = () => {
       icon: Smartphone, label: 'devices', action: 'enable disk encryption', link: '/secure-setup', score: cs.device.score
     });
     if (cs.communication?.score < 70) recs.push({
-      icon: MessageSquare, label: 'comms', action: 'switch to encrypted messaging', link: '/resources', score: cs.communication.score
+      icon: MessageSquare, label: 'comms', action: 'protect your sources & channels', link: '/source-protection', score: cs.communication.score
     });
     if (cs.data?.score < 70) recs.push({
       icon: Database, label: 'data', action: 'set up encrypted backups', link: '/secure-setup', score: cs.data.score
@@ -307,15 +307,72 @@ const Dashboard = () => {
               ) : (
                 <span className="text-xs text-gray-600 lowercase">no assessment yet — take the quiz to get your rank</span>
               )}
-              {user.accountType === 'specialist' && user.verificationStatus === 'pending' && (
-                <span className="flex items-center gap-1 text-xs text-amber-400 lowercase ml-1">
-                  <Clock className="w-3 h-3" />
-                  verification pending
-                </span>
-              )}
             </div>
           </div>
         </motion.div>
+
+        {/* ── Specialist verification banner ── */}
+        {user.accountType === 'specialist' && user.verificationStatus === 'pending' && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+            className="mb-5 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white lowercase mb-1">verification pending</p>
+                <p className="text-xs text-gray-400 lowercase leading-relaxed">
+                  an admin is reviewing your credentials. once approved, you'll get access to your specialist dashboard where journalists can request your help.
+                </p>
+                <Link
+                  to="/specialist-dashboard"
+                  className="inline-flex items-center gap-1.5 mt-3 text-xs text-amber-400 hover:text-amber-300 lowercase transition-colors"
+                >
+                  view submission details
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {user.accountType === 'specialist' && user.verificationStatus === 'rejected' && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+            className="mb-5 rounded-2xl border border-crimson-500/20 bg-crimson-500/[0.04] p-5"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-crimson-500/15 border border-crimson-500/25 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-crimson-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white lowercase mb-1">verification not approved</p>
+                <p className="text-xs text-gray-400 lowercase leading-relaxed">
+                  your specialist application wasn't approved this time. you can review the reason and reapply with updated credentials.
+                </p>
+                {user.verificationRejectionReason && (
+                  <div className="mt-3 p-3 rounded-lg bg-crimson-500/[0.06] border border-crimson-500/15">
+                    <p className="text-[10px] tracking-widest uppercase font-bold text-crimson-400/80 mb-1">reason</p>
+                    <p className="text-xs text-gray-300 lowercase leading-relaxed">{user.verificationRejectionReason}</p>
+                  </div>
+                )}
+                <Link
+                  to="/specialist-dashboard"
+                  className="inline-flex items-center gap-1.5 mt-3 text-xs text-crimson-400 hover:text-crimson-300 lowercase transition-colors"
+                >
+                  review & reapply
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* ── 3 stat cards ── */}
         <motion.div
@@ -513,10 +570,10 @@ const Dashboard = () => {
             <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600 mb-3">explore</p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { to: '/resources',       icon: Book,          label: 'resources', color: '#6366F1', bg: 'rgba(99,102,241,0.08)',  border: 'rgba(99,102,241,0.18)'  },
-                { to: '/community',       icon: Users,         label: 'community', color: '#2DD4BF', bg: 'rgba(45,212,191,0.08)',  border: 'rgba(45,212,191,0.18)'  },
-                { to: '/request-support', icon: Headphones,    label: 'get help',  color: '#84CC16', bg: 'rgba(132,204,22,0.08)', border: 'rgba(132,204,22,0.18)'  },
-                { to: '/crisis',          icon: AlertTriangle, label: 'crisis',    color: '#EF4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.18)'   },
+                { to: '/resources',         icon: Book,          label: 'resources',   color: '#6366F1', bg: 'rgba(99,102,241,0.08)',  border: 'rgba(99,102,241,0.18)'  },
+                { to: '/community',         icon: Users,         label: 'community',   color: '#2DD4BF', bg: 'rgba(45,212,191,0.08)',  border: 'rgba(45,212,191,0.18)'  },
+                { to: '/source-protection', icon: EyeOff,        label: 'sources',     color: '#14B8A6', bg: 'rgba(20,184,166,0.08)',  border: 'rgba(20,184,166,0.18)'  },
+                { to: '/request-support',   icon: Headphones,    label: 'get help',    color: '#84CC16', bg: 'rgba(132,204,22,0.08)',  border: 'rgba(132,204,22,0.18)'  },
               ].map((item) => {
                 const ItemIcon = item.icon;
                 return (
@@ -861,8 +918,8 @@ const Dashboard = () => {
             {[
               { to: '/resources', icon: Book, label: 'resources', desc: 'guides & tools', color: 'text-midnight-400', bg: 'bg-midnight-400/10', border: 'border-midnight-400/20' },
               { to: '/community', icon: Users, label: 'community', desc: 'discuss & share', color: 'text-teal-500', bg: 'bg-teal-500/10', border: 'border-teal-500/20' },
+              { to: '/source-protection', icon: EyeOff, label: 'source protection', desc: 'investigative playbook', color: 'text-teal-400', bg: 'bg-teal-400/10', border: 'border-teal-400/20' },
               { to: '/request-support', icon: Headphones, label: 'get help', desc: 'contact a specialist', color: 'text-olive-500', bg: 'bg-olive-500/10', border: 'border-olive-500/20' },
-              { to: '/crisis', icon: AlertTriangle, label: 'crisis mode', desc: 'emergency steps', color: 'text-crimson-500', bg: 'bg-crimson-500/10', border: 'border-crimson-500/20' },
             ].map((item) => {
               const ItemIcon = item.icon;
               return (

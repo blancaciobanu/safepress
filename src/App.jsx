@@ -7,6 +7,7 @@ import SecurityScore from './pages/SecurityScore';
 import SecureSetup from './pages/SecureSetup';
 import Resources from './pages/Resources';
 import Community from './pages/Community';
+import SourceProtection from './pages/SourceProtection';
 import RequestSupport from './pages/RequestSupport';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -57,6 +58,7 @@ function App() {
         <Route path="secure-setup" element={<SecureSetup />} />
         <Route path="resources" element={<Resources />} />
         <Route path="community" element={<Community />} />
+        <Route path="source-protection" element={<SourceProtection />} />
         <Route path="request-support" element={<RequestSupport />} />
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />

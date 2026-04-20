@@ -1,15 +1,43 @@
 import { motion } from 'framer-motion';
 import { Shield, Send, AlertCircle, Clock, CheckCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import VerifiedBadge from '../components/VerifiedBadge';
 
 const RequestSupport = () => {
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [specialists, setSpecialists] = useState([]);
+
+  useEffect(() => {
+    const fetchSpecialists = async () => {
+      try {
+        const q = query(
+          collection(db, 'users'),
+          where('accountType', '==', 'specialist'),
+          where('verificationStatus', '==', 'approved')
+        );
+        const snapshot = await getDocs(q);
+        const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => {
+          const at = a.verificationDate || a.createdAt || '';
+          const bt = b.verificationDate || b.createdAt || '';
+          return bt.localeCompare(at);
+        });
+        setSpecialists(list);
+      } catch (error) {
+        console.error('Error fetching specialists:', error);
+      }
+    };
+    fetchSpecialists();
+  }, []);
+
+  const specialistCount = specialists.length;
+  const recentSpecialists = specialists.slice(0, 3);
   const [formData, setFormData] = useState({
     name: user?.realName || '',
     email: user?.email || '',
@@ -98,7 +126,9 @@ const RequestSupport = () => {
             <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed mb-8"
               style={{ letterSpacing: '0.03em' }}
             >
-              a verified cybersecurity specialist will review your request and reach out to you soon
+              {specialistCount > 0
+                ? `${specialistCount} verified specialist${specialistCount === 1 ? ' is' : 's are'} on call. expect first contact within 24h.`
+                : 'a verified cybersecurity specialist will review your request and reach out to you soon'}
             </p>
 
             <div className="glass-card p-6 max-w-sm mx-auto mb-8">
@@ -170,7 +200,7 @@ const RequestSupport = () => {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-wrap justify-center items-center gap-6 mb-12 text-xs text-gray-500 lowercase"
+          className="flex flex-wrap justify-center items-center gap-6 mb-8 text-xs text-gray-500 lowercase"
         >
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-olive-500" />
@@ -185,6 +215,40 @@ const RequestSupport = () => {
             <span>24/7 available</span>
           </div>
         </motion.div>
+
+        {/* Specialist availability */}
+        {specialistCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="mb-12 rounded-2xl border border-olive-500/20 bg-olive-500/[0.04] p-5"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex -space-x-2 flex-shrink-0">
+                {recentSpecialists.map((sp) => (
+                  <div
+                    key={sp.id}
+                    className="w-10 h-10 rounded-full bg-midnight-400/10 border-2 border-dark-900 flex items-center justify-center text-lg relative"
+                    title={sp.username}
+                  >
+                    <span>{sp.avatarIcon || '🛡️'}</span>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-olive-500 border-2 border-dark-900" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white lowercase">
+                  {specialistCount} verified specialist{specialistCount === 1 ? '' : 's'} on call
+                </p>
+                <p className="text-xs text-gray-500 lowercase mt-0.5">
+                  typical first contact within 24h · all credentials vetted by our team
+                </p>
+              </div>
+              <VerifiedBadge size="sm" />
+            </div>
+          </motion.div>
+        )}
 
         {/* Form */}
         <motion.form

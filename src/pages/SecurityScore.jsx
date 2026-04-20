@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, CheckCircle2, XCircle, AlertTriangle,
   Lock, Smartphone, MessageSquare, Database, MapPin,
-  ArrowRight, RotateCcw, Briefcase, Users, Globe2
+  ArrowRight, RotateCcw, Briefcase, Users, Globe2, EyeOff
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -669,9 +669,9 @@ const SecurityScore = () => {
         description: 'enable full disk encryption and automatic updates'
       },
       communication: {
-        action: 'explore secure communication tools',
-        link: '/resources',
-        description: 'switch to encrypted messaging like Signal'
+        action: 'open the source protection playbook',
+        link: '/source-protection',
+        description: 'secure first contact, meetings, and handoffs with sources'
       },
       data: {
         action: 'improve data protection',
@@ -1077,6 +1077,23 @@ const SecurityScore = () => {
                     <strong className="text-white">💡 personalized recommendations:</strong> when you visit the resources page, we'll automatically highlight tools most relevant to your {getRiskLevelLabel(riskLevel)} and security score. you can always toggle to see all tools.
                   </p>
                 </div>
+                {(riskLevel === 'high' || riskLevel === 'critical') && (
+                  <Link
+                    to="/source-protection"
+                    className="mt-3 flex items-start gap-3 p-3 rounded-lg border border-teal-400/20 bg-teal-400/[0.04] hover:bg-teal-400/[0.07] transition-colors group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-teal-400/15 border border-teal-400/25 flex items-center justify-center flex-shrink-0">
+                      <EyeOff className="w-4 h-4 text-teal-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-white lowercase mb-0.5">source protection playbook</p>
+                      <p className="text-[11px] text-gray-400 lowercase leading-relaxed">
+                        your risk profile suggests investigative work — the playbook covers compartmentalization, first contact, meetings & handoffs, publication aftercare, and legal protections.
+                      </p>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-gray-600 group-hover:text-teal-400 transition-colors flex-shrink-0 mt-1" />
+                  </Link>
+                )}
               </div>
             </div>
           </motion.div>
