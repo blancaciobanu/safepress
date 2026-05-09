@@ -10,6 +10,9 @@ import { useCrisis } from '../../contexts/CrisisContext';
 import VerifiedBadge from '../VerifiedBadge';
 import { getDoc, getDocs, doc, query, where, collection, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { countNewCommunityComments } from '../../features/community/services/communityService';
+import { COLLECTIONS } from '../../config/firebaseCollections';
+import { logError } from '../../utils/logger';
 
 const notifTimeAgo = (iso) => {
   const sec = Math.floor((Date.now() - new Date(iso)) / 1000);
@@ -20,8 +23,6 @@ const notifTimeAgo = (iso) => {
   if (hr < 24) return `${hr}h ago`;
   return `${Math.floor(hr / 24)}d ago`;
 };
-
-const ADMIN_EMAILS = ['ciobanubianca20@stud.ase.ro'];
 
 const SCENARIO_LABELS = {
   hacked:   "I've Been Hacked",
@@ -50,7 +51,8 @@ const Header = () => {
     if (!user) return;
     setNotifLoading(true);
     try {
-      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      const userRef = doc(db, COLLECTIONS.USERS, user.uid);
+      const userSnap = await getDoc(userRef);
       const userData = userSnap.data() || {};
       const lastSeen = userData.notifLastSeen || new Date(0).toISOString();
       const followedPostIds = userData.followedPosts || [];
@@ -59,7 +61,7 @@ const Header = () => {
 
       // Support requests: claimed or resolved
       const reqSnap = await getDocs(
-        query(collection(db, 'support-requests'), where('requesterId', '==', user.uid))
+        query(collection(db, COLLECTIONS.SUPPORT_REQUESTS), where('requesterId', '==', user.uid))
       );
       reqSnap.docs.forEach(d => {
         const req = d.data();
@@ -73,17 +75,20 @@ const Header = () => {
 
       // Followed posts: new comments since last seen
       for (const postId of followedPostIds) {
-        const postSnap = await getDoc(doc(db, 'community-posts', postId));
+        const postSnap = await getDoc(doc(db, COLLECTIONS.COMMUNITY_POSTS, postId));
         if (!postSnap.exists()) continue;
         const pd = postSnap.data();
-        const newComments = (pd.comments || []).filter(
-          c => c.createdAt > lastSeen && c.authorId !== user.uid
-        );
-        if (newComments.length > 0) {
+        const { count, latestTime } = await countNewCommunityComments({
+          postId,
+          lastSeen,
+          currentUserId: user.uid,
+          legacyComments: pd.comments || [],
+        });
+        if (count > 0) {
           notifs.push({
             id: postId,
-            text: `${newComments.length} new ${newComments.length === 1 ? 'reply' : 'replies'} on "${pd.title}"`,
-            time: newComments[newComments.length - 1].createdAt,
+            text: `${count} new ${count === 1 ? 'reply' : 'replies'} on "${pd.title}"`,
+            time: latestTime,
           });
         }
       }
@@ -99,11 +104,11 @@ const Header = () => {
       setNotifCount(0);
 
       // Mark as seen
-      await updateDoc(doc(db, 'users', user.uid), {
+      await updateDoc(userRef, {
         notifLastSeen: new Date().toISOString(),
       });
     } catch (err) {
-      console.error('Error fetching notifications:', err);
+      logError('Error fetching notifications:', err);
     }
     setNotifLoading(false);
   };
@@ -113,13 +118,13 @@ const Header = () => {
     if (!user) { setNotifCount(0); return; }
     (async () => {
       try {
-        const userSnap = await getDoc(doc(db, 'users', user.uid));
+        const userSnap = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
         const userData = userSnap.data() || {};
         const lastSeen = userData.notifLastSeen || new Date(0).toISOString();
         const followedPostIds = userData.followedPosts || [];
         let count = 0;
         const reqSnap = await getDocs(
-          query(collection(db, 'support-requests'), where('requesterId', '==', user.uid))
+          query(collection(db, COLLECTIONS.SUPPORT_REQUESTS), where('requesterId', '==', user.uid))
         );
         reqSnap.docs.forEach(d => {
           const req = d.data();
@@ -127,12 +132,15 @@ const Header = () => {
           if (req.status === 'resolved') count++;
         });
         for (const postId of followedPostIds) {
-          const postSnap = await getDoc(doc(db, 'community-posts', postId));
+          const postSnap = await getDoc(doc(db, COLLECTIONS.COMMUNITY_POSTS, postId));
           if (!postSnap.exists()) continue;
-          const newReplies = (postSnap.data().comments || []).filter(
-            c => c.createdAt > lastSeen && c.authorId !== user.uid
-          ).length;
-          if (newReplies > 0) count++;
+          const { count: replyCount } = await countNewCommunityComments({
+            postId,
+            lastSeen,
+            currentUserId: user.uid,
+            legacyComments: postSnap.data().comments || [],
+          });
+          if (replyCount > 0) count++;
         }
         setNotifCount(count);
       } catch { /* silent */ }
@@ -154,11 +162,11 @@ const Header = () => {
       await logout();
       navigate('/');
     } catch (error) {
-      console.error('Logout error:', error);
+      logError('Logout error:', error);
     }
   };
 
-  const isAdmin    = user && ADMIN_EMAILS.includes(user.email);
+  const isAdmin    = !!user?.isAdmin;
   const isVerified = user?.accountType === 'specialist' && user?.verificationStatus === 'approved';
   const dashboardPath = isVerified ? '/specialist-dashboard' : '/dashboard';
 

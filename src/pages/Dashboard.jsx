@@ -8,9 +8,17 @@ import {
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
-import { doc, getDoc, collection, query, where, orderBy, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { getUserProfile } from '../features/users/services/userService';
+import {
+  claimSupportRequest,
+  getActiveSupportRequests,
+  getResolvedSupportRequestsBySpecialist,
+  getSupportRequestsByRequester,
+  resolveSupportRequest,
+  submitSupportFeedback,
+} from '../features/support/services/supportService';
+import { logError } from '../utils/logger';
 
 // ── ProgressRing ──────────────────────────────────────────────────
 const ProgressRing = ({ pct, size = 80, stroke = 6, color = '#6366F1' }) => {
@@ -48,7 +56,7 @@ const SETUP_HEX = (pct) =>
   pct >= 80 ? '#84CC16' : pct >= 40 ? '#F59E0B' : pct > 0 ? '#EF4444' : '#374151';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, resendVerificationEmail } = useAuth();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [supportRequests, setSupportRequests] = useState([]);
@@ -59,6 +67,7 @@ const Dashboard = () => {
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
 
   const isVerifiedSpecialist = user?.accountType === 'specialist' && user?.verificationStatus === 'approved';
 
@@ -75,12 +84,10 @@ const Dashboard = () => {
     const fetchUserData = async () => {
       if (!user) return;
       try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setUserData(userDoc.data());
-        }
+        const profile = await getUserProfile(user.uid);
+        if (profile) setUserData(profile);
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        logError('Error fetching user data:', error);
       } finally {
         setLoading(false);
       }
@@ -93,15 +100,10 @@ const Dashboard = () => {
     const fetchRequests = async () => {
       if (!isVerifiedSpecialist) return;
       try {
-        const q = query(
-          collection(db, 'support-requests'),
-          where('status', 'in', ['open', 'claimed']),
-          orderBy('createdAt', 'desc')
-        );
-        const snapshot = await getDocs(q);
-        setSupportRequests(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        const requests = await getActiveSupportRequests();
+        setSupportRequests(requests);
       } catch (error) {
-        console.error('Error fetching support requests:', error);
+        logError('Error fetching support requests:', error);
       }
     };
     fetchRequests();
@@ -112,15 +114,10 @@ const Dashboard = () => {
     const fetchResolved = async () => {
       if (!isVerifiedSpecialist || !user) return;
       try {
-        const q = query(
-          collection(db, 'support-requests'),
-          where('claimedBy', '==', user.uid),
-          where('status', '==', 'resolved')
-        );
-        const snapshot = await getDocs(q);
-        setResolvedByMe(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        const requests = await getResolvedSupportRequestsBySpecialist(user.uid);
+        setResolvedByMe(requests);
       } catch (error) {
-        console.error('Error fetching resolved requests:', error);
+        logError('Error fetching resolved requests:', error);
       }
     };
     fetchResolved();
@@ -128,31 +125,27 @@ const Dashboard = () => {
 
   const handleClaimRequest = async (requestId) => {
     try {
-      await updateDoc(doc(db, 'support-requests', requestId), {
-        status: 'claimed',
-        claimedBy: user.uid,
-        claimedByName: user.username,
-        claimedAt: new Date().toISOString()
+      const claimData = await claimSupportRequest({
+        requestId,
+        specialistId: user.uid,
+        specialistName: user.username,
       });
       setSupportRequests(prev => prev.map(r =>
         r.id === requestId
-          ? { ...r, status: 'claimed', claimedBy: user.uid, claimedByName: user.username, claimedAt: new Date().toISOString() }
+          ? { ...r, ...claimData }
           : r
       ));
     } catch (error) {
-      console.error('Error claiming request:', error);
+      logError('Error claiming request:', error);
     }
   };
 
   const handleResolveRequest = async (requestId) => {
     try {
-      await updateDoc(doc(db, 'support-requests', requestId), {
-        status: 'resolved',
-        resolvedAt: new Date().toISOString()
-      });
+      await resolveSupportRequest(requestId);
       setSupportRequests(prev => prev.filter(r => r.id !== requestId));
     } catch (error) {
-      console.error('Error resolving request:', error);
+      logError('Error resolving request:', error);
     }
   };
 
@@ -161,16 +154,10 @@ const Dashboard = () => {
     const fetchMyRequests = async () => {
       if (!user) return;
       try {
-        const q = query(
-          collection(db, 'support-requests'),
-          where('requesterId', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        );
-        const snapshot = await getDocs(q);
-        const requests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (requests.length > 0) setMyRequests(requests);
+        const requests = await getSupportRequestsByRequester(user.uid);
+        setMyRequests(requests);
       } catch (error) {
-        console.error('Error fetching my requests:', error);
+        logError('Error fetching my requests:', error);
       }
     };
     fetchMyRequests();
@@ -180,25 +167,28 @@ const Dashboard = () => {
     if (feedbackRating === 0) return;
     setSubmittingFeedback(true);
     try {
-      await updateDoc(doc(db, 'support-requests', requestId), {
-        feedback: {
-          rating: feedbackRating,
-          comment: feedbackComment,
-          submittedAt: new Date().toISOString()
-        }
+      const feedback = await submitSupportFeedback({
+        requestId,
+        rating: feedbackRating,
+        comment: feedbackComment,
       });
       setMyRequests(prev => prev.map(r =>
         r.id === requestId
-          ? { ...r, feedback: { rating: feedbackRating, comment: feedbackComment, submittedAt: new Date().toISOString() } }
+          ? { ...r, feedback }
           : r
       ));
       setFeedbackRating(0);
       setFeedbackComment('');
     } catch (error) {
-      console.error('Error submitting feedback:', error);
+      logError('Error submitting feedback:', error);
     } finally {
       setSubmittingFeedback(false);
     }
+  };
+
+  const handleResendVerificationEmail = async () => {
+    const sent = await resendVerificationEmail();
+    setVerificationEmailSent(sent);
   };
 
   const getCrisisLabel = (type) => {
@@ -311,8 +301,40 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
+        {!user.emailVerified && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.03, ease: [0.22, 1, 0.36, 1] }}
+            className="mb-5 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white lowercase mb-1">verify your email to unlock protected actions</p>
+                <p className="text-xs text-gray-400 lowercase leading-relaxed">
+                  community posting, specialist review, and confidential support requests stay locked until your email is verified.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResendVerificationEmail}
+                  className="inline-flex items-center gap-1.5 mt-3 text-xs text-amber-400 hover:text-amber-300 lowercase transition-colors"
+                >
+                  resend verification email
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+                {verificationEmailSent && (
+                  <p className="text-xs text-olive-400 lowercase mt-2">verification email sent.</p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* ── Specialist verification banner ── */}
-        {user.accountType === 'specialist' && user.verificationStatus === 'pending' && (
+        {user.accountType === 'specialist' && user.verificationStatus === 'pending' && user.emailVerified && (
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -335,6 +357,27 @@ const Dashboard = () => {
                   view submission details
                   <ArrowRight className="w-3 h-3" />
                 </Link>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {user.accountType === 'specialist' && user.verificationStatus === 'pending-email-verification' && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+            className="mb-5 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white lowercase mb-1">specialist review is waiting on email verification</p>
+                <p className="text-xs text-gray-400 lowercase leading-relaxed">
+                  your credentials are saved, but they will not enter the admin review queue until your email is verified.
+                </p>
               </div>
             </div>
           </motion.div>

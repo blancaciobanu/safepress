@@ -7,6 +7,7 @@ import {
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCrisis } from '../contexts/CrisisContext';
+import { EMERGENCY_SUPPORT_CONTACTS } from '../config/externalResources';
 
 /* ─── Data ──────────────────────────────────────────────────────────────── */
 
@@ -73,11 +74,7 @@ const scenarios = [
   },
 ];
 
-const emergencyContacts = [
-  { org: 'Committee to Protect Journalists', phone: '+1 (212) 465-1004', email: 'emergencies@cpj.org', available: '24/7 hotline' },
-  { org: 'Reporters Without Borders',        phone: '+33 1 44 83 84 84',  email: 'sos@rsf.org',          available: 'Emergency assistance' },
-  { org: 'Electronic Frontier Foundation',   phone: '+1 (415) 436-9333',  email: 'info@eff.org',          available: 'Digital rights support' },
-];
+const emergencyContacts = EMERGENCY_SUPPORT_CONTACTS;
 
 const securityProtocols = [
   {

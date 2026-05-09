@@ -7,9 +7,16 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc, collection, query, where, orderBy, getDocs, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { reapplySpecialistVerification, getUserProfile } from '../features/users/services/userService';
+import {
+  claimSupportRequest,
+  getClaimedSupportRequestsBySpecialist,
+  getOpenSupportQueueRequests,
+  getResolvedSupportRequestsBySpecialist,
+  resolveSupportRequest,
+} from '../features/support/services/supportService';
+import { logError } from '../utils/logger';
 
 const CRISIS_LABELS = {
   hacked:   'hacked account',
@@ -37,6 +44,7 @@ const RequestCard = ({ req, userId, onClaim, onResolve }) => {
   const CrisisIcon = CRISIS_ICONS[req.crisisType] || Shield;
   const ContactIcon = CONTACT_ICONS[req.contactMethod] || Mail;
   const isMine = req.claimedBy === userId;
+  const privacyLocked = req.queueOnly && req.status === 'open';
 
   return (
     <motion.div
@@ -92,31 +100,43 @@ const RequestCard = ({ req, userId, onClaim, onResolve }) => {
           transition={{ duration: 0.2 }}
           className="border-t border-white/[0.06] px-5 pb-5 pt-4 space-y-4"
         >
-          {/* Description */}
-          <p className="text-sm text-gray-300 lowercase leading-relaxed">{req.description}</p>
+          {privacyLocked ? (
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+                privacy-protected queue
+              </p>
+              <p className="text-sm text-gray-300 lowercase leading-relaxed">
+                this case stays redacted until you claim it. once claimed, the requester&apos;s
+                contact details and confidential description will appear in your active tab.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-gray-300 lowercase leading-relaxed">{req.description}</p>
 
-          {/* Contact grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
-              <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">name</p>
-              <p className="text-sm text-white lowercase">{req.requesterName}</p>
-            </div>
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <ContactIcon className="w-3 h-3 text-gray-600" />
-                <p className="text-[10px] text-gray-600 uppercase tracking-wider">
-                  {req.contactMethod || 'email'}
-                </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
+                  <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">name</p>
+                  <p className="text-sm text-white lowercase">{req.requesterName}</p>
+                </div>
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <ContactIcon className="w-3 h-3 text-gray-600" />
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider">
+                      {req.contactMethod || 'email'}
+                    </p>
+                  </div>
+                  <p className="text-sm text-white lowercase break-all">{req.requesterEmail}</p>
+                </div>
+                {req.requesterPhone && (
+                  <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
+                    <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">phone</p>
+                    <p className="text-sm text-white lowercase">{req.requesterPhone}</p>
+                  </div>
+                )}
               </div>
-              <p className="text-sm text-white lowercase break-all">{req.requesterEmail}</p>
-            </div>
-            {req.requesterPhone && (
-              <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
-                <p className="text-[10px] text-gray-600 uppercase tracking-wider mb-1">phone</p>
-                <p className="text-sm text-white lowercase">{req.requesterPhone}</p>
-              </div>
-            )}
-          </div>
+            </>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2 pt-1">
@@ -172,10 +192,10 @@ const SpecialistDashboard = () => {
     if (!isSpecialist) return;
     const fetch = async () => {
       try {
-        const snap = await getDoc(doc(db, 'users', user.uid));
-        if (snap.exists()) setProfile(snap.data());
+        const profileData = await getUserProfile(user.uid);
+        if (profileData) setProfile(profileData);
       } catch (e) {
-        console.error('Error fetching profile:', e);
+        logError('Error fetching profile:', e);
       } finally {
         setLoading(false);
       }
@@ -187,53 +207,54 @@ const SpecialistDashboard = () => {
     if (!user) return;
     setReapplying(true);
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        verificationStatus: 'pending',
-        verificationRejectionReason: null,
-        'verificationData.submittedAt': new Date().toISOString(),
-      });
-      const snap = await getDoc(doc(db, 'users', user.uid));
-      if (snap.exists()) setProfile(snap.data());
+      await reapplySpecialistVerification(user.uid);
+      const profileData = await getUserProfile(user.uid);
+      if (profileData) setProfile(profileData);
     } catch (e) {
-      console.error('Error reapplying:', e);
+      logError('Error reapplying:', e);
     } finally {
       setReapplying(false);
     }
   };
 
-  // Fetch open + claimed requests
+  // Fetch redacted open queue
   useEffect(() => {
     if (!isVerifiedSpecialist) return;
     const fetch = async () => {
       try {
-        const q = query(
-          collection(db, 'support-requests'),
-          where('status', 'in', ['open', 'claimed']),
-          orderBy('createdAt', 'desc')
-        );
-        const snap = await getDocs(q);
-        setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const supportRequests = await getOpenSupportQueueRequests();
+        setRequests(supportRequests);
       } catch (e) {
-        console.error('Error fetching requests:', e);
+        logError('Error fetching queue requests:', e);
       }
     };
     fetch();
   }, [isVerifiedSpecialist]);
+
+  const [claimedRequests, setClaimedRequests] = useState([]);
+
+  useEffect(() => {
+    if (!isVerifiedSpecialist || !user) return;
+    const fetch = async () => {
+      try {
+        const activeRequests = await getClaimedSupportRequestsBySpecialist(user.uid);
+        setClaimedRequests(activeRequests);
+      } catch (e) {
+        logError('Error fetching claimed requests:', e);
+      }
+    };
+    fetch();
+  }, [isVerifiedSpecialist, user]);
 
   // Fetch resolved requests by this specialist
   useEffect(() => {
     if (!isVerifiedSpecialist || !user) return;
     const fetch = async () => {
       try {
-        const q = query(
-          collection(db, 'support-requests'),
-          where('claimedBy', '==', user.uid),
-          where('status', '==', 'resolved')
-        );
-        const snap = await getDocs(q);
-        setResolved(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const resolvedRequests = await getResolvedSupportRequestsBySpecialist(user.uid);
+        setResolved(resolvedRequests);
       } catch (e) {
-        console.error('Error fetching resolved:', e);
+        logError('Error fetching resolved:', e);
       }
     };
     fetch();
@@ -241,31 +262,38 @@ const SpecialistDashboard = () => {
 
   const handleClaim = async (id) => {
     try {
-      await updateDoc(doc(db, 'support-requests', id), {
-        status: 'claimed',
-        claimedBy: user.uid,
-        claimedByName: user.username,
-        claimedAt: new Date().toISOString(),
+      const claimData = await claimSupportRequest({
+        requestId: id,
+        specialistId: user.uid,
+        specialistName: user.username,
       });
-      setRequests(prev => prev.map(r =>
-        r.id === id ? { ...r, status: 'claimed', claimedBy: user.uid, claimedByName: user.username } : r
-      ));
+      const claimedRequest = requests.find((request) => request.id === id);
+      setRequests(prev => prev.filter((request) => request.id !== id));
+      if (claimedRequest) {
+        setClaimedRequests(prev => [{
+          ...claimedRequest,
+          ...claimData,
+          queueOnly: false,
+          description: 'refresh to load private request details',
+          requesterName: 'loading...',
+          requesterEmail: 'loading...',
+        }, ...prev]);
+      }
+      const refreshedClaimed = await getClaimedSupportRequestsBySpecialist(user.uid);
+      setClaimedRequests(refreshedClaimed);
     } catch (e) {
-      console.error('Error claiming:', e);
+      logError('Error claiming:', e);
     }
   };
 
   const handleResolve = async (id) => {
     try {
-      await updateDoc(doc(db, 'support-requests', id), {
-        status: 'resolved',
-        resolvedAt: new Date().toISOString(),
-      });
-      const req = requests.find(r => r.id === id);
-      setRequests(prev => prev.filter(r => r.id !== id));
-      if (req) setResolved(prev => [{ ...req, status: 'resolved', resolvedAt: new Date().toISOString() }, ...prev]);
+      const resolutionData = await resolveSupportRequest(id);
+      const req = claimedRequests.find(r => r.id === id);
+      setClaimedRequests(prev => prev.filter(r => r.id !== id));
+      if (req) setResolved(prev => [{ ...req, ...resolutionData }, ...prev]);
     } catch (e) {
-      console.error('Error resolving:', e);
+      logError('Error resolving:', e);
     }
   };
 
@@ -282,7 +310,7 @@ const SpecialistDashboard = () => {
 
   // Pending / rejected specialists see a status view instead of the dashboard
   if (!isVerifiedSpecialist) {
-    const status = user.verificationStatus;
+    const status = user.emailVerified ? user.verificationStatus : 'pending-email-verification';
     const vd = profile?.verificationData || {};
     const submittedAt = vd.submittedAt ? new Date(vd.submittedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
     const rejectionReason = profile?.verificationRejectionReason;
@@ -309,13 +337,19 @@ const SpecialistDashboard = () => {
             </div>
 
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
-              {status === 'rejected' ? 'application not approved' : 'verification in review'}
+              {status === 'rejected'
+                ? 'application not approved'
+                : status === 'pending-email-verification'
+                  ? 'verify your email first'
+                  : 'verification in review'}
             </h1>
 
             <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed" style={{ letterSpacing: '0.03em' }}>
               {status === 'rejected'
                 ? 'your specialist application was not approved. you can update your credentials and reapply.'
-                : "we're reviewing your specialist credentials. you'll get access to the request queue once approved."}
+                : status === 'pending-email-verification'
+                  ? 'your specialist application is saved, but it will not enter review until you verify your email address.'
+                  : "we're reviewing your specialist credentials. you'll get access to the request queue once approved."}
             </p>
           </motion.div>
 
@@ -337,6 +371,15 @@ const SpecialistDashboard = () => {
                 <p className="text-[10px] text-amber-400 uppercase tracking-widest font-bold mb-2">expected timeline</p>
                 <p className="text-sm text-gray-300 lowercase leading-relaxed">
                   applications are typically reviewed within 2–3 business days. you'll be notified by email once a decision is made.
+                </p>
+              </div>
+            )}
+
+            {status === 'pending-email-verification' && (
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+                <p className="text-[10px] text-amber-400 uppercase tracking-widest font-bold mb-2">next step</p>
+                <p className="text-sm text-gray-300 lowercase leading-relaxed">
+                  open the verification email we sent you, confirm your address, then sign back in. your application will automatically move into the review queue.
                 </p>
               </div>
             )}
@@ -402,8 +445,9 @@ const SpecialistDashboard = () => {
   // Derived data
   const sp           = profile?.specialistProfile || {};
   const vd           = profile?.verificationData  || {};
+  const status = user.emailVerified ? user.verificationStatus : 'pending-email-verification';
   const openReqs     = requests.filter(r => r.status === 'open');
-  const myActiveReqs = requests.filter(r => r.status === 'claimed' && r.claimedBy === user.uid);
+  const myActiveReqs = claimedRequests.filter(r => r.status === 'claimed' && r.claimedBy === user.uid);
   const ratedReqs    = resolved.filter(r => r.feedback);
   const avgRating    = ratedReqs.length
     ? ratedReqs.reduce((s, r) => s + r.feedback.rating, 0) / ratedReqs.length
@@ -552,7 +596,7 @@ const SpecialistDashboard = () => {
                 </div>
                 <p className="text-sm text-gray-500 lowercase">
                   {activeTab === 'open'     && 'no open requests right now'}
-                  {activeTab === 'active'   && 'no active cases — pick one from open'}
+                  {activeTab === 'active'   && 'no active cases — claim one from open'}
                   {activeTab === 'resolved' && 'no resolved cases yet'}
                 </p>
               </div>

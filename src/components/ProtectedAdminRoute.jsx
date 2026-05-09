@@ -1,12 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-// Admin emails - add your email here
-const ADMIN_EMAILS = [
-  'ciobanubianca20@stud.ase.ro',
-  // Add more admin emails as needed
-];
-
 const ProtectedAdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
@@ -25,7 +19,7 @@ const ProtectedAdminRoute = ({ children }) => {
     return <Navigate to="/login" />;
   }
 
-  if (!ADMIN_EMAILS.includes(user.email)) {
+  if (!user.isAdmin) {
     return <Navigate to="/dashboard" />;
   }
 

@@ -1,17 +1,76 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
+  getIdTokenResult,
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  sendEmailVerification,
   signOut,
   onAuthStateChanged,
+  reload,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { generateUserIdentity } from '../utils/userUtils';
+import { createOrUpdatePublicProfile } from '../features/users/services/userService';
+import { COLLECTIONS } from '../config/firebaseCollections';
+import { isAdminFromClaims } from '../config/security';
+import { logError } from '../utils/logger';
 
 const AuthContext = createContext({});
+
+const claimsUpdatedAtMs = (profile) => {
+  const value = profile?.claimsUpdatedAt;
+  if (!value) return 0;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (typeof value === 'string') return new Date(value).getTime();
+  return 0;
+};
+
+const buildSessionUser = async (firebaseUser) => {
+  const [userDoc, initialTokenResult] = await Promise.all([
+    getDoc(doc(db, COLLECTIONS.USERS, firebaseUser.uid)),
+    getIdTokenResult(firebaseUser),
+  ]);
+
+  let profile = userDoc.exists() ? userDoc.data() : {};
+  let tokenResult = initialTokenResult;
+
+  const issuedAtMs = new Date(tokenResult.issuedAtTime).getTime();
+  if (claimsUpdatedAtMs(profile) > issuedAtMs) {
+    tokenResult = await getIdTokenResult(firebaseUser, true);
+  }
+
+  if (
+    profile.accountType === 'specialist'
+    && profile.verificationStatus === 'pending-email-verification'
+    && firebaseUser.emailVerified
+  ) {
+    await updateDoc(doc(db, COLLECTIONS.USERS, firebaseUser.uid), {
+      verificationStatus: 'pending',
+    });
+    profile = {
+      ...profile,
+      verificationStatus: 'pending',
+    };
+  }
+
+  if (Object.keys(profile).length > 0) {
+    await createOrUpdatePublicProfile(firebaseUser.uid, profile);
+  }
+
+  return {
+    uid: firebaseUser.uid,
+    email: firebaseUser.email,
+    emailVerified: firebaseUser.emailVerified,
+    photoURL: firebaseUser.photoURL,
+    metadata: firebaseUser.metadata,
+    tokenClaims: tokenResult.claims,
+    isAdmin: isAdminFromClaims(tokenResult.claims, firebaseUser.email),
+    ...profile,
+  };
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -22,18 +81,24 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          photoURL: firebaseUser.photoURL,
-          metadata: firebaseUser.metadata,
-          ...userDoc.data(),
-        });
+        try {
+          setUser(await buildSessionUser(firebaseUser));
+          setAuthError(null);
+        } catch (error) {
+          logError('Failed to hydrate auth session:', error);
+          setAuthError('we could not load your account. please sign in again.');
+          try {
+            await signOut(auth);
+          } catch (signOutError) {
+            logError('Sign-out after hydration failure failed:', signOutError);
+          }
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
@@ -41,6 +106,8 @@ export const AuthProvider = ({ children }) => {
     });
     return unsubscribe;
   }, []);
+
+  const clearAuthError = () => setAuthError(null);
 
   /* ── Email / password signup ─────────────────────────────────────────── */
   const signup = async (email, password, userData) => {
@@ -55,14 +122,14 @@ export const AuthProvider = ({ children }) => {
       email,
       username,
       avatarIcon,
-      realName: userData.realName,
       createdAt: new Date().toISOString(),
       securityScores: [],
       accountType,
     };
 
     if (accountType === 'specialist') {
-      profile.verificationStatus = 'pending';
+      profile.realName = userData.realName;
+      profile.verificationStatus = 'pending-email-verification';
       profile.verificationData = {
         expertise: userData.expertise,
         credentials: userData.credentials,
@@ -75,7 +142,9 @@ export const AuthProvider = ({ children }) => {
       profile.specialistProfile = { bio: '', expertiseAreas: [], certifications: [] };
     }
 
-    await setDoc(doc(db, 'users', result.user.uid), profile);
+    await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), profile);
+    await createOrUpdatePublicProfile(result.user.uid, profile);
+    await sendEmailVerification(result.user);
     return result;
   };
 
@@ -85,18 +154,21 @@ export const AuthProvider = ({ children }) => {
     const result   = await signInWithPopup(auth, provider);
 
     // First time with Google? Create a Firestore profile automatically.
-    const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+    const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, result.user.uid));
     if (!userDoc.exists()) {
       const { username, avatarIcon } = generateUserIdentity();
-      await setDoc(doc(db, 'users', result.user.uid), {
+      const journalistProfile = {
         email: result.user.email,
         username,
         avatarIcon,
-        realName: result.user.displayName ?? '',
         createdAt: new Date().toISOString(),
         securityScores: [],
         accountType: 'journalist',
-      });
+      };
+      await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), journalistProfile);
+      await createOrUpdatePublicProfile(result.user.uid, journalistProfile);
+    } else {
+      await createOrUpdatePublicProfile(result.user.uid, userDoc.data());
     }
 
     return result;
@@ -109,7 +181,34 @@ export const AuthProvider = ({ children }) => {
   /* ── Logout ──────────────────────────────────────────────────────────── */
   const logout = () => signOut(auth);
 
-  const value = { user, loading, signup, login, loginWithGoogle, logout };
+  const resendVerificationEmail = async () => {
+    if (!auth.currentUser) return false;
+    await reload(auth.currentUser);
+    if (auth.currentUser.emailVerified) return false;
+    await sendEmailVerification(auth.currentUser);
+    return true;
+  };
+
+  const refreshUser = async () => {
+    if (!auth.currentUser) return null;
+    await reload(auth.currentUser);
+    const refreshedUser = await buildSessionUser(auth.currentUser);
+    setUser(refreshedUser);
+    return refreshedUser;
+  };
+
+  const value = {
+    user,
+    loading,
+    authError,
+    clearAuthError,
+    signup,
+    login,
+    loginWithGoogle,
+    logout,
+    resendVerificationEmail,
+    refreshUser,
+  };
 
   if (loading) {
     return (

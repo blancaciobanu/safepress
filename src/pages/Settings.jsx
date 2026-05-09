@@ -13,15 +13,20 @@ import {
   reauthenticateWithCredential,
   deleteUser
 } from 'firebase/auth';
-import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase/config';
+import { deletePublicProfile } from '../features/users/services/userService';
+import { COLLECTIONS } from '../config/firebaseCollections';
+import { getPasswordRequirementMessage, isStrongPassword } from '../config/security';
+import { logError } from '../utils/logger';
 
 const Settings = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, resendVerificationEmail } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [sendingVerificationEmail, setSendingVerificationEmail] = useState(false);
 
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -43,8 +48,8 @@ const Settings = () => {
       return;
     }
 
-    if (passwordData.newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'password must be at least 6 characters' });
+    if (!isStrongPassword(passwordData.newPassword)) {
+      setMessage({ type: 'error', text: getPasswordRequirementMessage() });
       return;
     }
 
@@ -64,7 +69,7 @@ const Settings = () => {
       setMessage({ type: 'success', text: 'password updated successfully' });
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
-      console.error('Password change error:', error);
+      logError('Password change error:', error);
       if (error.code === 'auth/wrong-password') {
         setMessage({ type: 'error', text: 'current password is incorrect' });
       } else {
@@ -85,7 +90,8 @@ const Settings = () => {
 
     try {
       // Delete user data from Firestore
-      await deleteDoc(doc(db, 'users', user.uid));
+      await deleteDoc(doc(db, COLLECTIONS.USERS, user.uid));
+      await deletePublicProfile(user.uid);
 
       // Delete user account
       await deleteUser(auth.currentUser);
@@ -94,10 +100,26 @@ const Settings = () => {
       await logout();
       navigate('/');
     } catch (error) {
-      console.error('Delete account error:', error);
+      logError('Delete account error:', error);
       setMessage({ type: 'error', text: 'failed to delete account. please try logging in again.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerificationEmail = async () => {
+    setSendingVerificationEmail(true);
+    try {
+      const sent = await resendVerificationEmail();
+      setMessage({
+        type: sent ? 'success' : 'error',
+        text: sent ? 'verification email sent' : 'your email is already verified',
+      });
+    } catch (error) {
+      logError('Verification email resend error:', error);
+      setMessage({ type: 'error', text: 'failed to send verification email' });
+    } finally {
+      setSendingVerificationEmail(false);
     }
   };
 
@@ -232,21 +254,23 @@ const Settings = () => {
                   <p className="text-xs text-gray-500 mt-2 lowercase">this is what others see</p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                    real name <span className="text-xs text-gray-500">(private)</span>
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                    <input
-                      type="text"
-                      value={user.realName || ''}
-                      disabled
-                      className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white lowercase opacity-60 cursor-not-allowed"
-                    />
+                {user.accountType === 'specialist' && (
+                  <div>
+                    <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
+                      real name <span className="text-xs text-gray-500">(admins only)</span>
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                      <input
+                        type="text"
+                        value={user.realName || ''}
+                        disabled
+                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white lowercase opacity-60 cursor-not-allowed"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2 lowercase">used during specialist verification review</p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2 lowercase">only you can see this</p>
-                </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
@@ -260,6 +284,25 @@ const Settings = () => {
                       disabled
                       className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white opacity-60 cursor-not-allowed"
                     />
+                  </div>
+                  <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                    <p className="text-xs text-gray-400 lowercase leading-relaxed">
+                      status:
+                      {' '}
+                      <span className={user.emailVerified ? 'text-olive-400' : 'text-amber-400'}>
+                        {user.emailVerified ? 'verified' : 'unverified'}
+                      </span>
+                    </p>
+                    {!user.emailVerified && (
+                      <button
+                        type="button"
+                        onClick={handleResendVerificationEmail}
+                        disabled={sendingVerificationEmail}
+                        className="mt-2 text-xs text-midnight-400 hover:underline lowercase disabled:opacity-50"
+                      >
+                        {sendingVerificationEmail ? 'sending...' : 'resend verification email'}
+                      </button>
+                    )}
                   </div>
                 </div>
 

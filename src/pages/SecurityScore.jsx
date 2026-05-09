@@ -9,6 +9,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { COLLECTIONS } from '../config/firebaseCollections';
+import { logError } from '../utils/logger';
 
 const SecurityScore = () => {
   const { user } = useAuth();
@@ -436,8 +438,7 @@ const SecurityScore = () => {
 
   const saveQuizResults = async () => {
     if (!user) {
-      console.log('User not logged in - results will not be saved');
-      return; // Don't save if user is not logged in
+      return;
     }
 
     setSaving(true);
@@ -456,7 +457,7 @@ const SecurityScore = () => {
       };
 
       // Save to user's document in Firestore
-      const userRef = doc(db, 'users', user.uid);
+      const userRef = doc(db, COLLECTIONS.USERS, user.uid);
 
       // Check if document exists
       const userDoc = await getDoc(userRef);
@@ -476,10 +477,8 @@ const SecurityScore = () => {
         });
       }
 
-      console.log('✅ Quiz results saved successfully - Risk Level:', riskLevel);
-      console.log('✅ Updated user profile with risk level:', user.uid);
     } catch (error) {
-      console.error('❌ Error saving quiz results:', error);
+      logError('Error saving quiz results:', error);
       alert('Failed to save quiz results. Please try again or contact support.');
     } finally {
       setSaving(false);

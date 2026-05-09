@@ -70,6 +70,13 @@
 │  └──────────────────────────────────────────────────┘   │
 │                          │                               │
 │  ┌──────────────────────────────────────────────────┐   │
+│  │  Feature Services                                │   │
+│  │  - supportService (support request workflow)     │   │
+│  │  - adminService (reports + verification)         │   │
+│  │  - userService (profile reads / reapply)         │   │
+│  └──────────────────────────────────────────────────┘   │
+│                          │                               │
+│  ┌──────────────────────────────────────────────────┐   │
 │  │  Context Providers                                │   │
 │  │  - AuthContext (user state, auth methods)        │   │
 │  └──────────────────────────────────────────────────┘   │
@@ -113,6 +120,11 @@
    User Login → Dashboard → Fetch from Firestore → Display Scores/Recommendations
    ```
 
+4. **Support Workflow**:
+   ```
+   User Action → supportService → Firestore → Dashboard / Specialist Dashboard UI update
+   ```
+
 ---
 
 ## Firebase Setup
@@ -154,37 +166,92 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAuth() { return request.auth != null; }
+    function isVerifiedEmailAuth() { return isAuth() && request.auth.token.email_verified == true; }
     function isOwner(userId) { return isAuth() && request.auth.uid == userId; }
     function isAdmin() {
-      return isAuth() && request.auth.token.email in ['ciobanubianca20@stud.ase.ro'];
-    }
-
-    // Users: owner + admin access only
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isOwner(userId);
-    }
-
-    // Community posts: public read, authenticated write
-    match /community-posts/{postId} {
-      allow read: if true;
-      allow create: if isAuth() && request.resource.data.authorId == request.auth.uid;
-      allow update: if isAuth();
-      allow delete: if isAdmin();
-    }
-
-    // Support requests: authenticated CRUD, admin delete
-    match /support-requests/{requestId} {
-      allow read: if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth();
-      allow delete: if isAdmin();
+      return isVerifiedEmailAuth() && (
+        request.auth.token.admin == true
+        || request.auth.token.email in ['ciobanubianca20@stud.ase.ro']
+      );
     }
   }
 }
 ```
+
+Current behavior of the deployed rules:
+
+- `users`
+  - only the owner or an admin can read a private user document
+  - users can create only their own user document
+  - users can update only a narrow set of self-managed fields such as quiz scores, setup progress, followed posts, and notification timestamps; specialists can additionally update their `realName`
+  - `realName` is collected and stored only for specialist accounts (admins read it during verification review); journalist documents must not contain a `realName` field
+  - specialist signups enter `pending-email-verification` first and only move into the real review queue after email verification
+  - rejected specialists can reapply by moving their own verification status back to `pending`
+  - admins can update only specialist-verification fields
+
+- `public-profiles`
+  - reads are public
+  - profile data is limited to public-safe fields such as username, avatar, account type, verification status, and specialist bio/expertise
+  - owners can sync their own public profile from their private `users` document
+  - admins can update public verification status
+
+- `support-request-queue`
+  - approved specialists can read a redacted queue with crisis metadata only
+  - only approved specialists can claim or resolve queue items
+
+- `support-requests`
+  - verified-email users can create only requests that name themselves as the requester
+  - requesters can read their own requests
+  - approved specialists cannot read full private requests until they claim them
+  - only approved specialists can claim open requests
+  - only the specialist who claimed a request can resolve it
+  - only the requester can submit post-resolution feedback
+  - only admins can delete requests
+
+- `community-reports`
+  - only verified-email users can file reports
+  - only admins can read, update, or delete reports
+
+- `community-posts`
+  - reads are public
+  - create/reply/edit/report actions require verified email for email/password accounts
+  - author identity fields are validated against the creator's own user document to prevent specialist/verified spoofing
+  - likes are limited to a one-user-at-a-time toggle pattern
+  - comment-count updates are limited to a controlled increment path
+  - only the post author can edit the post body, toggle resolved state, or set an accepted answer
+  - delete is limited to admins or the post author
+
+- `community-posts/{postId}/comments`
+  - reads are public
+  - authenticated users can create comments only as themselves
+  - comment authors can only soft-delete their own comments
+  - admins can hard-delete comment documents if needed
+
+### Role Matrix
+
+- `visitor`
+  - can read public community posts
+  - cannot read support requests
+  - cannot create user-owned or support-owned data
+
+- `authenticated user`
+  - can manage their own account document within allowed fields
+  - can submit their own support request after email verification
+  - can read their own support requests
+  - cannot claim or resolve requests unless they are an approved specialist
+
+- `approved specialist`
+  - gets all authenticated-user abilities
+  - can read the redacted support queue
+  - can read full support-request details only after claiming a case
+  - can claim open requests
+  - can resolve only requests they personally claimed
+
+- `admin`
+  - gets privileged verification and moderation access
+  - can review reports
+  - can approve/reject specialists
+  - can delete support requests and community posts when moderation requires it
 
 ### Firestore Indexes
 File: `/firestore.indexes.json` — composite indexes:
@@ -192,6 +259,18 @@ File: `/firestore.indexes.json` — composite indexes:
 - `support-requests`: `status` + `createdAt` (specialist open requests view)
 - `support-requests`: `requesterId` + `createdAt` (journalist's own requests)
 - `support-requests`: `claimedBy` + `status` (specialist resolved/feedback view)
+
+### Cloud Functions
+Source: `/functions/` — Firebase Functions v2 (Node 20), region `europe-west1`.
+
+- **`setAdminClaim`** (HTTPS callable): grants or revokes the `admin` custom claim on a target user.
+  - Caller must already be admin: either `request.auth.token.admin === true` or have a verified email matching the bootstrap allowlist.
+  - Writes `claimsUpdatedAt` (server timestamp) to the target's `users/{uid}` doc; the client checks this on next session hydrate and force-refreshes the ID token if it predates the claim change.
+  - Invoked from the Admin Dashboard's *internal* tab.
+
+Once the bootstrap admin grants themselves a real claim via this function, the email allowlist can be deleted from both `firestore.rules` and `src/config/security.js`.
+
+Deploy: `cd functions && npm install && firebase deploy --only functions`.
 
 ---
 
@@ -214,6 +293,20 @@ safepress/
 │   │
 │   ├── firebase/
 │   │   └── config.js                # Firebase initialization (uses env vars)
+│   │
+│   ├── features/
+│   │   ├── admin/
+│   │   │   └── services/
+│   │   │       └── adminService.js  # Reports + specialist verification Firestore logic
+│   │   ├── community/
+│   │   │   └── services/
+│   │   │       └── communityService.js # Posts, comments subcollection, reports
+│   │   ├── support/
+│   │   │   └── services/
+│   │   │       └── supportService.js # Support request workflow Firestore logic
+│   │   └── users/
+│   │       └── services/
+│   │           └── userService.js   # Private user + public profile helpers
 │   │
 │   ├── utils/
 │   │   └── userUtils.js             # Anonymous identity generation
@@ -267,11 +360,10 @@ const { username, avatarIcon } = generateUserIdentity()
 // Create Firestore user document
 setDoc(doc(db, 'users', uid), {
   email, username, avatarIcon,
-  realName: userData.realName,
   createdAt: ISO string,
   securityScores: [],
   accountType: 'journalist' | 'specialist',
-  // + specialist fields if applicable
+  // realName + verification fields only for specialists
 })
   ↓
 // Redirect to Dashboard
@@ -339,9 +431,9 @@ onAuthStateChanged(auth, async (user) => {
   email: string,                    // User's email
   username: string,                 // Anonymous generated name (e.g., "SecureReporter_4829")
   avatarIcon: string,               // Emoji avatar
-  realName: string,                 // Private, for account recovery only
   createdAt: string (ISO 8601),     // Account creation timestamp
   accountType: 'journalist' | 'specialist',
+  claimsUpdatedAt: Timestamp,       // Server timestamp; bumped by setAdminClaim to force token refresh
 
   // Security Assessment (single source of truth)
   securityScores: [                 // Array — new entry each time quiz is taken
@@ -369,7 +461,8 @@ onAuthStateChanged(auth, async (user) => {
   },
 
   // Specialist-only fields (when accountType === 'specialist')
-  verificationStatus: 'pending' | 'approved' | 'rejected',
+  realName: string,                 // Required for specialists; admins use it to verify identity. Never set on journalist docs.
+  verificationStatus: 'pending-email-verification' | 'pending' | 'approved' | 'rejected',
   verificationDate: string | null,
   verificationData: {
     expertise: string,
@@ -404,13 +497,46 @@ onAuthStateChanged(auth, async (user) => {
   createdAt: string (ISO 8601),
   likes: number,
   likedBy: string[],                // Array of UIDs (one like per user)
-  comments: [                       // Embedded array
-    {
-      authorId, authorName, authorIcon, authorType,
-      isVerified, content, createdAt
-    }
-  ],
+  commentCount: number,             // Cached count for feed display / unanswered filter
+  acceptedCommentId: string | null, // Selected answer in Q&A mode
   resolved: boolean                 // Q&A posts only
+}
+```
+
+### Community Comment Document
+**Collection**: `community-posts/{postId}/comments`
+**Document ID**: Client-generated string (stored in the document path)
+
+```javascript
+{
+  authorId: string | null,          // Null after soft-delete
+  authorName: string,
+  authorIcon: string,
+  authorType: 'journalist' | 'specialist',
+  isVerified: boolean,
+  authorVerificationStatus: 'pending' | 'approved' | 'rejected' | null,
+  content: string,                  // Replaced with '[deleted]' when soft-deleted
+  createdAt: string (ISO 8601),
+  deleted: boolean
+}
+```
+
+### Public Profile Document
+**Collection**: `public-profiles`
+**Document ID**: Same as Firebase Auth UID
+
+```javascript
+{
+  username: string,
+  avatarIcon: string,
+  accountType: 'journalist' | 'specialist',
+  verificationStatus: 'pending' | 'approved' | 'rejected' | null,
+  createdAt: string | null,
+  specialistProfile: {
+    bio: string,
+    expertiseAreas: string[],
+    certifications: string[]
+  } | null
 }
 ```
 
@@ -421,7 +547,7 @@ onAuthStateChanged(auth, async (user) => {
 ```javascript
 {
   // Requester info
-  requesterId: string | null,        // User UID (null if not logged in)
+  requesterId: string,               // User UID (support request creation requires auth)
   requesterName: string,
   requesterEmail: string,
   requesterPhone: string | null,
@@ -1623,6 +1749,7 @@ Phase 18 is a three-stream update driven by three gaps:
 - New specialist-availability panel above the form: 3 avatar stack (verified badge on each), online-dot indicator, live count, "first contact within 24h" copy.
 - Specialists are queried by `accountType==specialist` + `verificationStatus==approved`, sorted by `verificationDate || createdAt`.
 - Success screen shows dynamic count: "X verified specialists are on call".
+- The page remains publicly viewable, but request submission is now explicitly presented as an authenticated action so the UI matches Firestore rules.
 
 **Community author labels (`src/pages/Community.jsx`)**
 - Every post/comment now renders an always-on role chip: "journalist" (default), "security specialist" (verified → existing `VerifiedBadge`; pending/rejected → neutral "specialist (unverified)" chip).
@@ -1630,7 +1757,29 @@ Phase 18 is a three-stream update driven by three gaps:
 
 **New field**: `users/{uid}.verificationRejectionReason: string | null` (written by admin reject flow, read by Dashboard + SpecialistDashboard banners).
 
-#### 18.2 Community Uplift
+#### 18.2 Service Layer Cleanup
+
+To make the codebase easier to maintain, Firebase access has started moving out of page components and into feature service modules:
+
+- `src/features/support/services/supportService.js`
+- `src/features/admin/services/adminService.js`
+- `src/features/users/services/userService.js`
+
+Current pages already using this pattern:
+
+- `src/pages/RequestSupport.jsx`
+- `src/pages/Dashboard.jsx`
+- `src/pages/SpecialistDashboard.jsx`
+- `src/pages/AdminDashboard.jsx`
+
+Benefits of this cleanup:
+
+- page components stay more focused on UI and state
+- Firestore queries are easier to reuse
+- future backend migration points are clearer
+- documentation can describe responsibilities per feature instead of per giant page
+
+#### 18.3 Community Uplift
 
 All community changes land in `src/pages/Community.jsx` and `firestore.rules`. New collection: `community-reports`.
 

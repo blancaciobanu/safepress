@@ -3,6 +3,8 @@ import { Shield, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-reac
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getPasswordRequirementMessage, isStrongPassword } from '../config/security';
+import { logError } from '../utils/logger';
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24">
@@ -47,8 +49,8 @@ const Signup = () => {
       return setError('passwords do not match');
     }
 
-    if (formData.password.length < 6) {
-      return setError('password must be at least 6 characters');
+    if (!isStrongPassword(formData.password)) {
+      return setError(getPasswordRequirementMessage());
     }
 
     // Specialist-specific validation
@@ -62,18 +64,12 @@ const Signup = () => {
 
     try {
       await signup(formData.email, formData.password, formData);
-      // Don't navigate immediately - let the useEffect handle it after user state loads
-      // This prevents the "flash" of signup page when redirecting before user data is loaded
     } catch (error) {
-      console.error('Signup error:', error);
-      if (error.code === 'auth/email-already-in-use') {
-        setError('an account with this email already exists');
-      } else if (error.code === 'auth/invalid-email') {
+      logError('Signup error:', error);
+      if (error.code === 'auth/invalid-email') {
         setError('invalid email address');
-      } else if (error.code === 'auth/weak-password') {
-        setError('password is too weak. use at least 6 characters');
       } else {
-        setError('failed to create account. please try again.');
+        setError('unable to create account. if you already signed up, try logging in.');
       }
       setLoading(false); // Only turn off loading on error
     }
@@ -222,33 +218,13 @@ const Signup = () => {
                   anonymous by default
                 </p>
                 <p className="text-xs text-gray-400 lowercase leading-relaxed">
-                  you'll be assigned a random username (like "SecureReporter_4829") and avatar icon 🦊 to protect your identity. your real name stays private.
+                  you'll be assigned a random username (like "SecureReporter_4829") and avatar icon 🦊 to protect your identity. your real name stays private. email/password signups must verify their email before they can post in the community or request specialist support.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                full name <span className="text-crimson-500">*</span>
-                <span className="text-xs text-gray-500 ml-2">(kept private)</span>
-              </label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <input
-                  type="text"
-                  name="realName"
-                  value={formData.realName}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors lowercase"
-                  placeholder="jane doe"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-2 lowercase">only used for account recovery</p>
-            </div>
-
             <div>
               <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
                 email <span className="text-crimson-500">*</span>
@@ -283,7 +259,7 @@ const Signup = () => {
                   placeholder="••••••••"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-2 lowercase">at least 6 characters</p>
+              <p className="text-xs text-gray-500 mt-2 lowercase">{getPasswordRequirementMessage()}</p>
             </div>
 
             <div>
@@ -318,6 +294,25 @@ const Signup = () => {
                         your account will be reviewed by our team. once approved, you'll receive a verified badge and can provide guidance to journalists.
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
+                    full name <span className="text-crimson-500">*</span>
+                    <span className="text-xs text-gray-500 ml-2">(admin-only, used during verification review)</span>
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <input
+                      type="text"
+                      name="realName"
+                      value={formData.realName}
+                      onChange={handleChange}
+                      required={formData.accountType === 'specialist'}
+                      className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors lowercase"
+                      placeholder="jane doe"
+                    />
                   </div>
                 </div>
 

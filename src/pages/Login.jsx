@@ -15,7 +15,7 @@ const GoogleIcon = () => (
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user, login, loginWithGoogle } = useAuth();
+  const { user, login, loginWithGoogle, authError, clearAuthError } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
@@ -27,23 +27,23 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    clearAuthError();
     setLoading(true);
     try {
       await login(formData.email, formData.password);
     } catch (err) {
-      const msgs = {
-        'auth/user-not-found':  'no account found with this email.',
-        'auth/wrong-password':  'incorrect password.',
-        'auth/invalid-email':   'invalid email address.',
-        'auth/invalid-credential': 'incorrect email or password.',
-      };
-      setError(msgs[err.code] ?? 'failed to log in. please try again.');
+      if (err.code === 'auth/invalid-email') {
+        setError('invalid email address.');
+      } else {
+        setError('incorrect email or password.');
+      }
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
     setError('');
+    clearAuthError();
     setLoading(true);
     try {
       await loginWithGoogle();
@@ -89,6 +89,9 @@ const Login = () => {
           <p className="text-gray-500 lowercase leading-relaxed">
             log in to continue protecting your work
           </p>
+          <p className="text-xs text-gray-600 lowercase mt-2">
+            email/password accounts may need email verification before sensitive actions unlock
+          </p>
         </motion.div>
 
         {/* Card */}
@@ -98,14 +101,14 @@ const Login = () => {
           transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
           className="glass-card p-8"
         >
-          {error && (
+          {(error || authError) && (
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-6 p-4 bg-crimson-500/10 border border-crimson-500/20 rounded-lg flex items-start gap-3"
             >
               <AlertCircle className="w-4 h-4 text-crimson-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-crimson-400 lowercase">{error}</p>
+              <p className="text-sm text-crimson-400 lowercase">{error || authError}</p>
             </motion.div>
           )}
 

@@ -3,90 +3,665 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: check if the requester is authenticated
     function isAuth() {
       return request.auth != null;
     }
 
-    // Helper: check if the requester owns this document
+    function isVerifiedEmailAuth() {
+      return isAuth() && request.auth.token.email_verified == true;
+    }
+
     function isOwner(userId) {
       return isAuth() && request.auth.uid == userId;
     }
 
-    // Helper: check if the requester is an admin
     function isAdmin() {
-      return isAuth() && request.auth.token.email in [
-        'ciobanubianca20@stud.ase.ro'
+      return isVerifiedEmailAuth() && (
+        request.auth.token.admin == true
+        || request.auth.token.email in [
+          'ciobanubianca20@stud.ase.ro'
+        ]
+      );
+    }
+
+    function currentUserDocExists() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDocFor(userId) {
+      return get(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function currentUserVerificationStatus() {
+      return ('verificationStatus' in currentUserDoc().data)
+        ? currentUserDoc().data.verificationStatus
+        : null;
+    }
+
+    function currentUserAuthorVerificationStatus() {
+      return currentUserDoc().data.accountType == 'specialist'
+        ? currentUserVerificationStatus()
+        : null;
+    }
+
+    function isApprovedSpecialist() {
+      return isVerifiedEmailAuth()
+        && currentUserDocExists()
+        && currentUserDoc().data.accountType == 'specialist'
+        && currentUserVerificationStatus() == 'approved';
+    }
+
+    function isIsoString(value) {
+      return value is string && value.size() >= 10 && value.size() <= 40;
+    }
+
+    function isRequiredString(value, maxSize) {
+      return value is string && value.size() > 0 && value.size() <= maxSize;
+    }
+
+    function isOptionalString(value, maxSize) {
+      return value == null || (value is string && value.size() <= maxSize);
+    }
+
+    function isCommunityCategory(value) {
+      return value in [
+        'device-security',
+        'source-protection',
+        'communication',
+        'data-protection',
+        'physical-safety',
+        'legal-rights',
+        'general'
       ];
     }
 
-    // ─── USERS ───────────────────────────────────────────────
+    function isSupportRequestType(value) {
+      return value in ['hacked', 'source', 'doxxed', 'phishing', 'other'];
+    }
+
+    function isSupportUrgency(value) {
+      return value in ['emergency', 'urgent', 'normal'];
+    }
+
+    function isSupportContactMethod(value) {
+      return value in ['email', 'phone', 'signal'];
+    }
+
+    function ownerCanCreateOwnUserDocument(userId) {
+      return isOwner(userId)
+        && request.resource.data.accountType in ['journalist', 'specialist']
+        && request.resource.data.email == request.auth.token.email
+        && isRequiredString(request.resource.data.username, 50)
+        && isRequiredString(request.resource.data.avatarIcon, 8)
+        && (
+          request.resource.data.accountType == 'specialist'
+            ? isRequiredString(request.resource.data.realName, 120)
+            : !('realName' in request.resource.data)
+        )
+        && isIsoString(request.resource.data.createdAt)
+        && request.resource.data.securityScores is list
+        && request.resource.data.keys().hasOnly([
+          'email',
+          'username',
+          'avatarIcon',
+          'realName',
+          'createdAt',
+          'securityScores',
+          'accountType',
+          'verificationStatus',
+          'verificationData',
+          'verificationDate',
+          'verificationRejectionReason',
+          'specialistProfile'
+        ])
+        && (
+          request.resource.data.accountType == 'journalist'
+          || (
+            request.resource.data.keys().hasAll([
+              'verificationStatus',
+              'verificationData',
+              'verificationDate',
+              'verificationRejectionReason',
+              'specialistProfile'
+            ])
+            && request.resource.data.verificationStatus == 'pending-email-verification'
+            && request.resource.data.verificationDate == null
+            && request.resource.data.verificationRejectionReason == null
+            && isRequiredString(request.resource.data.verificationData.expertise, 120)
+            && isRequiredString(request.resource.data.verificationData.credentials, 3000)
+            && isOptionalString(request.resource.data.verificationData.linkedinUrl, 300)
+            && isRequiredString(request.resource.data.verificationData.organization, 160)
+            && isIsoString(request.resource.data.verificationData.submittedAt)
+          )
+        );
+    }
+
+    function ownerCanUpdateOwnUserDocument(userId) {
+      return isOwner(userId)
+        && (
+          resource.data.accountType == 'specialist'
+            ? (
+              request.resource.data.diff(resource.data).changedKeys().hasOnly([
+                'realName',
+                'securityScores',
+                'setupProgress',
+                'followedPosts',
+                'notifLastSeen'
+              ])
+              && isRequiredString(request.resource.data.realName, 120)
+            )
+            : request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              'securityScores',
+              'setupProgress',
+              'followedPosts',
+              'notifLastSeen'
+            ])
+        );
+    }
+
+    function ownerCanActivateEmailVerifiedSpecialistApplication(userId) {
+      return isOwner(userId)
+        && isVerifiedEmailAuth()
+        && resource.data.accountType == 'specialist'
+        && resource.data.verificationStatus == 'pending-email-verification'
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['verificationStatus'])
+        && request.resource.data.verificationStatus == 'pending';
+    }
+
+    function ownerCanReapplyForSpecialistVerification(userId) {
+      return isOwner(userId)
+        && isVerifiedEmailAuth()
+        && resource.data.accountType == 'specialist'
+        && resource.data.verificationStatus == 'rejected'
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'verificationStatus',
+          'verificationRejectionReason',
+          'verificationData'
+        ])
+        && request.resource.data.verificationStatus == 'pending'
+        && request.resource.data.verificationRejectionReason == null
+        && request.resource.data.verificationData.expertise == resource.data.verificationData.expertise
+        && request.resource.data.verificationData.credentials == resource.data.verificationData.credentials
+        && request.resource.data.verificationData.linkedinUrl == resource.data.verificationData.linkedinUrl
+        && request.resource.data.verificationData.organization == resource.data.verificationData.organization
+        && isIsoString(request.resource.data.verificationData.submittedAt);
+    }
+
+    function adminCanUpdateUserDocument() {
+      return isAdmin()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'verificationStatus',
+          'verificationDate',
+          'verificationRejectionReason'
+        ])
+        && request.resource.data.verificationStatus in ['pending', 'approved', 'rejected']
+        && (request.resource.data.verificationDate == null || isIsoString(request.resource.data.verificationDate))
+        && isOptionalString(request.resource.data.verificationRejectionReason, 500);
+    }
+
+    function publicProfileMatchesUserDocument(userId) {
+      return userDocFor(userId).data.username == request.resource.data.username
+        && userDocFor(userId).data.avatarIcon == request.resource.data.avatarIcon
+        && userDocFor(userId).data.accountType == request.resource.data.accountType
+        && userDocFor(userId).data.createdAt == request.resource.data.createdAt
+        && (
+          ('verificationStatus' in userDocFor(userId).data)
+            ? userDocFor(userId).data.verificationStatus == request.resource.data.verificationStatus
+            : request.resource.data.verificationStatus == null
+        )
+        && (
+          ('specialistProfile' in userDocFor(userId).data)
+            ? userDocFor(userId).data.specialistProfile == request.resource.data.specialistProfile
+            : request.resource.data.specialistProfile == null
+        );
+    }
+
+    function ownerCanSyncOwnPublicProfile(userId) {
+      return isOwner(userId)
+        && exists(/databases/$(database)/documents/users/$(userId))
+        && request.resource.data.keys().hasOnly([
+          'username',
+          'avatarIcon',
+          'accountType',
+          'verificationStatus',
+          'createdAt',
+          'specialistProfile'
+        ])
+        && request.resource.data.keys().hasAll([
+          'username',
+          'avatarIcon',
+          'accountType',
+          'verificationStatus',
+          'createdAt',
+          'specialistProfile'
+        ])
+        && publicProfileMatchesUserDocument(userId);
+    }
+
+    function adminCanSyncPublicProfile(userId) {
+      return isAdmin()
+        && exists(/databases/$(database)/documents/users/$(userId))
+        && request.resource.data.keys().hasOnly([
+          'username',
+          'avatarIcon',
+          'accountType',
+          'verificationStatus',
+          'createdAt',
+          'specialistProfile'
+        ])
+        && request.resource.data.keys().hasAll([
+          'username',
+          'avatarIcon',
+          'accountType',
+          'verificationStatus',
+          'createdAt',
+          'specialistProfile'
+        ])
+        && publicProfileMatchesUserDocument(userId);
+    }
+
+    function authorFieldsMatchCurrentUserForPost() {
+      return request.resource.data.authorType == currentUserDoc().data.accountType
+        && request.resource.data.isVerified == (currentUserVerificationStatus() == 'approved')
+        && request.resource.data.authorVerificationStatus == currentUserAuthorVerificationStatus()
+        && (
+          request.resource.data.isAnonymous == true
+            ? (
+              request.resource.data.authorName == 'anonymous'
+              && request.resource.data.authorIcon == '🕶️'
+            )
+            : (
+              request.resource.data.authorName == currentUserDoc().data.username
+              && request.resource.data.authorIcon == currentUserDoc().data.avatarIcon
+            )
+        );
+    }
+
+    function authorFieldsMatchCurrentUserForComment() {
+      return request.resource.data.authorType == currentUserDoc().data.accountType
+        && request.resource.data.isVerified == (currentUserVerificationStatus() == 'approved')
+        && request.resource.data.authorVerificationStatus == currentUserAuthorVerificationStatus()
+        && request.resource.data.authorName == currentUserDoc().data.username
+        && request.resource.data.authorIcon == currentUserDoc().data.avatarIcon;
+    }
+
+    function requesterCanReadSupportRequest() {
+      return isAuth() && resource.data.requesterId == request.auth.uid;
+    }
+
+    function claimedSpecialistCanReadSupportRequest() {
+      return isApprovedSpecialist() && resource.data.claimedBy == request.auth.uid;
+    }
+
+    function requesterCanCreateSupportRequest() {
+      return isVerifiedEmailAuth()
+        && request.resource.data.requesterId == request.auth.uid
+        && request.resource.data.requesterEmail == request.auth.token.email
+        && isRequiredString(request.resource.data.requesterName, 120)
+        && isOptionalString(request.resource.data.requesterPhone, 40)
+        && isSupportRequestType(request.resource.data.crisisType)
+        && isSupportUrgency(request.resource.data.urgency)
+        && isRequiredString(request.resource.data.description, 4000)
+        && isSupportContactMethod(request.resource.data.contactMethod)
+        && request.resource.data.status == 'open'
+        && request.resource.data.claimedBy == null
+        && request.resource.data.claimedByName == null
+        && request.resource.data.claimedAt == null
+        && request.resource.data.resolvedAt == null
+        && isIsoString(request.resource.data.createdAt)
+        && request.resource.data.keys().hasOnly([
+          'requesterId',
+          'requesterName',
+          'requesterEmail',
+          'requesterPhone',
+          'crisisType',
+          'urgency',
+          'description',
+          'contactMethod',
+          'status',
+          'claimedBy',
+          'claimedByName',
+          'claimedAt',
+          'resolvedAt',
+          'createdAt'
+        ]);
+    }
+
+    function requesterCanCreateSupportQueueEntry() {
+      return isVerifiedEmailAuth()
+        && request.resource.data.requesterId == request.auth.uid
+        && isSupportRequestType(request.resource.data.crisisType)
+        && isSupportUrgency(request.resource.data.urgency)
+        && isSupportContactMethod(request.resource.data.contactMethod)
+        && request.resource.data.status == 'open'
+        && request.resource.data.claimedBy == null
+        && request.resource.data.claimedByName == null
+        && request.resource.data.claimedAt == null
+        && request.resource.data.resolvedAt == null
+        && isIsoString(request.resource.data.createdAt)
+        && request.resource.data.keys().hasOnly([
+          'requesterId',
+          'crisisType',
+          'urgency',
+          'contactMethod',
+          'status',
+          'claimedBy',
+          'claimedByName',
+          'claimedAt',
+          'resolvedAt',
+          'createdAt'
+        ]);
+    }
+
+    function specialistCanClaimSupportRequest() {
+      return isApprovedSpecialist()
+        && resource.data.status == 'open'
+        && resource.data.claimedBy == null
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'status',
+          'claimedBy',
+          'claimedByName',
+          'claimedAt'
+        ])
+        && request.resource.data.status == 'claimed'
+        && request.resource.data.claimedBy == request.auth.uid
+        && isRequiredString(request.resource.data.claimedByName, 80)
+        && isIsoString(request.resource.data.claimedAt);
+    }
+
+    function specialistCanResolveOwnSupportRequest() {
+      return isApprovedSpecialist()
+        && resource.data.status == 'claimed'
+        && resource.data.claimedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'status',
+          'resolvedAt'
+        ])
+        && request.resource.data.status == 'resolved'
+        && isIsoString(request.resource.data.resolvedAt);
+    }
+
+    function requesterCanLeaveSupportFeedback() {
+      return requesterCanReadSupportRequest()
+        && resource.data.status == 'resolved'
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['feedback'])
+        && request.resource.data.feedback.rating is int
+        && request.resource.data.feedback.rating >= 1
+        && request.resource.data.feedback.rating <= 5
+        && isRequiredString(request.resource.data.feedback.comment, 1000)
+        && isIsoString(request.resource.data.feedback.submittedAt);
+    }
+
+    function specialistCanClaimSupportQueueEntry() {
+      return isApprovedSpecialist()
+        && resource.data.status == 'open'
+        && resource.data.claimedBy == null
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'status',
+          'claimedBy',
+          'claimedByName',
+          'claimedAt'
+        ])
+        && request.resource.data.status == 'claimed'
+        && request.resource.data.claimedBy == request.auth.uid
+        && isRequiredString(request.resource.data.claimedByName, 80)
+        && isIsoString(request.resource.data.claimedAt);
+    }
+
+    function specialistCanResolveOwnSupportQueueEntry() {
+      return isApprovedSpecialist()
+        && resource.data.status == 'claimed'
+        && resource.data.claimedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'status',
+          'resolvedAt'
+        ])
+        && request.resource.data.status == 'resolved'
+        && isIsoString(request.resource.data.resolvedAt);
+    }
+
+    function currentCommentCount() {
+      return (
+        (resource.data.commentCount is int)
+          ? resource.data.commentCount
+          : (
+            (resource.data.comments is list)
+              ? resource.data.comments.size()
+              : 0
+          )
+      );
+    }
+
+    function canLikeOrUnlikeCommunityPost() {
+      return isAuth()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'likes',
+          'likedBy'
+        ])
+        && request.resource.data.likes == request.resource.data.likedBy.size()
+        && (
+          (
+            !resource.data.likedBy.hasAny([request.auth.uid])
+            && request.resource.data.likedBy.hasAny([request.auth.uid])
+            && request.resource.data.likes == resource.data.likes + 1
+            && request.resource.data.likedBy.size() == resource.data.likedBy.size() + 1
+            && request.resource.data.likedBy.hasAll(resource.data.likedBy)
+          )
+          ||
+          (
+            resource.data.likedBy.hasAny([request.auth.uid])
+            && !request.resource.data.likedBy.hasAny([request.auth.uid])
+            && request.resource.data.likes == resource.data.likes - 1
+            && request.resource.data.likedBy.size() == resource.data.likedBy.size() - 1
+            && resource.data.likedBy.hasAll(request.resource.data.likedBy)
+          )
+        );
+    }
+
+    function authorCanEditCommunityPost() {
+      return isVerifiedEmailAuth()
+        && resource.data.authorId == request.auth.uid
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'title',
+          'content',
+          'edited',
+          'editedAt'
+        ])
+        && isRequiredString(request.resource.data.title, 160)
+        && isRequiredString(request.resource.data.content, 6000)
+        && request.resource.data.edited == true
+        && isIsoString(request.resource.data.editedAt);
+    }
+
+    function authorCanToggleResolvedCommunityPost() {
+      return isVerifiedEmailAuth()
+        && resource.data.authorId == request.auth.uid
+        && resource.data.type == 'question'
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['resolved'])
+        && request.resource.data.resolved is bool;
+    }
+
+    function authorCanSetAcceptedAnswer(postId) {
+      return isVerifiedEmailAuth()
+        && resource.data.authorId == request.auth.uid
+        && resource.data.type == 'question'
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'acceptedCommentId'
+        ])
+        && (
+          request.resource.data.acceptedCommentId == null
+          || (
+            request.resource.data.acceptedCommentId is string
+            && exists(/databases/$(database)/documents/community-posts/$(postId)/comments/$(request.resource.data.acceptedCommentId))
+          )
+        );
+    }
+
+    function commenterCanIncrementCommentCount() {
+      return isVerifiedEmailAuth()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'commentCount',
+          'lastCommentAt'
+        ])
+        && request.resource.data.commentCount == currentCommentCount() + 1
+        && isIsoString(request.resource.data.lastCommentAt);
+    }
+
+    function commentAuthorCanCreate() {
+      return isVerifiedEmailAuth()
+        && currentUserDocExists()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.deleted == false
+        && request.resource.data.keys().hasOnly([
+          'authorId',
+          'authorName',
+          'authorIcon',
+          'authorType',
+          'isVerified',
+          'authorVerificationStatus',
+          'content',
+          'createdAt',
+          'deleted'
+        ])
+        && authorFieldsMatchCurrentUserForComment()
+        && isRequiredString(request.resource.data.content, 2000)
+        && isIsoString(request.resource.data.createdAt);
+    }
+
+    function commentAuthorCanSoftDelete() {
+      return isAuth()
+        && resource.data.authorId == request.auth.uid
+        && resource.data.deleted == false
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'content',
+          'authorName',
+          'authorId',
+          'deleted',
+          'authorType',
+          'isVerified',
+          'authorVerificationStatus'
+        ])
+        && request.resource.data.content == '[deleted]'
+        && request.resource.data.authorName == 'deleted'
+        && request.resource.data.authorId == null
+        && request.resource.data.deleted == true;
+    }
+
     match /users/{userId} {
-
-      // Authenticated users can read any user document
-      // (needed for specialist profile views in Community)
-      // Admins can read any document for verification review
-      allow read: if isAuth();
-
-      // Users can create their own document on signup
-      allow create: if isOwner(userId);
-
-      // Users can update their own document (scores, setup progress)
-      // Admins can update any user (verification status)
-      allow update: if isOwner(userId) || isAdmin();
-
-      // Users can delete their own document (account deletion)
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if ownerCanCreateOwnUserDocument(userId);
+      allow update: if ownerCanUpdateOwnUserDocument(userId)
+        || ownerCanActivateEmailVerifiedSpecialistApplication(userId)
+        || ownerCanReapplyForSpecialistVerification(userId)
+        || adminCanUpdateUserDocument();
       allow delete: if isOwner(userId);
     }
 
-    // ─── COMMUNITY POSTS ─────────────────────────────────────
-    match /community-posts/{postId} {
-
-      // Anyone can read community posts (public browsing)
+    match /public-profiles/{userId} {
       allow read: if true;
-
-      // Authenticated users can create posts
-      // Validate that authorId matches the requester
-      allow create: if isAuth()
-        && request.resource.data.authorId == request.auth.uid
-        && request.resource.data.keys().hasAll([
-          'type', 'title', 'content', 'authorId', 'authorName',
-          'authorIcon', 'authorType', 'category', 'createdAt',
-          'likes', 'likedBy', 'comments', 'resolved'
-        ]);
-
-      // Authenticated users can update posts (likes, comments, resolved, acceptedCommentId)
-      allow update: if isAuth();
-
-      // Admins or the post author can delete
-      allow delete: if isAdmin() || (isAuth() && resource.data.authorId == request.auth.uid);
+      allow create, update: if ownerCanSyncOwnPublicProfile(userId)
+        || adminCanSyncPublicProfile(userId);
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
-    // ─── COMMUNITY REPORTS ───────────────────────────────────
+    match /community-posts/{postId} {
+      allow read: if true;
+
+      allow create: if isVerifiedEmailAuth()
+        && currentUserDocExists()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.type in ['discussion', 'question']
+        && isRequiredString(request.resource.data.title, 160)
+        && isRequiredString(request.resource.data.content, 6000)
+        && isCommunityCategory(request.resource.data.category)
+        && isIsoString(request.resource.data.createdAt)
+        && request.resource.data.likes == 0
+        && request.resource.data.likedBy is list
+        && request.resource.data.likedBy.size() == 0
+        && request.resource.data.resolved == false
+        && request.resource.data.commentCount == 0
+        && request.resource.data.acceptedCommentId == null
+        && request.resource.data.isAnonymous is bool
+        && request.resource.data.keys().hasOnly([
+          'type',
+          'title',
+          'content',
+          'authorId',
+          'authorName',
+          'authorIcon',
+          'authorType',
+          'authorVerificationStatus',
+          'isVerified',
+          'isAnonymous',
+          'category',
+          'createdAt',
+          'likes',
+          'likedBy',
+          'resolved',
+          'commentCount',
+          'acceptedCommentId'
+        ])
+        && authorFieldsMatchCurrentUserForPost();
+
+      allow update: if canLikeOrUnlikeCommunityPost()
+        || authorCanEditCommunityPost()
+        || authorCanToggleResolvedCommunityPost()
+        || authorCanSetAcceptedAnswer(postId)
+        || commenterCanIncrementCommentCount();
+      allow delete: if isAdmin() || (isAuth() && resource.data.authorId == request.auth.uid);
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if commentAuthorCanCreate();
+        allow update: if commentAuthorCanSoftDelete();
+        allow delete: if isAdmin();
+      }
+    }
+
     match /community-reports/{reportId} {
-
-      // Any authenticated user can file a report (must identify themselves)
-      allow create: if isAuth()
-        && request.resource.data.reportedBy == request.auth.uid;
-
-      // Only admins can view, update, or delete reports
+      allow create: if isVerifiedEmailAuth()
+        && request.resource.data.reportedBy == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'postId',
+          'commentId',
+          'reportedBy',
+          'reason',
+          'note',
+          'status',
+          'createdAt'
+        ])
+        && isRequiredString(request.resource.data.postId, 120)
+        && isOptionalString(request.resource.data.commentId, 120)
+        && isRequiredString(request.resource.data.reason, 80)
+        && isOptionalString(request.resource.data.note, 1000)
+        && request.resource.data.status == 'open'
+        && isIsoString(request.resource.data.createdAt);
       allow read, update, delete: if isAdmin();
     }
 
-    // ─── SUPPORT REQUESTS ────────────────────────────────────
+    match /support-request-queue/{requestId} {
+      allow read: if isAdmin() || isApprovedSpecialist();
+      allow create: if requesterCanCreateSupportQueueEntry();
+      allow update: if isAdmin()
+        || specialistCanClaimSupportQueueEntry()
+        || specialistCanResolveOwnSupportQueueEntry();
+      allow delete: if isAdmin();
+    }
+
     match /support-requests/{requestId} {
-
-      // Authenticated users can read all requests
-      // (UI restricts specialist view to verified specialists only)
-      allow read: if isAuth();
-
-      // Authenticated users can create requests
-      allow create: if isAuth();
-
-      // Authenticated users can update (claim, resolve)
-      allow update: if isAuth();
-
-      // Only admins can delete requests
+      allow read: if isAdmin()
+        || requesterCanReadSupportRequest()
+        || claimedSpecialistCanReadSupportRequest();
+      allow create: if requesterCanCreateSupportRequest();
+      allow update: if isAdmin()
+        || specialistCanClaimSupportRequest()
+        || specialistCanResolveOwnSupportRequest()
+        || requesterCanLeaveSupportFeedback();
       allow delete: if isAdmin();
     }
   }

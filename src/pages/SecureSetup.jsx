@@ -8,6 +8,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { COLLECTIONS } from '../config/firebaseCollections';
+import { logError } from '../utils/logger';
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
@@ -409,7 +411,7 @@ const SecureSetup = () => {
     const fetchProgress = async () => {
       if (!user) { setLoading(false); return; }
       try {
-        const snap = await getDoc(doc(db, 'users', user.uid));
+        const snap = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
         if (snap.exists()) {
           const data = snap.data();
           if (data.setupProgress?.completedTasks) {
@@ -428,7 +430,7 @@ const SecureSetup = () => {
           }
         }
       } catch (e) {
-        console.error('Error fetching setup progress:', e);
+        logError('Error fetching setup progress:', e);
       } finally {
         setLoading(false);
       }
@@ -442,14 +444,14 @@ const SecureSetup = () => {
     next.has(taskId) ? next.delete(taskId) : next.add(taskId);
     setCompletedTasks(next);
     try {
-      const ref = doc(db, 'users', user.uid);
+      const ref = doc(db, COLLECTIONS.USERS, user.uid);
       await updateDoc(ref, {
         'setupProgress.completedTasks': Array.from(next),
         'setupProgress.lastUpdated':    new Date().toISOString(),
       });
     } catch (err) {
       if (err.code === 'not-found') {
-        await setDoc(doc(db, 'users', user.uid), {
+        await setDoc(doc(db, COLLECTIONS.USERS, user.uid), {
           setupProgress: { completedTasks: Array.from(next), lastUpdated: new Date().toISOString() },
         }, { merge: true });
       }

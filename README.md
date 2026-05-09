@@ -36,11 +36,13 @@ Visit `http://localhost:5174` in your browser.
 - **Specialist Dashboard** — Dedicated dashboard at `/specialist-dashboard` with tabbed request queue, stats (resolved/rating/active), profile sidebar, and feedback reviews
 - **Specialist Feedback & Rating** — Journalists rate specialists (1-5 stars + comment) after resolution
 - **Verification UX** — Dedicated pending/rejected banners with admin-written rejection reason and reapply CTA; verified specialists auto-redirected to specialist dashboard
+- **Email Verification Gate** — Email/password accounts must verify before community posting/reporting and confidential support requests unlock
+- **Redacted Support Queue** — Specialists browse a metadata-only queue first; full requester details appear only after claim
 - **User Authentication** — Secure login/signup with Firebase (anonymous identity system); dynamic tagline and hardened `accountType` whitelist in signup
 - **Specialist Verification** — Admin dashboard for security expert approval, optional rejection reason textarea, and new **reports tab** for reviewing community-reported posts/comments
 - **Settings Page** — Profile management & password change
 - **Protected Routes** — Dashboard & Settings require login
-- **Firestore Security Rules** — Production rules deployed (not test mode); authors can delete their own posts/comments; `community-reports` collection admin-only for read/update/delete
+- **Firestore Security Rules** — Production rules deployed (not test mode); support requests are role-restricted, authors can delete their own posts/comments, and `community-reports` is admin-only for review
 
 ## Project Structure
 
@@ -58,6 +60,15 @@ safepress/
 │   │   └── CrisisContext.jsx # Crisis overlay state (open/active scenario)
 │   ├── firebase/
 │   │   └── config.js         # Firebase initialization (uses env vars)
+│   ├── features/
+│   │   ├── admin/
+│   │   │   └── services/     # Admin Firestore access (reports, specialist review)
+│   │   ├── community/
+│   │   │   └── services/     # Community posts, comment subcollections, reports
+│   │   ├── support/
+│   │   │   └── services/     # Support request workflow queries/mutations
+│   │   └── users/
+│   │       └── services/     # Private user + public profile helpers
 │   ├── utils/
 │   │   └── userUtils.js      # Anonymous identity generation
 │   ├── pages/
@@ -86,7 +97,7 @@ safepress/
 ## Tech Stack
 
 - **Frontend**: React 19, Vite, Tailwind CSS v4, Framer Motion
-- **Backend**: Firebase (Auth + Firestore)
+- **Backend**: Firebase (Auth + Firestore, used as a backend-as-a-service)
 - **Routing**: React Router DOM
 - **Icons**: Lucide React
 - **Design**: Editorial Bauhaus, lowercase aesthetic, glass morphism
@@ -103,7 +114,7 @@ safepress/
 | Resources | `/resources` | No | OS guides, security tools, AI safety (3 tabs) |
 | Community | `/community` | No | Discussions, anonymous stories, Q&A (3 tabs) — with sort, reporting, accepted-answer, role labels |
 | Source Protection | `/source-protection` | No | Investigative-journalism playbook (5 tabs) with interactive scenarios |
-| Request Support | `/request-support` | No | Submit crisis request to specialist |
+| Request Support | `/request-support` | No (view), Yes (submit) | View support workflow info; signed-in users can submit a crisis request |
 | Settings | `/settings` | Yes | Profile & password management |
 | Admin | `/admin` | Admin Only | Specialist verification dashboard |
 | Login | `/login` | No | User authentication |
@@ -126,10 +137,20 @@ safepress/
    VITE_FIREBASE_APP_ID=your_app_id
    VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
    ```
-5. Deploy security rules and indexes:
+5. Deploy security rules, indexes, and functions:
    ```bash
-   firebase deploy --only firestore:rules,firestore:indexes
+   cd functions && npm install && cd ..
+   firebase deploy --only firestore:rules,firestore:indexes,functions
    ```
+
+## Architecture Notes
+
+- SafePress is a client-rendered React app with Firebase handling auth and database responsibilities.
+- A lightweight feature service layer now exists under `src/features/*/services` so pages do less direct Firestore work.
+- The support request page is public to read, but actual request submission now requires both authentication and a verified email.
+- Firebase App Check scaffolding is wired in `src/firebase/config.js` and activates when `VITE_RECAPTCHA_SITE_KEY` is configured.
+- Firestore rules now prefer verified-email trust, optional custom admin claims, and a redacted specialist queue for support requests.
+- Admin role is granted via the `setAdminClaim` Firebase callable (deployed in `europe-west1`); the bootstrap email allowlist in `functions/index.js` is used only until the first claim is issued, after which all admin checks rely on the `admin: true` custom claim.
 
 ## Data Structure
 
@@ -141,8 +162,8 @@ safepress/
   "email": "user@example.com",
   "username": "SecureReporter_4829",
   "avatarIcon": "🦊",
-  "realName": "Jane Doe",
   "accountType": "journalist",
+  "// realName": "specialist accounts only — never written for journalists",
   "createdAt": "2026-02-12T...",
   "securityScores": [
     {
@@ -158,6 +179,23 @@ safepress/
   "setupProgress": {
     "completedTasks": ["pass-manager", "device-encryption"],
     "lastUpdated": "2026-02-12T..."
+  },
+  "verificationStatus": "pending-email-verification"
+}
+```
+
+**`public-profiles/{uid}`** — Public-safe profile data for community/specialist discovery
+```json
+{
+  "username": "SecureReporter_4829",
+  "avatarIcon": "🦊",
+  "accountType": "specialist",
+  "verificationStatus": "approved",
+  "createdAt": "2026-02-12T...",
+  "specialistProfile": {
+    "bio": "",
+    "expertiseAreas": [],
+    "certifications": []
   }
 }
 ```
@@ -177,10 +215,60 @@ safepress/
   "createdAt": "2026-02-12T...",
   "likes": 3,
   "likedBy": ["uid1", "uid2", "uid3"],
-  "comments": [],
+  "commentCount": 2,
   "resolved": false,
   "isAnonymous": false,
   "acceptedCommentId": null
+}
+```
+
+**`community-posts/{postId}/comments/{commentId}`** — Individual replies/answers
+```json
+{
+  "authorId": "uid",
+  "authorName": "SecureReporter_4829",
+  "authorIcon": "🦊",
+  "authorType": "journalist",
+  "authorVerificationStatus": null,
+  "content": "try signal for source contact",
+  "createdAt": "2026-02-12T...",
+  "deleted": false
+}
+```
+
+**`support-requests/{requestId}`** — Private support request details
+```json
+{
+  "requesterId": "uid",
+  "requesterName": "Jane Doe",
+  "requesterEmail": "user@example.com",
+  "requesterPhone": null,
+  "crisisType": "hacked",
+  "urgency": "urgent",
+  "description": "full confidential details live here",
+  "contactMethod": "email",
+  "status": "open",
+  "claimedBy": null,
+  "claimedByName": null,
+  "claimedAt": null,
+  "resolvedAt": null,
+  "createdAt": "2026-02-12T..."
+}
+```
+
+**`support-request-queue/{requestId}`** — Specialist-visible redacted queue
+```json
+{
+  "requesterId": "uid",
+  "crisisType": "hacked",
+  "urgency": "urgent",
+  "contactMethod": "email",
+  "status": "open",
+  "claimedBy": null,
+  "claimedByName": null,
+  "claimedAt": null,
+  "resolvedAt": null,
+  "createdAt": "2026-02-12T..."
 }
 ```
 

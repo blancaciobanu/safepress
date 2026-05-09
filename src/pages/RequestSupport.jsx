@@ -3,34 +3,28 @@ import { Shield, Send, AlertCircle, Clock, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase/config';
 import VerifiedBadge from '../components/VerifiedBadge';
+import {
+  createSupportRequest,
+  listApprovedSpecialists,
+} from '../features/support/services/supportService';
+import { EMERGENCY_SUPPORT_CONTACTS } from '../config/externalResources';
+import { logError } from '../utils/logger';
 
 const RequestSupport = () => {
-  const { user } = useAuth();
+  const { user, resendVerificationEmail } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [specialists, setSpecialists] = useState([]);
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
 
   useEffect(() => {
     const fetchSpecialists = async () => {
       try {
-        const q = query(
-          collection(db, 'users'),
-          where('accountType', '==', 'specialist'),
-          where('verificationStatus', '==', 'approved')
-        );
-        const snapshot = await getDocs(q);
-        const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        list.sort((a, b) => {
-          const at = a.verificationDate || a.createdAt || '';
-          const bt = b.verificationDate || b.createdAt || '';
-          return bt.localeCompare(at);
-        });
-        setSpecialists(list);
+        const approvedSpecialists = await listApprovedSpecialists();
+        setSpecialists(approvedSpecialists);
       } catch (error) {
-        console.error('Error fetching specialists:', error);
+        logError('Error fetching specialists:', error);
       }
     };
     fetchSpecialists();
@@ -48,33 +42,41 @@ const RequestSupport = () => {
     contactMethod: 'email'
   });
 
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      name: user?.realName || '',
+      email: user?.email || '',
+    }));
+  }, [user?.realName, user?.email]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!user || !user.emailVerified) return;
     setSubmitting(true);
     try {
-      await addDoc(collection(db, 'support-requests'), {
-        requesterId: user?.uid || null,
+      await createSupportRequest({
+        requesterId: user.uid,
         requesterName: formData.name,
         requesterEmail: formData.email,
-        requesterPhone: formData.phone || null,
+        requesterPhone: formData.phone,
         crisisType: formData.crisisType,
         urgency: formData.urgency,
         description: formData.description,
         contactMethod: formData.contactMethod,
-        status: 'open',
-        claimedBy: null,
-        claimedByName: null,
-        claimedAt: null,
-        resolvedAt: null,
-        createdAt: new Date().toISOString()
       });
       setSubmitted(true);
     } catch (error) {
-      console.error('Error submitting request:', error);
+      logError('Error submitting request:', error);
       alert('something went wrong. please try again.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleResendVerification = async () => {
+    const sent = await resendVerificationEmail();
+    setVerificationEmailSent(sent);
   };
 
   const handleChange = (e) => {
@@ -258,6 +260,45 @@ const RequestSupport = () => {
           onSubmit={handleSubmit}
           className="glass-card p-8"
         >
+          {!user && (
+            <div className="mb-8 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-4">
+              <p className="text-sm text-gray-300 lowercase leading-relaxed">
+                sign in first to submit a confidential support request.
+                {' '}
+                <Link to="/login" className="text-amber-400 hover:underline">
+                  go to login
+                </Link>
+                {' '}
+                or
+                {' '}
+                <Link to="/signup" className="text-amber-400 hover:underline">
+                  create an account
+                </Link>
+                .
+              </p>
+            </div>
+          )}
+
+          {user && !user.emailVerified && (
+            <div className="mb-8 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-4">
+              <p className="text-sm text-gray-300 lowercase leading-relaxed">
+                verify your email before sending a confidential support request.
+              </p>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                className="mt-3 text-sm text-amber-400 hover:underline lowercase"
+              >
+                resend verification email
+              </button>
+              {verificationEmailSent && (
+                <p className="text-xs text-olive-400 lowercase mt-2">
+                  verification email sent.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Personal Information */}
           <div className="mb-8">
             <h2 className="text-xl font-display font-semibold mb-6 lowercase">
@@ -402,24 +443,24 @@ const RequestSupport = () => {
           {/* Privacy Notice */}
           <div className="mb-8 p-4 bg-white/5 rounded-lg border border-white/10">
             <p className="text-xs text-gray-400 font-sans lowercase leading-relaxed">
-              <span className="text-white font-semibold">privacy notice:</span> all information submitted is encrypted and confidential.
-              we will only use your details to provide security support and will never share them with third parties.
+              <span className="text-white font-semibold">privacy notice:</span> your request is stored in Firebase and is only shown in full to you,
+              admins, and the specialist who claims your case. the specialist queue only exposes redacted crisis metadata until a case is claimed.
             </p>
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !user || !user.emailVerified}
             className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-midnight-400 hover:bg-midnight-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-all hover:scale-[1.02] lowercase"
           >
             <Send className="w-5 h-5" />
-            {submitting ? 'submitting...' : 'submit request'}
+            {submitting ? 'submitting...' : !user ? 'sign in to submit' : !user.emailVerified ? 'verify email to submit' : 'submit request'}
           </button>
 
           {/* Help Text */}
           <p className="text-xs text-gray-500 font-sans text-center mt-4 lowercase">
-            emergency? call <a href="tel:+12124651004" className="text-crimson-500 hover:underline">+1 (212) 465-1004</a> (cpj 24/7 hotline)
+            emergency? call <a href={EMERGENCY_SUPPORT_CONTACTS[0].phoneHref} className="text-crimson-500 hover:underline">{EMERGENCY_SUPPORT_CONTACTS[0].phone}</a> ({EMERGENCY_SUPPORT_CONTACTS[0].org.toLowerCase()} {EMERGENCY_SUPPORT_CONTACTS[0].available.toLowerCase()})
           </p>
         </motion.form>
       </div>

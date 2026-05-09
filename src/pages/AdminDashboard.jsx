@@ -1,10 +1,22 @@
 import { motion } from 'framer-motion';
-import { Shield, CheckCircle2, XCircle, ExternalLink, AlertCircle, Award, Users, Flag, MessageSquare, Trash2 } from 'lucide-react';
+import { Shield, CheckCircle2, XCircle, ExternalLink, AlertCircle, Award, Users, Flag, MessageSquare, Trash2, KeyRound } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import {
+  approveSpecialist,
+  deleteCommunityReport,
+  deleteReportedCommunityPost,
+  getCommunityReports,
+  getVerificationDashboardData,
+  markCommunityReportReviewed,
+  rejectSpecialist,
+  setAdminClaim,
+} from '../features/admin/services/adminService';
+import { isSafeLinkedInUrl } from '../utils/externalLinks';
+import { logError } from '../utils/logger';
+import { useAuth } from '../contexts/AuthContext';
 
 const AdminDashboard = () => {
+  const { refreshUser } = useAuth();
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [approvedCount, setApprovedCount] = useState(0);
   const [rejectedCount, setRejectedCount] = useState(0);
@@ -16,6 +28,37 @@ const AdminDashboard = () => {
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportFilter, setReportFilter] = useState('open');
+  const [grantTargetUid, setGrantTargetUid] = useState('');
+  const [grantSubmitting, setGrantSubmitting] = useState(false);
+  const [grantMessage, setGrantMessage] = useState(null);
+
+  const handleGrantAdmin = async (admin) => {
+    if (!grantTargetUid.trim()) {
+      setGrantMessage({ type: 'error', text: 'enter a user uid' });
+      return;
+    }
+    setGrantSubmitting(true);
+    setGrantMessage(null);
+    try {
+      await setAdminClaim({ targetUid: grantTargetUid.trim(), admin });
+      setGrantMessage({
+        type: 'success',
+        text: admin
+          ? 'admin claim granted. user must reload to pick up new permissions.'
+          : 'admin claim revoked.',
+      });
+      setGrantTargetUid('');
+      await refreshUser();
+    } catch (error) {
+      logError('setAdminClaim failed:', error);
+      setGrantMessage({
+        type: 'error',
+        text: error?.message || 'failed to update admin claim',
+      });
+    } finally {
+      setGrantSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     fetchVerifications();
@@ -25,31 +68,10 @@ const AdminDashboard = () => {
   const fetchReports = async () => {
     setReportsLoading(true);
     try {
-      const snap = await getDocs(collection(db, 'community-reports'));
-      const rows = await Promise.all(snap.docs.map(async (d) => {
-        const data = { id: d.id, ...d.data() };
-        try {
-          const postSnap = await getDoc(doc(db, 'community-posts', data.postId));
-          if (postSnap.exists()) {
-            const post = postSnap.data();
-            data.postTitle = post.title;
-            data.postType = post.type;
-            data.postAuthor = post.authorName;
-            if (data.commentId !== null && data.commentId !== undefined) {
-              data.commentContent = post.comments?.[data.commentId]?.content;
-            }
-          } else {
-            data.postMissing = true;
-          }
-        } catch (e) {
-          data.postMissing = true;
-        }
-        return data;
-      }));
-      rows.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      const rows = await getCommunityReports();
       setReports(rows);
     } catch (err) {
-      console.error('Error fetching reports:', err);
+      logError('Error fetching reports:', err);
     } finally {
       setReportsLoading(false);
     }
@@ -57,78 +79,42 @@ const AdminDashboard = () => {
 
   const markReportReviewed = async (reportId) => {
     try {
-      await updateDoc(doc(db, 'community-reports', reportId), {
-        status: 'reviewed',
-        reviewedAt: new Date().toISOString(),
-      });
-      setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'reviewed', reviewedAt: new Date().toISOString() } : r));
+      const reviewedAt = await markCommunityReportReviewed(reportId);
+      setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'reviewed', reviewedAt } : r));
     } catch (err) {
-      console.error('Error updating report:', err);
+      logError('Error updating report:', err);
     }
   };
 
   const deleteReport = async (reportId) => {
     try {
-      await deleteDoc(doc(db, 'community-reports', reportId));
+      await deleteCommunityReport(reportId);
       setReports(prev => prev.filter(r => r.id !== reportId));
     } catch (err) {
-      console.error('Error deleting report:', err);
+      logError('Error deleting report:', err);
     }
   };
 
   const deleteReportedPost = async (postId, reportId) => {
     try {
-      await deleteDoc(doc(db, 'community-posts', postId));
+      const reviewedAt = await deleteReportedCommunityPost(postId, reportId);
       if (reportId) {
-        await updateDoc(doc(db, 'community-reports', reportId), {
-          status: 'reviewed',
-          reviewedAt: new Date().toISOString(),
-          actionTaken: 'post-deleted',
-        });
-        setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'reviewed', actionTaken: 'post-deleted' } : r));
+        setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'reviewed', reviewedAt, actionTaken: 'post-deleted' } : r));
       }
     } catch (err) {
-      console.error('Error deleting reported post:', err);
+      logError('Error deleting reported post:', err);
     }
   };
 
   const fetchVerifications = async () => {
     try {
       setLoading(true);
-
-      // Fetch pending verifications
-      const pendingQuery = query(
-        collection(db, 'users'),
-        where('accountType', '==', 'specialist'),
-        where('verificationStatus', '==', 'pending')
-      );
-      const pendingSnapshot = await getDocs(pendingQuery);
-      const pending = pendingSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setPendingVerifications(pending);
-
-      // Fetch approved count
-      const approvedQuery = query(
-        collection(db, 'users'),
-        where('accountType', '==', 'specialist'),
-        where('verificationStatus', '==', 'approved')
-      );
-      const approvedSnapshot = await getDocs(approvedQuery);
-      setApprovedCount(approvedSnapshot.size);
-
-      // Fetch rejected count
-      const rejectedQuery = query(
-        collection(db, 'users'),
-        where('accountType', '==', 'specialist'),
-        where('verificationStatus', '==', 'rejected')
-      );
-      const rejectedSnapshot = await getDocs(rejectedQuery);
-      setRejectedCount(rejectedSnapshot.size);
-
+      const dashboardData = await getVerificationDashboardData();
+      setPendingVerifications(dashboardData.pendingVerifications);
+      setApprovedCount(dashboardData.approvedCount);
+      setRejectedCount(dashboardData.rejectedCount);
     } catch (error) {
-      console.error('Error fetching verifications:', error);
+      logError('Error fetching verifications:', error);
     } finally {
       setLoading(false);
     }
@@ -137,17 +123,10 @@ const AdminDashboard = () => {
   const handleApprove = async (userId) => {
     try {
       setProcessingId(userId);
-
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
-        verificationStatus: 'approved',
-        verificationDate: new Date().toISOString()
-      });
-
-      // Refresh the list
+      await approveSpecialist(userId);
       await fetchVerifications();
     } catch (error) {
-      console.error('Error approving verification:', error);
+      logError('Error approving verification:', error);
       alert('Failed to approve verification. Please try again.');
     } finally {
       setProcessingId(null);
@@ -157,19 +136,12 @@ const AdminDashboard = () => {
   const handleReject = async (userId) => {
     try {
       setProcessingId(userId);
-
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
-        verificationStatus: 'rejected',
-        verificationDate: new Date().toISOString(),
-        verificationRejectionReason: rejectionReason.trim() || null
-      });
-
+      await rejectSpecialist(userId, rejectionReason);
       setRejectingId(null);
       setRejectionReason('');
       await fetchVerifications();
     } catch (error) {
-      console.error('Error rejecting verification:', error);
+      logError('Error rejecting verification:', error);
       alert('Failed to reject verification. Please try again.');
     } finally {
       setProcessingId(null);
@@ -269,6 +241,7 @@ const AdminDashboard = () => {
           {[
             { id: 'verifications', label: 'verifications', icon: Shield, count: pendingVerifications.length },
             { id: 'reports', label: 'reports', icon: Flag, count: reports.filter(r => r.status === 'open').length },
+            { id: 'internal', label: 'internal', icon: KeyRound, count: 0 },
           ].map(tab => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -532,7 +505,7 @@ const AdminDashboard = () => {
                         </p>
                       </div>
 
-                      {verification.verificationData.linkedinUrl && (
+                      {verification.verificationData.linkedinUrl && isSafeLinkedInUrl(verification.verificationData.linkedinUrl) && (
                         <a
                           href={verification.verificationData.linkedinUrl}
                           target="_blank"
@@ -608,6 +581,66 @@ const AdminDashboard = () => {
             </div>
           )}
         </motion.div>
+        )}
+
+        {activeTab === 'internal' && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="glass-card p-6"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <KeyRound className="w-5 h-5 text-amber-500" />
+              <h2 className="text-xl font-semibold lowercase">grant or revoke admin</h2>
+            </div>
+            <p className="text-sm text-gray-400 lowercase mb-6 leading-relaxed">
+              sets the `admin` custom claim on the target user. once set, they keep admin access until revoked here. user must reload the app for the claim to apply.
+            </p>
+
+            <label className="block text-xs text-gray-500 mb-1.5 lowercase">target user uid</label>
+            <input
+              type="text"
+              value={grantTargetUid}
+              onChange={(e) => setGrantTargetUid(e.target.value)}
+              placeholder="firebase auth uid"
+              disabled={grantSubmitting}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 text-sm focus:outline-none focus:border-midnight-400/60 transition-colors mb-4 font-mono"
+            />
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleGrantAdmin(true)}
+                disabled={grantSubmitting}
+                className="px-4 py-2 bg-olive-500 hover:bg-olive-600 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50 lowercase flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                grant admin
+              </button>
+              <button
+                type="button"
+                onClick={() => handleGrantAdmin(false)}
+                disabled={grantSubmitting}
+                className="px-4 py-2 bg-crimson-500 hover:bg-crimson-600 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-50 lowercase flex items-center gap-2"
+              >
+                <XCircle className="w-4 h-4" />
+                revoke admin
+              </button>
+            </div>
+
+            {grantMessage && (
+              <div
+                className={`mt-4 p-3 rounded-lg text-sm lowercase ${
+                  grantMessage.type === 'success'
+                    ? 'bg-olive-500/10 border border-olive-500/20 text-olive-400'
+                    : 'bg-crimson-500/10 border border-crimson-500/20 text-crimson-400'
+                }`}
+              >
+                {grantMessage.text}
+              </div>
+            )}
+          </motion.div>
         )}
       </div>
     </div>

@@ -11,11 +11,27 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
-  collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc,
+  collection, getDocs, doc, updateDoc,
   arrayUnion, arrayRemove, increment, query, where
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import VerifiedBadge from '../components/VerifiedBadge';
+import { getPublicProfile } from '../features/users/services/userService';
+import {
+  addCommunityComment,
+  createCommunityPost,
+  createCommunityReport,
+  deleteCommunityPostWithComments,
+  getPostCommentCount,
+  listCommunityComments,
+  listCommunityPosts,
+  softDeleteCommunityComment,
+  updateCommunityPostLike,
+  updateCommunityPost,
+} from '../features/community/services/communityService';
+import { COLLECTIONS } from '../config/firebaseCollections';
+import { COMMUNITY_NEWS_FEEDS } from '../config/externalResources';
+import { logError } from '../utils/logger';
 
 const categories = [
   { id: 'all', name: 'all' },
@@ -141,12 +157,14 @@ const Community = () => {
   const [editForm, setEditForm] = useState({ title: '', content: '' });
   const [authorProfile, setAuthorProfile] = useState(null);
   const [sortMode, setSortMode] = useState('newest');
-  const [deleteTarget, setDeleteTarget] = useState(null); // {type: 'post'|'comment', id, commentIndex?}
-  const [reportDialog, setReportDialog] = useState(null); // {type, postId, commentIndex?}
+  const [deleteTarget, setDeleteTarget] = useState(null); // {type: 'post'|'comment', id, commentId?}
+  const [reportDialog, setReportDialog] = useState(null); // {type, postId, commentId?}
   const [reportReason, setReportReason] = useState('spam');
   const [reportNote, setReportNote] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [selectedComments, setSelectedComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
 
   useEffect(() => {
     setFollowedPosts(new Set(user?.followedPosts || []));
@@ -161,13 +179,10 @@ const Community = () => {
     const fetchPosts = async () => {
       setLoading(true);
       try {
-        const snapshot = await getDocs(collection(db, 'community-posts'));
-        const fetchedPosts = snapshot.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const fetchedPosts = await listCommunityPosts();
         setPosts(fetchedPosts);
       } catch (err) {
-        console.error('Error fetching posts:', err);
+        logError('Error fetching posts:', err);
       }
       setLoading(false);
     };
@@ -175,27 +190,43 @@ const Community = () => {
   }, []);
 
   useEffect(() => {
+    const fetchSelectedComments = async () => {
+      if (!selectedPost?.id) {
+        setSelectedComments([]);
+        return;
+      }
+      setCommentsLoading(true);
+      try {
+        const comments = await listCommunityComments(selectedPost.id, selectedPost.comments || []);
+        setSelectedComments(comments);
+      } catch (err) {
+        logError('Error fetching comments:', err);
+        setSelectedComments(selectedPost.comments || []);
+      } finally {
+        setCommentsLoading(false);
+      }
+    };
+    fetchSelectedComments();
+  }, [selectedPost?.id]);
+
+  useEffect(() => {
     const fetchNews = async () => {
       setNewsLoading(true);
       try {
-        const feeds = [
-          'https://api.rss2json.com/v1/api.json?rss_url=https://thehackernews.com/feeds/posts/default',
-          'https://api.rss2json.com/v1/api.json?rss_url=https://www.bleepingcomputer.com/feed/'
-        ];
-        const results = await Promise.allSettled(feeds.map(url => fetch(url).then(r => r.json())));
+        const results = await Promise.allSettled(COMMUNITY_NEWS_FEEDS.map(({ url }) => fetch(url).then(r => r.json())));
         const articles = results
           .filter(r => r.status === 'fulfilled' && r.value.status === 'ok')
           .flatMap(r => r.value.items.map(item => ({
             title: item.title,
             link: item.link,
             pubDate: item.pubDate,
-            source: r.value.feed?.title?.includes('Hacker') ? 'The Hacker News' : 'BleepingComputer'
+            source: r.value.feed?.title || 'Security Feed',
           })))
           .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
           .slice(0, 8);
         setNewsArticles(articles);
       } catch (err) {
-        console.error('Error fetching news:', err);
+        logError('Error fetching news:', err);
       }
       setNewsLoading(false);
     };
@@ -217,7 +248,7 @@ const Community = () => {
       return [...base].sort((a, b) => (b.likes || 0) - (a.likes || 0));
     }
     if (sortMode === 'unanswered' && isQA) {
-      return base.filter(p => !p.comments?.length);
+      return base.filter((post) => getPostCommentCount(post) === 0);
     }
     return base;
   })();
@@ -225,6 +256,10 @@ const Community = () => {
   const handleCreatePost = async (e) => {
     e.preventDefault();
     if (!user || !newPost.title.trim() || !newPost.content.trim()) return;
+    if (!user.emailVerified) {
+      setError('verify your email before posting in the community.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -247,17 +282,15 @@ const Community = () => {
         createdAt: new Date().toISOString(),
         likes: 0,
         likedBy: [],
-        comments: [],
         resolved: false,
-        acceptedCommentId: null,
       };
-      const docRef = await addDoc(collection(db, 'community-posts'), postData);
-      setPosts(prev => [{ id: docRef.id, ...postData }, ...prev]);
+      const createdPost = await createCommunityPost(postData);
+      setPosts(prev => [createdPost, ...prev]);
       setNewPost({ title: '', content: '', category: 'general', isAnonymous: false });
       setShowNewPost(false);
     } catch (err) {
-      console.error('Error creating post:', err);
-      setError('failed to post — check your firestore rules allow writes for authenticated users.');
+      logError('Error creating post:', err);
+      setError('failed to create post.');
     }
     setSubmitting(false);
   };
@@ -280,18 +313,18 @@ const Community = () => {
     if (selectedPost?.id === postId) setSelectedPost(updateLikeState);
 
     try {
-      const postRef = doc(db, 'community-posts', postId);
-      await updateDoc(postRef, alreadyLiked
-        ? { likes: increment(-1), likedBy: arrayRemove(user.uid) }
-        : { likes: increment(1), likedBy: arrayUnion(user.uid) }
-      );
+      await updateCommunityPostLike({ postId, alreadyLiked, userId: user.uid });
     } catch (err) {
-      console.error('Error liking post:', err);
+      logError('Error liking post:', err);
     }
   };
 
   const handleAddComment = async () => {
     if (!user || !newComment.trim() || !selectedPost) return;
+    if (!user.emailVerified) {
+      setError('verify your email before replying in the community.');
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -307,14 +340,27 @@ const Community = () => {
         createdAt: new Date().toISOString(),
         deleted: false,
       };
-      const postRef = doc(db, 'community-posts', selectedPost.id);
-      await updateDoc(postRef, { comments: arrayUnion(comment) });
-      const updatedPost = { ...selectedPost, comments: [...(selectedPost.comments || []), comment] };
+      await addCommunityComment({
+        postId: selectedPost.id,
+        comment,
+        fallbackCount: getPostCommentCount(selectedPost),
+      });
+      const nextCount = getPostCommentCount(selectedPost) + 1;
+      const updatedPost = {
+        ...selectedPost,
+        commentCount: nextCount,
+        lastCommentAt: comment.createdAt,
+      };
+      setSelectedComments(prev => [...prev, comment]);
       setSelectedPost(updatedPost);
-      setPosts(prev => prev.map(p => p.id === selectedPost.id ? updatedPost : p));
+      setPosts(prev => prev.map(p =>
+        p.id === selectedPost.id
+          ? { ...p, commentCount: nextCount, lastCommentAt: comment.createdAt }
+          : p
+      ));
       setNewComment('');
     } catch (err) {
-      console.error('Error adding comment:', err);
+      logError('Error adding comment:', err);
       setError('failed to add comment.');
     }
     setSubmitting(false);
@@ -325,12 +371,11 @@ const Community = () => {
     const post = posts.find(p => p.id === postId);
     if (!post || post.authorId !== user.uid) return;
     try {
-      const postRef = doc(db, 'community-posts', postId);
-      await updateDoc(postRef, { resolved: !post.resolved });
+      await updateCommunityPost(postId, { resolved: !post.resolved });
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, resolved: !p.resolved } : p));
       if (selectedPost?.id === postId) setSelectedPost(prev => ({ ...prev, resolved: !prev.resolved }));
     } catch (err) {
-      console.error('Error resolving post:', err);
+      logError('Error resolving post:', err);
     }
   };
 
@@ -338,14 +383,14 @@ const Community = () => {
     if (!selectedPost || selectedPost.authorId !== user?.uid) return;
     const newAccepted = selectedPost.acceptedCommentId === commentId ? null : commentId;
     try {
-      await updateDoc(doc(db, 'community-posts', selectedPost.id), {
+      await updateCommunityPost(selectedPost.id, {
         acceptedCommentId: newAccepted,
       });
       const updated = { ...selectedPost, acceptedCommentId: newAccepted };
       setSelectedPost(updated);
       setPosts(prev => prev.map(p => p.id === selectedPost.id ? updated : p));
     } catch (err) {
-      console.error('Error accepting answer:', err);
+      logError('Error accepting answer:', err);
     }
   };
 
@@ -359,11 +404,11 @@ const Community = () => {
       return next;
     });
     try {
-      await updateDoc(doc(db, 'users', user.uid), {
+      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), {
         followedPosts: isFollowing ? arrayRemove(postId) : arrayUnion(postId),
       });
     } catch (err) {
-      console.error('Error toggling follow:', err);
+      logError('Error toggling follow:', err);
       setFollowedPosts(prev => {
         const next = new Set(prev);
         if (isFollowing) next.add(postId); else next.delete(postId);
@@ -376,7 +421,7 @@ const Community = () => {
     if (!selectedPost || !editForm.title.trim() || !editForm.content.trim()) return;
     setSubmitting(true);
     try {
-      await updateDoc(doc(db, 'community-posts', selectedPost.id), {
+      await updateCommunityPost(selectedPost.id, {
         title: editForm.title.trim(),
         content: editForm.content.trim(),
         edited: true,
@@ -387,7 +432,7 @@ const Community = () => {
       setPosts(prev => prev.map(p => p.id === selectedPost.id ? updated : p));
       setEditMode(false);
     } catch (err) {
-      console.error('Error editing post:', err);
+      logError('Error editing post:', err);
       setError('failed to save edit — check your connection.');
     }
     setSubmitting(false);
@@ -395,42 +440,41 @@ const Community = () => {
 
   const handleDeletePost = async (postId) => {
     try {
-      await deleteDoc(doc(db, 'community-posts', postId));
+      await deleteCommunityPostWithComments(postId);
       setPosts(prev => prev.filter(p => p.id !== postId));
       if (selectedPost?.id === postId) setSelectedPost(null);
     } catch (err) {
-      console.error('Error deleting post:', err);
+      logError('Error deleting post:', err);
       setError('failed to delete — check your permissions.');
     }
   };
 
-  const handleDeleteComment = async (postId, commentIndex) => {
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
-    const comments = post.comments || [];
-    const target = comments[commentIndex];
+  const handleDeleteComment = async (postId, commentId) => {
+    const target = selectedComments.find((comment) => comment.id === commentId);
     if (!target || target.authorId !== user?.uid) return;
-    const updated = comments.map((c, i) =>
-      i === commentIndex
-        ? { ...c, content: '[deleted]', authorName: 'deleted', authorId: null, deleted: true, authorType: 'journalist', isVerified: false, authorVerificationStatus: null }
-        : c
-    );
     try {
-      await updateDoc(doc(db, 'community-posts', postId), { comments: updated });
-      setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: updated } : p));
-      if (selectedPost?.id === postId) setSelectedPost(prev => ({ ...prev, comments: updated }));
+      await softDeleteCommunityComment({ postId, commentId });
+      setSelectedComments(prev => prev.map((comment) =>
+        comment.id === commentId
+          ? { ...comment, content: '[deleted]', authorName: 'deleted', authorId: null, deleted: true, authorType: 'journalist', isVerified: false, authorVerificationStatus: null }
+          : comment
+      ));
     } catch (err) {
-      console.error('Error deleting comment:', err);
+      logError('Error deleting comment:', err);
     }
   };
 
   const submitReport = async () => {
     if (!user || !reportDialog) return;
+    if (!user.emailVerified) {
+      setError('verify your email before filing community reports.');
+      return;
+    }
     setReportSubmitting(true);
     try {
-      await addDoc(collection(db, 'community-reports'), {
+      await createCommunityReport({
         postId: reportDialog.postId,
-        commentId: reportDialog.commentIndex ?? null,
+        commentId: reportDialog.commentId ?? null,
         reportedBy: user.uid,
         reason: reportReason,
         note: reportNote.trim(),
@@ -445,7 +489,7 @@ const Community = () => {
         setReportNote('');
       }, 1500);
     } catch (err) {
-      console.error('Error filing report:', err);
+      logError('Error filing report:', err);
     }
     setReportSubmitting(false);
   };
@@ -454,50 +498,38 @@ const Community = () => {
     if (!uid) return;
     setAuthorProfile({ uid, loading: true, type });
     try {
-      const userSnap = await getDoc(doc(db, 'users', uid));
-      const userData = userSnap.data() || {};
-      const isSpecialist = userData.accountType === 'specialist';
+      const publicData = await getPublicProfile(uid) || {};
 
       // Journalist or specialist post count + recent posts
-      const postsSnap = await getDocs(query(collection(db, 'community-posts'), where('authorId', '==', uid)));
-      const userPosts = postsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const postsSnap = await getDocs(query(collection(db, COLLECTIONS.COMMUNITY_POSTS), where('authorId', '==', uid)));
+      const userPosts = postsSnap.docs.map((entry) => {
+        const data = entry.data();
+        return { id: entry.id, ...data, commentCount: getPostCommentCount(data) };
+      });
       const visiblePosts = userPosts.filter(p => !p.isAnonymous);
       const recentPosts = visiblePosts
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 3);
 
-      let resolvedCount = 0;
-      let avgRating = null;
-      let recentFeedback = [];
-      if (isSpecialist) {
-        const reqSnap = await getDocs(
-          query(collection(db, 'support-requests'), where('claimedBy', '==', uid), where('status', '==', 'resolved'))
-        );
-        const resolvedReqs = reqSnap.docs.map(d => d.data());
-        resolvedCount = resolvedReqs.length;
-        const ratings = resolvedReqs.filter(r => r.feedback?.rating).map(r => r.feedback.rating);
-        avgRating = ratings.length ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : null;
-        recentFeedback = resolvedReqs.filter(r => r.feedback?.comment).slice(-3).reverse();
-      }
-
       setAuthorProfile({
         uid,
         loading: false,
-        type: userData.accountType || type,
-        username: userData.username || 'user',
-        avatarIcon: userData.avatarIcon || '🔒',
-        bio: userData.specialistProfile?.bio || userData.bio || '',
-        specializations: userData.specialistProfile?.expertiseAreas || userData.specializations || [],
-        verified: userData.verificationStatus === 'approved',
-        createdAt: userData.createdAt,
+        type: publicData.accountType || type,
+        username: publicData.username || 'user',
+        avatarIcon: publicData.avatarIcon || '🔒',
+        bio: publicData.specialistProfile?.bio || '',
+        specializations: publicData.specialistProfile?.expertiseAreas || [],
+        verified: publicData.verificationStatus === 'approved',
+        createdAt: publicData.createdAt,
         postCount: visiblePosts.length,
         recentPosts,
-        resolvedCount,
-        avgRating,
-        recentFeedback,
+        resolvedCount: 0,
+        avgRating: null,
+        recentFeedback: [],
+        supportStatsVisible: false,
       });
     } catch (err) {
-      console.error('Error loading profile:', err);
+      logError('Error loading profile:', err);
       setAuthorProfile(null);
     }
   };
@@ -627,7 +659,7 @@ const Community = () => {
                     if (deleteTarget.type === 'post') {
                       await handleDeletePost(deleteTarget.id);
                     } else {
-                      await handleDeleteComment(deleteTarget.id, deleteTarget.commentIndex);
+                      await handleDeleteComment(deleteTarget.id, deleteTarget.commentId);
                     }
                     setDeleteTarget(null);
                   }}
@@ -782,7 +814,7 @@ const Community = () => {
                         <p className="text-xl font-bold text-white">{authorProfile.postCount}</p>
                         <p className="text-[10px] text-gray-600 lowercase">community posts</p>
                       </div>
-                      {authorProfile.type === 'specialist' && (
+                      {authorProfile.type === 'specialist' && authorProfile.supportStatsVisible && (
                         <>
                           <div>
                             <p className="text-xl font-bold text-white">{authorProfile.resolvedCount}</p>
@@ -891,11 +923,11 @@ const Community = () => {
   if (selectedPost) {
     const isQuestion = selectedPost.type === 'question';
     const liked = selectedPost.likedBy?.includes(user?.uid);
-    const commentCount = selectedPost.comments?.length || 0;
+    const commentCount = Math.max(getPostCommentCount(selectedPost), selectedComments.length);
     const isAuthor = selectedPost.authorId === user?.uid;
 
     const orderedComments = (() => {
-      const list = (selectedPost.comments || []).map((c, i) => ({ ...c, __index: i }));
+      const list = [...selectedComments];
       const acceptedId = selectedPost.acceptedCommentId;
       if (!acceptedId) return list;
       const accepted = list.find(c => c.id === acceptedId);
@@ -1133,8 +1165,12 @@ const Community = () => {
             )}
 
             <div className="space-y-2">
+              {commentsLoading && (
+                <div className="flex justify-center py-2">
+                  <div className="w-4 h-4 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
               {orderedComments.map((comment) => {
-                const index = comment.__index;
                 const isAccepted = selectedPost.acceptedCommentId && comment.id === selectedPost.acceptedCommentId;
                 const canAccept = isQuestion && isAuthor && !comment.deleted;
                 const canDelete = user && comment.authorId === user.uid && !comment.deleted;
@@ -1188,7 +1224,7 @@ const Community = () => {
                             )}
                             {canDelete && (
                               <button
-                                onClick={() => setDeleteTarget({ type: 'comment', id: selectedPost.id, commentIndex: index })}
+                                onClick={() => setDeleteTarget({ type: 'comment', id: selectedPost.id, commentId: comment.id })}
                                 className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-crimson-400 transition-colors lowercase"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -1197,7 +1233,7 @@ const Community = () => {
                             )}
                             {canReport && (
                               <button
-                                onClick={() => { setReportDialog({ type: 'comment', postId: selectedPost.id, commentIndex: index }); setReportReason('spam'); setReportNote(''); }}
+                                onClick={() => { setReportDialog({ type: 'comment', postId: selectedPost.id, commentId: comment.id }); setReportReason('spam'); setReportNote(''); }}
                                 className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-amber-400 transition-colors lowercase"
                               >
                                 <Flag className="w-3 h-3" />
@@ -1545,9 +1581,9 @@ const Community = () => {
                           }`}>
                             {post.resolved ? '✓' : '?'}
                           </span>
-                          <span className="text-sm text-gray-400 mt-1 font-semibold">{post.comments?.length || 0}</span>
+                          <span className="text-sm text-gray-400 mt-1 font-semibold">{getPostCommentCount(post)}</span>
                           <span className="text-[10px] text-gray-600 lowercase">
-                            {(post.comments?.length || 0) === 1 ? 'answer' : 'answers'}
+                            {getPostCommentCount(post) === 1 ? 'answer' : 'answers'}
                           </span>
                         </div>
 
@@ -1621,7 +1657,7 @@ const Community = () => {
                           </button>
                           <span className="flex items-center gap-1.5 text-xs text-gray-500 lowercase">
                             <MessageSquare className="w-3.5 h-3.5" />
-                            {post.comments?.length || 0}
+                            {getPostCommentCount(post)}
                           </span>
                           <button
                             onClick={(e) => toggleFollow(e, post.id)}
