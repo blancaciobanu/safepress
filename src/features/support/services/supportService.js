@@ -111,14 +111,7 @@ export const createSupportRequest = async ({
 };
 
 export const getActiveSupportRequests = async () => {
-  const requestsQuery = query(
-    collection(db, SUPPORT_REQUEST_QUEUE_COLLECTION),
-    where('status', '==', 'open'),
-    orderBy('createdAt', 'desc')
-  );
-
-  const snapshot = await getDocs(requestsQuery);
-  return mapSnapshotDocs(snapshot).map(buildQueueCardData);
+  return getOpenSupportQueueRequests();
 };
 
 export const getOpenSupportQueueRequests = async () => {

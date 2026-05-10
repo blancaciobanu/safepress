@@ -56,14 +56,6 @@ const buildSessionUser = async (firebaseUser) => {
     };
   }
 
-  if (Object.keys(profile).length > 0) {
-    try {
-      await createOrUpdatePublicProfile(firebaseUser.uid, profile);
-    } catch (error) {
-      logError('Public profile sync failed during session hydration:', error);
-    }
-  }
-
   return {
     uid: firebaseUser.uid,
     email: firebaseUser.email,
@@ -227,14 +219,6 @@ export const AuthProvider = ({ children }) => {
     resendVerificationEmail,
     refreshUser,
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <AuthContext.Provider value={value}>

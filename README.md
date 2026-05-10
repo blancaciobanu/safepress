@@ -19,7 +19,7 @@ npm run dev
 npm run build
 ```
 
-Visit `http://localhost:5174` in your browser.
+Visit the Vite URL shown in your terminal, usually `http://localhost:5173`.
 
 ## Features
 
@@ -54,6 +54,7 @@ safepress/
 │   │   ├── CrisisOverlay.jsx # Fullscreen crisis mode overlay
 │   │   ├── ProtectedRoute.jsx
 │   │   ├── ProtectedAdminRoute.jsx
+│   │   ├── RouteLoader.jsx   # Shared lazy-route loading state
 │   │   └── VerifiedBadge.jsx
 │   ├── contexts/
 │   │   ├── AuthContext.jsx   # Authentication state & methods
@@ -151,6 +152,12 @@ safepress/
 - Firebase App Check scaffolding is wired in `src/firebase/config.js` and activates when `VITE_RECAPTCHA_SITE_KEY` is configured.
 - Firestore rules now prefer verified-email trust, optional custom admin claims, and a redacted specialist queue for support requests.
 - Admin role is granted via the `setAdminClaim` Firebase callable (deployed in `europe-west1`); all admin checks (Firestore rules, function caller validation, client UI) rely on the `admin: true` custom claim plus `email_verified`.
+- Route-level lazy loading is enabled in `src/App.jsx`, and Vite now splits Firebase / router / motion / icon vendor chunks so first load is much smaller.
+- Startup performance is improved by avoiding public-profile writes during auth hydration and deferring notification-count Firestore reads until the browser is idle.
+- Public routes no longer block on Firebase auth hydration at the app root; only protected routes wait for auth before rendering gated content.
+- Logged-in pages now reuse hydrated auth profile data more aggressively, reducing duplicate Firestore reads on `Dashboard`, `SecureSetup`, and `SpecialistDashboard`.
+- Header notifications now batch followed-post lookups and only inspect posts that appear updated since the last seen timestamp.
+- Console hardening now includes restricted browser API key website referrers and Firebase Authentication authorized domains for Google sign-in.
 
 ## Data Structure
 

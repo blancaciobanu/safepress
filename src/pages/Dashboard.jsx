@@ -9,7 +9,6 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import VerifiedBadge from '../components/VerifiedBadge';
-import { getUserProfile } from '../features/users/services/userService';
 import {
   claimSupportRequest,
   getActiveSupportRequests,
@@ -57,8 +56,8 @@ const SETUP_HEX = (pct) =>
 
 const Dashboard = () => {
   const { user, resendVerificationEmail } = useAuth();
-  const [userData, setUserData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const userData = user;
+  const [loading, setLoading] = useState(!user);
   const [supportRequests, setSupportRequests] = useState([]);
   const [resolvedByMe, setResolvedByMe] = useState([]);
   const [expandedRequest, setExpandedRequest] = useState(null);
@@ -81,18 +80,7 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user) return;
-      try {
-        const profile = await getUserProfile(user.uid);
-        if (profile) setUserData(profile);
-      } catch (error) {
-        logError('Error fetching user data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserData();
+    setLoading(!user);
   }, [user]);
 
   // Fetch support requests for verified specialists

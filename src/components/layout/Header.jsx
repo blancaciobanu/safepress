@@ -10,9 +10,14 @@ import { useCrisis } from '../../contexts/CrisisContext';
 import VerifiedBadge from '../VerifiedBadge';
 import { getDoc, getDocs, doc, query, where, collection, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { countNewCommunityComments } from '../../features/community/services/communityService';
+import {
+  countNewCommunityComments,
+  listCommunityPostsByIds,
+} from '../../features/community/services/communityService';
 import { COLLECTIONS } from '../../config/firebaseCollections';
 import { logError } from '../../utils/logger';
+
+const NOTIF_COUNT_CACHE_PREFIX = 'notif-count:';
 
 const notifTimeAgo = (iso) => {
   const sec = Math.floor((Date.now() - new Date(iso)) / 1000);
@@ -31,10 +36,20 @@ const SCENARIO_LABELS = {
   phishing: "Phishing Attempt",
 };
 
+const getNotifCacheKey = (uid) => `${NOTIF_COUNT_CACHE_PREFIX}${uid}`;
+
+const needsCommentRefresh = (post, lastSeen) => {
+  const latestCommentAt = post?.lastCommentAt || null;
+  if (!latestCommentAt) {
+    return (post?.comments || []).some((comment) => comment.createdAt > lastSeen);
+  }
+  return latestCommentAt > lastSeen;
+};
+
 const Header = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { isInCrisis, activeScenario, deactivateCrisis, openOverlay, toggleOverlay, overlayOpen } = useCrisis();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -46,6 +61,45 @@ const Header = () => {
 
   const userMenuRef = useRef(null);
   const notifRef    = useRef(null);
+
+  const persistNotifCount = (count) => {
+    if (!user?.uid || typeof window === 'undefined') return;
+    window.sessionStorage.setItem(getNotifCacheKey(user.uid), String(count));
+  };
+
+  const fetchNotificationCount = async () => {
+    if (!user) return 0;
+
+    const userSnap = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
+    const userData = userSnap.data() || {};
+    const lastSeen = userData.notifLastSeen || new Date(0).toISOString();
+    const followedPostIds = userData.followedPosts || [];
+
+    let count = 0;
+    const reqSnap = await getDocs(
+      query(collection(db, COLLECTIONS.SUPPORT_REQUESTS), where('requesterId', '==', user.uid))
+    );
+
+    reqSnap.docs.forEach((entry) => {
+      const req = entry.data();
+      if (req.status === 'claimed' && req.claimedBy) count++;
+      if (req.status === 'resolved') count++;
+    });
+
+    const followedPosts = await listCommunityPostsByIds(followedPostIds);
+    for (const post of followedPosts) {
+      if (!needsCommentRefresh(post, lastSeen)) continue;
+      const { count: replyCount } = await countNewCommunityComments({
+        postId: post.id,
+        lastSeen,
+        currentUserId: user.uid,
+        legacyComments: post.comments || [],
+      });
+      if (replyCount > 0) count++;
+    }
+
+    return count;
+  };
 
   const fetchNotifications = async () => {
     if (!user) return;
@@ -74,20 +128,19 @@ const Header = () => {
       });
 
       // Followed posts: new comments since last seen
-      for (const postId of followedPostIds) {
-        const postSnap = await getDoc(doc(db, COLLECTIONS.COMMUNITY_POSTS, postId));
-        if (!postSnap.exists()) continue;
-        const pd = postSnap.data();
+      const followedPosts = await listCommunityPostsByIds(followedPostIds);
+      for (const post of followedPosts) {
+        if (!needsCommentRefresh(post, lastSeen)) continue;
         const { count, latestTime } = await countNewCommunityComments({
-          postId,
+          postId: post.id,
           lastSeen,
           currentUserId: user.uid,
-          legacyComments: pd.comments || [],
+          legacyComments: post.comments || [],
         });
         if (count > 0) {
           notifs.push({
-            id: postId,
-            text: `${count} new ${count === 1 ? 'reply' : 'replies'} on "${pd.title}"`,
+            id: post.id,
+            text: `${count} new ${count === 1 ? 'reply' : 'replies'} on "${post.title}"`,
             time: latestTime,
           });
         }
@@ -102,6 +155,7 @@ const Header = () => {
 
       setNotifications(notifs);
       setNotifCount(0);
+      persistNotifCount(0);
 
       // Mark as seen
       await updateDoc(userRef, {
@@ -115,36 +169,46 @@ const Header = () => {
 
   // Count notifications on mount so badge appears without opening the bell
   useEffect(() => {
-    if (!user) { setNotifCount(0); return; }
-    (async () => {
+    if (!user) {
+      setNotifCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    let timeoutId = null;
+    let idleId = null;
+
+    if (typeof window !== 'undefined') {
+      const cachedCount = window.sessionStorage.getItem(getNotifCacheKey(user.uid));
+      if (cachedCount !== null) {
+        setNotifCount(Number(cachedCount) || 0);
+      }
+    }
+
+    const loadCount = async () => {
       try {
-        const userSnap = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
-        const userData = userSnap.data() || {};
-        const lastSeen = userData.notifLastSeen || new Date(0).toISOString();
-        const followedPostIds = userData.followedPosts || [];
-        let count = 0;
-        const reqSnap = await getDocs(
-          query(collection(db, COLLECTIONS.SUPPORT_REQUESTS), where('requesterId', '==', user.uid))
-        );
-        reqSnap.docs.forEach(d => {
-          const req = d.data();
-          if (req.status === 'claimed' && req.claimedBy) count++;
-          if (req.status === 'resolved') count++;
-        });
-        for (const postId of followedPostIds) {
-          const postSnap = await getDoc(doc(db, COLLECTIONS.COMMUNITY_POSTS, postId));
-          if (!postSnap.exists()) continue;
-          const { count: replyCount } = await countNewCommunityComments({
-            postId,
-            lastSeen,
-            currentUserId: user.uid,
-            legacyComments: postSnap.data().comments || [],
-          });
-          if (replyCount > 0) count++;
-        }
+        const count = await fetchNotificationCount();
+        if (cancelled) return;
         setNotifCount(count);
-      } catch { /* silent */ }
-    })();
+        persistNotifCount(count);
+      } catch {
+        // Keep this silent; notifications should never block navigation.
+      }
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(loadCount, { timeout: 2500 });
+    } else {
+      timeoutId = window.setTimeout(loadCount, 1200);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+      if (idleId && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId);
+      }
+    };
   }, [user?.uid]);
 
   // Close dropdowns on outside click
@@ -187,7 +251,9 @@ const Header = () => {
       {/* ── Top-right: notification bell + user menu ───────────────────── */}
       <div className="fixed top-3 right-4 z-[60] flex items-center gap-2">
 
-        {user ? (
+        {loading ? (
+          <div className="w-20 h-8 rounded-full bg-white/[0.04] border border-white/[0.08] animate-pulse" />
+        ) : user ? (
           <>
             {/* Notification bell — only for logged-in users */}
             <div className="relative" ref={notifRef}>

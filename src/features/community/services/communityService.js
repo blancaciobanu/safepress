@@ -4,6 +4,7 @@ import {
   arrayUnion,
   collection,
   deleteDoc,
+  documentId,
   doc,
   getDoc,
   getDocs,
@@ -20,12 +21,21 @@ import { COLLECTIONS } from '../../../config/firebaseCollections';
 
 const COMMUNITY_POSTS_COLLECTION = COLLECTIONS.COMMUNITY_POSTS;
 const COMMUNITY_REPORTS_COLLECTION = COLLECTIONS.COMMUNITY_REPORTS;
+const FIRESTORE_IN_LIMIT = 10;
 
 const getCommentsCollection = (postId) =>
   collection(db, COMMUNITY_POSTS_COLLECTION, postId, 'comments');
 
 const mapSnapshotDocs = (snapshot) =>
   snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+
+const chunkItems = (items = [], size = FIRESTORE_IN_LIMIT) => {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+};
 
 export const getPostCommentCount = (post = {}) =>
   post.commentCount ?? post.comments?.length ?? 0;
@@ -35,6 +45,26 @@ export const listCommunityPosts = async () => {
   return mapSnapshotDocs(snapshot)
     .map((post) => ({ ...post, commentCount: getPostCommentCount(post) }))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+};
+
+export const listCommunityPostsByIds = async (postIds = []) => {
+  const uniquePostIds = [...new Set(postIds.filter(Boolean))];
+  if (uniquePostIds.length === 0) return [];
+
+  const snapshots = await Promise.all(
+    chunkItems(uniquePostIds).map((idsChunk) =>
+      getDocs(
+        query(
+          collection(db, COMMUNITY_POSTS_COLLECTION),
+          where(documentId(), 'in', idsChunk)
+        )
+      )
+    )
+  );
+
+  return snapshots
+    .flatMap((snapshot) => mapSnapshotDocs(snapshot))
+    .map((post) => ({ ...post, commentCount: getPostCommentCount(post) }));
 };
 
 export const createCommunityPost = async (postData) => {

@@ -1,20 +1,31 @@
+import { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import RouteLoader from './components/RouteLoader';
 import MainLayout from './components/layout/MainLayout';
-import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
-import SpecialistDashboard from './pages/SpecialistDashboard';
-import SecurityScore from './pages/SecurityScore';
-import SecureSetup from './pages/SecureSetup';
-import Resources from './pages/Resources';
-import Community from './pages/Community';
-import SourceProtection from './pages/SourceProtection';
-import RequestSupport from './pages/RequestSupport';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Settings from './pages/Settings';
-import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const SpecialistDashboard = lazy(() => import('./pages/SpecialistDashboard'));
+const SecurityScore = lazy(() => import('./pages/SecurityScore'));
+const SecureSetup = lazy(() => import('./pages/SecureSetup'));
+const Resources = lazy(() => import('./pages/Resources'));
+const Community = lazy(() => import('./pages/Community'));
+const SourceProtection = lazy(() => import('./pages/SourceProtection'));
+const RequestSupport = lazy(() => import('./pages/RequestSupport'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+
+function withRouteSuspense(element) {
+  return (
+    <Suspense fallback={<RouteLoader />}>
+      {element}
+    </Suspense>
+  );
+}
 
 function App() {
   return (
@@ -25,7 +36,7 @@ function App() {
           path="dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              {withRouteSuspense(<Dashboard />)}
             </ProtectedRoute>
           }
         />
@@ -33,7 +44,7 @@ function App() {
           path="settings"
           element={
             <ProtectedRoute>
-              <Settings />
+              {withRouteSuspense(<Settings />)}
             </ProtectedRoute>
           }
         />
@@ -41,7 +52,7 @@ function App() {
           path="admin"
           element={
             <ProtectedAdminRoute>
-              <AdminDashboard />
+              {withRouteSuspense(<AdminDashboard />)}
             </ProtectedAdminRoute>
           }
         />
@@ -49,17 +60,17 @@ function App() {
           path="specialist-dashboard"
           element={
             <ProtectedRoute>
-              <SpecialistDashboard />
+              {withRouteSuspense(<SpecialistDashboard />)}
             </ProtectedRoute>
           }
         />
         <Route path="crisis" element={<Navigate to="/dashboard" replace />} />
-        <Route path="security-score" element={<SecurityScore />} />
-        <Route path="secure-setup" element={<SecureSetup />} />
-        <Route path="resources" element={<Resources />} />
-        <Route path="community" element={<Community />} />
-        <Route path="source-protection" element={<SourceProtection />} />
-        <Route path="request-support" element={<RequestSupport />} />
+        <Route path="security-score" element={withRouteSuspense(<SecurityScore />)} />
+        <Route path="secure-setup" element={withRouteSuspense(<SecureSetup />)} />
+        <Route path="resources" element={withRouteSuspense(<Resources />)} />
+        <Route path="community" element={withRouteSuspense(<Community />)} />
+        <Route path="source-protection" element={withRouteSuspense(<SourceProtection />)} />
+        <Route path="request-support" element={withRouteSuspense(<RequestSupport />)} />
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
       </Route>

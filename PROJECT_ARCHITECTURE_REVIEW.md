@@ -108,6 +108,11 @@ Important new improvements since the earlier review:
 - admin checks are centralized in the app and rules, with optional custom-claim support already wired in
 - Firebase Hosting security headers are configured in `firebase.json`
 - Firebase App Check initialization is scaffolded and ready for a production reCAPTCHA site key
+- route-level lazy loading now prevents every page from shipping in the first JavaScript payload, and Vite vendor chunking keeps Firebase-heavy code more cache-friendly
+- startup work is lighter now: session hydration no longer performs public-profile writes, and notification badge queries are deferred until the browser is idle
+- public pages no longer wait on auth hydration before first paint; only protected routes keep the auth-loading gate
+- several logged-in screens now reuse hydrated auth data instead of re-fetching the same profile document, which trims duplicated Firestore work after sign-in
+- notification lookups are now less chatty by batching followed-post fetches and skipping comment subcollection checks for posts that have no recent activity
 
 This is a strong Firebase-only architecture for the current stage, even though it is not the final possible security model.
 

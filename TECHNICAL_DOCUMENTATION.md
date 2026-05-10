@@ -125,6 +125,12 @@
    User Action → supportService → Firestore → Dashboard / Specialist Dashboard UI update
    ```
 
+5. **Route Loading**:
+   ```
+   User opens route → React Router matches path → lazy page chunk downloads →
+   RouteLoader shows briefly → page renders
+   ```
+
 ---
 
 ## Firebase Setup
@@ -217,6 +223,44 @@ Current behavior of the deployed rules:
   - comment-count updates are limited to a controlled increment path
   - only the post author can edit the post body, toggle resolved state, or set an accepted answer
   - delete is limited to admins or the post author
+
+### Build Performance
+
+SafePress now uses **route-level code splitting**:
+
+- `src/App.jsx` loads page components with `React.lazy(...)`
+- `src/components/RouteLoader.jsx` provides a shared loading state while a page chunk is downloading
+- `vite.config.js` separates large vendor groups into dedicated chunks (`firebase`, `react-vendor`, `router`, `motion`, `icons`)
+
+Why this matters:
+
+- the browser no longer downloads every page on first visit
+- slower devices get a faster first meaningful render
+- heavy libraries such as Firebase are cached in their own chunk instead of being mixed into one monolithic app bundle
+
+### Startup Performance
+
+The app also avoids some unnecessary work during first render:
+
+- public routes render immediately instead of waiting for auth hydration at the root provider
+- `AuthContext` no longer writes to `public-profiles` during every session hydration
+- the header notification badge loads after the browser becomes idle instead of competing with initial navigation
+- header notification reads now batch followed-post fetches and skip comment checks for posts that have not changed since `notifLastSeen`
+- the dashboard uses the already-hydrated auth profile immediately, then refreshes private user data in the background
+- `SecureSetup` and `SpecialistDashboard` now start from hydrated auth/profile data instead of immediately re-reading the same `users/{uid}` document on mount
+
+Why this matters:
+
+- first paint happens sooner for signed-in users
+- a page can become usable before lower-priority Firebase reads finish
+- SafePress does less duplicate Firestore work during app startup
+
+### Console Configuration
+
+Two important platform settings now exist outside the codebase:
+
+- the Firebase browser API key is restricted to approved website referrers in Google Cloud Console
+- Firebase Authentication authorized domains now include local development and hosted domains needed for Google sign-in
 
 - `community-posts/{postId}/comments`
   - reads are public

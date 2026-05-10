@@ -6,7 +6,7 @@ import {
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../config/firebaseCollections';
 import { logError } from '../utils/logger';
@@ -396,46 +396,46 @@ const allTasks = Object.entries(setupTasks).flatMap(([key, cat]) =>
   cat.tasks.map(t => ({ ...t, categoryKey: key }))
 );
 
+const deriveWeakCategories = (scores = []) => {
+  if (!scores?.length) return [];
+
+  const latest = scores[scores.length - 1];
+  const QUIZ_TO_SETUP = {
+    password: 'password',
+    device: 'device',
+    communication: 'communication',
+    data: 'data',
+    physical: 'physical',
+  };
+
+  return Object.entries(latest.categoryScores ?? {})
+    .filter(([key, value]) => QUIZ_TO_SETUP[key] && value.score < 70)
+    .sort((left, right) => left[1].score - right[1].score)
+    .map(([key]) => QUIZ_TO_SETUP[key]);
+};
+
 // ── main component ────────────────────────────────────────────────────────────
 
 const SecureSetup = () => {
   const { user } = useAuth();
-  const [completedTasks,   setCompletedTasks]   = useState(new Set());
-  const [weakCategories,   setWeakCategories]   = useState([]);
-  const [loading,          setLoading]           = useState(true);
+  const [completedTasks,   setCompletedTasks]   = useState(() => new Set(user?.setupProgress?.completedTasks || []));
+  const [weakCategories,   setWeakCategories]   = useState(() => deriveWeakCategories(user?.securityScores));
+  const [loading,          setLoading]           = useState(!user);
   const [selectedCategory, setSelectedCategory]  = useState(null);
 
-  // ── Firebase ─────────────────────────────────────────────────────────────────
+  // Reuse the already-hydrated auth profile instead of re-fetching the same user doc.
 
   useEffect(() => {
-    const fetchProgress = async () => {
-      if (!user) { setLoading(false); return; }
-      try {
-        const snap = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data.setupProgress?.completedTasks) {
-            setCompletedTasks(new Set(data.setupProgress.completedTasks));
-          }
-          // Derive weak categories from latest quiz score
-          const scores = data.securityScores;
-          if (scores?.length) {
-            const latest = scores[scores.length - 1];
-            const QUIZ_TO_SETUP = { password: 'password', device: 'device', communication: 'communication', data: 'data', physical: 'physical' };
-            const weak = Object.entries(latest.categoryScores ?? {})
-              .filter(([k, v]) => QUIZ_TO_SETUP[k] && v.score < 70)
-              .sort((a, b) => a[1].score - b[1].score)
-              .map(([k]) => QUIZ_TO_SETUP[k]);
-            setWeakCategories(weak);
-          }
-        }
-      } catch (e) {
-        logError('Error fetching setup progress:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProgress();
+    if (!user) {
+      setCompletedTasks(new Set());
+      setWeakCategories([]);
+      setLoading(false);
+      return;
+    }
+
+    setCompletedTasks(new Set(user.setupProgress?.completedTasks || []));
+    setWeakCategories(deriveWeakCategories(user.securityScores));
+    setLoading(false);
   }, [user]);
 
   const toggleTask = async (taskId) => {

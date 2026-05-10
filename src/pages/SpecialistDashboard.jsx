@@ -6,9 +6,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import VerifiedBadge from '../components/VerifiedBadge';
-import { reapplySpecialistVerification, getUserProfile } from '../features/users/services/userService';
+import { reapplySpecialistVerification } from '../features/users/services/userService';
 import {
   claimSupportRequest,
   getClaimedSupportRequestsBySpecialist,
@@ -34,6 +34,20 @@ const URGENCY_CONFIG = {
   emergency: { label: 'emergency', bg: 'bg-crimson-500/15', text: 'text-crimson-400', border: 'border-crimson-500/30' },
   urgent:    { label: 'urgent',    bg: 'bg-amber-500/15',   text: 'text-amber-400',   border: 'border-amber-500/30' },
   normal:    { label: 'normal',    bg: 'bg-white/[0.05]',   text: 'text-gray-500',    border: 'border-white/[0.08]' },
+};
+
+const loadSpecialistRequests = async (specialistId) => {
+  const [openRequests, claimedRequests, resolvedRequests] = await Promise.all([
+    getOpenSupportQueueRequests(),
+    getClaimedSupportRequestsBySpecialist(specialistId),
+    getResolvedSupportRequestsBySpecialist(specialistId),
+  ]);
+
+  return {
+    openRequests,
+    claimedRequests,
+    resolvedRequests,
+  };
 };
 
 /* ─── Request Card ─────────────────────────────────────────────────────────── */
@@ -168,14 +182,15 @@ const RequestCard = ({ req, userId, onClaim, onResolve }) => {
 /* ─── Main page ────────────────────────────────────────────────────────────── */
 
 const SpecialistDashboard = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate  = useNavigate();
 
-  const [profile,      setProfile]      = useState(null);
-  const [loading,      setLoading]      = useState(true);
+  const [profile,      setProfile]      = useState(user);
+  const [loading,      setLoading]      = useState(false);
   const [requests,     setRequests]     = useState([]);
   const [resolved,     setResolved]     = useState([]);
   const [activeTab,    setActiveTab]    = useState('open');
+  const [claimedRequests, setClaimedRequests] = useState([]);
 
   const isSpecialist = user?.accountType === 'specialist';
   const isVerifiedSpecialist = isSpecialist && user?.verificationStatus === 'approved';
@@ -187,29 +202,18 @@ const SpecialistDashboard = () => {
     if (user.accountType !== 'specialist') navigate('/dashboard', { replace: true });
   }, [user, navigate]);
 
-  // Fetch full user profile from Firestore for all specialists (needed for credentials + rejection reason)
+  // Use the already-hydrated auth profile immediately.
   useEffect(() => {
-    if (!isSpecialist) return;
-    const fetch = async () => {
-      try {
-        const profileData = await getUserProfile(user.uid);
-        if (profileData) setProfile(profileData);
-      } catch (e) {
-        logError('Error fetching profile:', e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [isSpecialist, user]);
+    setProfile(user || null);
+  }, [user]);
 
   const handleReapply = async () => {
     if (!user) return;
     setReapplying(true);
     try {
       await reapplySpecialistVerification(user.uid);
-      const profileData = await getUserProfile(user.uid);
-      if (profileData) setProfile(profileData);
+      const refreshedUser = await refreshUser();
+      if (refreshedUser) setProfile(refreshedUser);
     } catch (e) {
       logError('Error reapplying:', e);
     } finally {
@@ -217,47 +221,45 @@ const SpecialistDashboard = () => {
     }
   };
 
-  // Fetch redacted open queue
+  // Fetch all request lists together for verified specialists.
   useEffect(() => {
-    if (!isVerifiedSpecialist) return;
-    const fetch = async () => {
-      try {
-        const supportRequests = await getOpenSupportQueueRequests();
-        setRequests(supportRequests);
-      } catch (e) {
-        logError('Error fetching queue requests:', e);
-      }
-    };
-    fetch();
-  }, [isVerifiedSpecialist]);
+    if (!isVerifiedSpecialist || !user) {
+      setLoading(false);
+      setRequests([]);
+      setClaimedRequests([]);
+      setResolved([]);
+      return;
+    }
 
-  const [claimedRequests, setClaimedRequests] = useState([]);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!isVerifiedSpecialist || !user) return;
     const fetch = async () => {
+      setLoading(true);
       try {
-        const activeRequests = await getClaimedSupportRequestsBySpecialist(user.uid);
-        setClaimedRequests(activeRequests);
-      } catch (e) {
-        logError('Error fetching claimed requests:', e);
-      }
-    };
-    fetch();
-  }, [isVerifiedSpecialist, user]);
+        const {
+          openRequests,
+          claimedRequests: claimed,
+          resolvedRequests,
+        } = await loadSpecialistRequests(user.uid);
 
-  // Fetch resolved requests by this specialist
-  useEffect(() => {
-    if (!isVerifiedSpecialist || !user) return;
-    const fetch = async () => {
-      try {
-        const resolvedRequests = await getResolvedSupportRequestsBySpecialist(user.uid);
+        if (cancelled) return;
+        setRequests(openRequests);
+        setClaimedRequests(claimed);
         setResolved(resolvedRequests);
       } catch (e) {
-        logError('Error fetching resolved:', e);
+        if (!cancelled) {
+          logError('Error fetching specialist dashboard data:', e);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
+
     fetch();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isVerifiedSpecialist, user]);
 
   const handleClaim = async (id) => {
@@ -267,20 +269,11 @@ const SpecialistDashboard = () => {
         specialistId: user.uid,
         specialistName: user.username,
       });
-      const claimedRequest = requests.find((request) => request.id === id);
       setRequests(prev => prev.filter((request) => request.id !== id));
-      if (claimedRequest) {
-        setClaimedRequests(prev => [{
-          ...claimedRequest,
-          ...claimData,
-          queueOnly: false,
-          description: 'refresh to load private request details',
-          requesterName: 'loading...',
-          requesterEmail: 'loading...',
-        }, ...prev]);
-      }
       const refreshedClaimed = await getClaimedSupportRequestsBySpecialist(user.uid);
-      setClaimedRequests(refreshedClaimed);
+      setClaimedRequests(refreshedClaimed.map((request) =>
+        request.id === id ? { ...request, ...claimData } : request
+      ));
     } catch (e) {
       logError('Error claiming:', e);
     }
@@ -432,9 +425,9 @@ const SpecialistDashboard = () => {
 
             <div className="flex items-center gap-3 text-xs text-gray-600 lowercase pt-3 border-t border-white/[0.06]">
               <span>while you wait, explore the app:</span>
-              <a href="/resources" className="text-midnight-400 hover:text-midnight-300 transition-colors">resources →</a>
+              <Link to="/resources" className="text-midnight-400 hover:text-midnight-300 transition-colors">resources →</Link>
               <span>·</span>
-              <a href="/community" className="text-midnight-400 hover:text-midnight-300 transition-colors">community →</a>
+              <Link to="/community" className="text-midnight-400 hover:text-midnight-300 transition-colors">community →</Link>
             </div>
           </motion.div>
         </div>
@@ -590,16 +583,25 @@ const SpecialistDashboard = () => {
 
             {/* Request list */}
             {tabReqs.length === 0 ? (
-              <div className="border border-white/[0.08] rounded-2xl p-10 bg-white/[0.02] flex flex-col items-center text-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-olive-500/10 border border-olive-500/20 flex items-center justify-center">
-                  <Inbox className="w-5 h-5 text-olive-500" />
+              loading ? (
+                <div className="border border-white/[0.08] rounded-2xl p-10 bg-white/[0.02] flex flex-col items-center text-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-midnight-400/10 border border-midnight-400/20 flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                  <p className="text-sm text-gray-500 lowercase">loading your request queue...</p>
                 </div>
-                <p className="text-sm text-gray-500 lowercase">
-                  {activeTab === 'open'     && 'no open requests right now'}
-                  {activeTab === 'active'   && 'no active cases — claim one from open'}
-                  {activeTab === 'resolved' && 'no resolved cases yet'}
-                </p>
-              </div>
+              ) : (
+                <div className="border border-white/[0.08] rounded-2xl p-10 bg-white/[0.02] flex flex-col items-center text-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-olive-500/10 border border-olive-500/20 flex items-center justify-center">
+                    <Inbox className="w-5 h-5 text-olive-500" />
+                  </div>
+                  <p className="text-sm text-gray-500 lowercase">
+                    {activeTab === 'open'     && 'no open requests right now'}
+                    {activeTab === 'active'   && 'no active cases — claim one from open'}
+                    {activeTab === 'resolved' && 'no resolved cases yet'}
+                  </p>
+                </div>
+              )
             ) : (
               <div className="space-y-3">
                 {tabReqs.map(req => (
@@ -626,12 +628,12 @@ const SpecialistDashboard = () => {
             <div className="border border-white/[0.08] rounded-2xl p-5 bg-white/[0.02]">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600">profile</p>
-                <a
-                  href="/settings"
+                <Link
+                  to="/settings"
                   className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors lowercase"
                 >
                   edit →
-                </a>
+                </Link>
               </div>
 
               {sp.bio ? (

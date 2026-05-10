@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   collection, getDocs, doc, updateDoc,
   arrayUnion, arrayRemove, increment, query, where
@@ -901,13 +901,13 @@ const Community = () => {
 
                   {authorProfile.type === 'specialist' && authorProfile.verified && (
                     <div className="px-6 py-4">
-                      <a
-                        href="/request-support"
+                      <Link
+                        to="/request-support"
                         onClick={() => setAuthorProfile(null)}
                         className="flex items-center justify-center gap-2 w-full py-2.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
                       >
                         request support from this specialist
-                      </a>
+                      </Link>
                     </div>
                   )}
                 </>
