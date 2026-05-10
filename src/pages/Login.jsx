@@ -48,8 +48,15 @@ const Login = () => {
     try {
       await loginWithGoogle();
     } catch (err) {
+      const googleMessages = {
+        'auth/unauthorized-domain': 'google sign-in is blocked for this domain. add this domain in Firebase Authentication > Settings > Authorized domains.',
+        'auth/popup-blocked': 'the browser blocked the google sign-in popup. allow popups for this site and try again.',
+        'auth/popup-closed-by-user': '',
+        'auth/cancelled-popup-request': 'a previous google sign-in popup was interrupted. please try again.',
+        'auth/operation-not-allowed': 'google sign-in is not enabled in Firebase Authentication.',
+      };
       if (err.code !== 'auth/popup-closed-by-user') {
-        setError('google sign-in failed. please try again.');
+        setError(googleMessages[err.code] ?? `google sign-in failed (${err.code || 'unknown error'}). please try again.`);
       }
       setLoading(false);
     }

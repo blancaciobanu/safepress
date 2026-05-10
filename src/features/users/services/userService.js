@@ -26,7 +26,7 @@ export const getPublicProfile = async (userId) => {
 
 export const createOrUpdatePublicProfile = async (userId, privateProfile) => {
   const publicProfile = buildPublicProfile(privateProfile);
-  await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), publicProfile, { merge: true });
+  await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), publicProfile);
   return publicProfile;
 };
 
@@ -43,9 +43,13 @@ export const reapplySpecialistVerification = async (userId) => {
     'verificationData.submittedAt': submittedAt,
   });
 
-  await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), {
-    verificationStatus: 'pending',
-  }, { merge: true });
+  const updatedPrivateProfile = await getUserProfile(userId);
+  if (updatedPrivateProfile) {
+    await setDoc(
+      doc(db, PUBLIC_PROFILES_COLLECTION, userId),
+      buildPublicProfile(updatedPrivateProfile)
+    );
+  }
 
   return submittedAt;
 };

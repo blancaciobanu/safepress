@@ -16,12 +16,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isVerifiedEmailAuth() && (
-        request.auth.token.admin == true
-        || request.auth.token.email in [
-          'ciobanubianca20@stud.ase.ro'
-        ]
-      );
+      return isVerifiedEmailAuth() && request.auth.token.admin == true;
     }
 
     function currentUserDocExists() {

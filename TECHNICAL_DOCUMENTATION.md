@@ -169,10 +169,7 @@ service cloud.firestore {
     function isVerifiedEmailAuth() { return isAuth() && request.auth.token.email_verified == true; }
     function isOwner(userId) { return isAuth() && request.auth.uid == userId; }
     function isAdmin() {
-      return isVerifiedEmailAuth() && (
-        request.auth.token.admin == true
-        || request.auth.token.email in ['ciobanubianca20@stud.ase.ro']
-      );
+      return isVerifiedEmailAuth() && request.auth.token.admin == true;
     }
   }
 }
@@ -264,11 +261,9 @@ File: `/firestore.indexes.json` — composite indexes:
 Source: `/functions/` — Firebase Functions v2 (Node 20), region `europe-west1`.
 
 - **`setAdminClaim`** (HTTPS callable): grants or revokes the `admin` custom claim on a target user.
-  - Caller must already be admin: either `request.auth.token.admin === true` or have a verified email matching the bootstrap allowlist.
+  - Caller must already have `request.auth.token.admin === true` and a verified email.
   - Writes `claimsUpdatedAt` (server timestamp) to the target's `users/{uid}` doc; the client checks this on next session hydrate and force-refreshes the ID token if it predates the claim change.
   - Invoked from the Admin Dashboard's *internal* tab.
-
-Once the bootstrap admin grants themselves a real claim via this function, the email allowlist can be deleted from both `firestore.rules` and `src/config/security.js`.
 
 Deploy: `cd functions && npm install && firebase deploy --only functions`.
 

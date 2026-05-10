@@ -150,7 +150,7 @@ safepress/
 - The support request page is public to read, but actual request submission now requires both authentication and a verified email.
 - Firebase App Check scaffolding is wired in `src/firebase/config.js` and activates when `VITE_RECAPTCHA_SITE_KEY` is configured.
 - Firestore rules now prefer verified-email trust, optional custom admin claims, and a redacted specialist queue for support requests.
-- Admin role is granted via the `setAdminClaim` Firebase callable (deployed in `europe-west1`); the bootstrap email allowlist in `functions/index.js` is used only until the first claim is issued, after which all admin checks rely on the `admin: true` custom claim.
+- Admin role is granted via the `setAdminClaim` Firebase callable (deployed in `europe-west1`); all admin checks (Firestore rules, function caller validation, client UI) rely on the `admin: true` custom claim plus `email_verified`.
 
 ## Data Structure
 

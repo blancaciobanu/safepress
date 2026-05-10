@@ -96,7 +96,7 @@ export const approveSpecialist = async (userId) => {
   });
   await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), {
     ...buildPublicProfile({ ...(userSnapshot.data() || {}), verificationStatus: 'approved' }),
-  }, { merge: true });
+  });
 
   return verificationDate;
 };
@@ -112,7 +112,7 @@ export const rejectSpecialist = async (userId, rejectionReason) => {
   });
   await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), {
     ...buildPublicProfile({ ...(userSnapshot.data() || {}), verificationStatus: 'rejected' }),
-  }, { merge: true });
+  });
 
   return verificationDate;
 };

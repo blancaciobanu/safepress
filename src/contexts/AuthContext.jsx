@@ -57,7 +57,11 @@ const buildSessionUser = async (firebaseUser) => {
   }
 
   if (Object.keys(profile).length > 0) {
-    await createOrUpdatePublicProfile(firebaseUser.uid, profile);
+    try {
+      await createOrUpdatePublicProfile(firebaseUser.uid, profile);
+    } catch (error) {
+      logError('Public profile sync failed during session hydration:', error);
+    }
   }
 
   return {
@@ -67,7 +71,7 @@ const buildSessionUser = async (firebaseUser) => {
     photoURL: firebaseUser.photoURL,
     metadata: firebaseUser.metadata,
     tokenClaims: tokenResult.claims,
-    isAdmin: isAdminFromClaims(tokenResult.claims, firebaseUser.email),
+    isAdmin: isAdminFromClaims(tokenResult.claims),
     ...profile,
   };
 };
@@ -143,8 +147,13 @@ export const AuthProvider = ({ children }) => {
     }
 
     await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), profile);
-    await createOrUpdatePublicProfile(result.user.uid, profile);
+    try {
+      await createOrUpdatePublicProfile(result.user.uid, profile);
+    } catch (error) {
+      logError('Public profile sync failed after signup:', error);
+    }
     await sendEmailVerification(result.user);
+    await refreshUser();
     return result;
   };
 
@@ -166,11 +175,20 @@ export const AuthProvider = ({ children }) => {
         accountType: 'journalist',
       };
       await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), journalistProfile);
-      await createOrUpdatePublicProfile(result.user.uid, journalistProfile);
+      try {
+        await createOrUpdatePublicProfile(result.user.uid, journalistProfile);
+      } catch (error) {
+        logError('Public profile sync failed after Google signup:', error);
+      }
     } else {
-      await createOrUpdatePublicProfile(result.user.uid, userDoc.data());
+      try {
+        await createOrUpdatePublicProfile(result.user.uid, userDoc.data());
+      } catch (error) {
+        logError('Public profile sync failed after Google login:', error);
+      }
     }
 
+    await refreshUser();
     return result;
   };
 

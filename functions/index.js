@@ -5,15 +5,8 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 initializeApp();
 
-const BOOTSTRAP_ADMIN_EMAILS = ['ciobanubianca20@stud.ase.ro'];
-
-const callerIsAdmin = (auth) => {
-  if (!auth) return false;
-  if (auth.token?.admin === true) return true;
-  if (auth.token?.email_verified !== true) return false;
-  const email = (auth.token?.email || '').toLowerCase();
-  return BOOTSTRAP_ADMIN_EMAILS.includes(email);
-};
+const callerIsAdmin = (auth) =>
+  auth?.token?.admin === true && auth?.token?.email_verified === true;
 
 export const setAdminClaim = onCall({ region: 'europe-west1' }, async (request) => {
   if (!callerIsAdmin(request.auth)) {

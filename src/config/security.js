@@ -1,7 +1,3 @@
-export const ADMIN_EMAILS_FALLBACK = [
-  'ciobanubianca20@stud.ase.ro',
-];
-
 export const MIN_PASSWORD_LENGTH = 12;
 
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).+$/;
@@ -12,11 +8,8 @@ export const isStrongPassword = (password = '') =>
 export const getPasswordRequirementMessage = () =>
   `password must be at least ${MIN_PASSWORD_LENGTH} characters and include uppercase, lowercase, a number, and a symbol`;
 
-export const isConfiguredAdminEmail = (email = '') =>
-  ADMIN_EMAILS_FALLBACK.includes(email.trim().toLowerCase());
-
-export const isAdminFromClaims = (claims = {}, email = '') =>
-  claims?.admin === true || (claims?.email_verified === true && isConfiguredAdminEmail(email));
+export const isAdminFromClaims = (claims = {}) =>
+  claims?.admin === true && claims?.email_verified === true;
 
 export const SUPPORT_REQUEST_TYPES = ['hacked', 'source', 'doxxed', 'phishing', 'other'];
 export const SUPPORT_REQUEST_URGENCIES = ['emergency', 'urgent', 'normal'];
