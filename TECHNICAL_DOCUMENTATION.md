@@ -1940,6 +1940,440 @@ No new composite indexes required.
 
 ---
 
-**Last Updated**: April 19, 2026
-**Version**: 3.3.0
-**Documentation**: Complete (includes Phases 1-18)
+### Phase 19 — Editorial visual system (Home + foundation)
+
+A full visual repositioning of the marketing surface (Home today, About next) away from a generic Gen Z / AI-default aesthetic toward an **editorial premium** direction inspired by indie studios, type foundry pages, and editorial archives. Product surfaces (Dashboard, SecurityScore, etc.) continue to use the existing newsroom-dark token system; legacy color tokens are kept in `:root` so non-redesigned pages render unchanged.
+
+#### 19.1 Type system
+
+Three families loaded via Google Fonts (free, no licensing constraints):
+- **Fraunces** (variable, axes `opsz` / `wght` / `SOFT` / `WONK`) — display, used for headlines, blockquotes, marginalia folios. Variation axes are tuned softer (`opsz 120, SOFT 50, WONK 0`, weight 480) for readability at large sizes; an even softer `display-soft` variant (`opsz 60, SOFT 70`, weight 440) is used for subheads, list entries, and pull-quote attributions.
+- **Geist** — UI / body, modern grotesk.
+- **Geist Mono** — eyebrows, captions, metadata, security cues.
+
+Token additions in `@theme` of `src/index.css`:
+- Ink & paper palette: `--color-paper`, `--color-paper-dim`, `--color-paper-soft`, `--color-ink`, `--color-ink-soft`, `--color-smoke`, `--color-smoke-dim`.
+- Accents: `--color-oxblood` / `--color-oxblood-soft` (primary editorial accent, replaces crimson on marketing surfaces); `--color-brass` / `--color-brass-soft` (supporting highlight, used on inverted ink-on-paper sections).
+- `--font-display: 'Fraunces'`, `--font-sans: 'Geist'`, `--font-mono: 'Geist Mono'`.
+- `--display-axes`, `--display-axes-soft` for tuned variation settings.
+
+#### 19.2 Editorial utilities (`src/index.css`)
+
+- `.surface-paper` — opt-in paper canvas (warm off-white background, multiply-blend SVG grain). Used by Home and will be used by About. Negative top margin + matching pt offset extend the canvas under the fixed header.
+- `.display`, `.display-soft` — Fraunces variants with softer tuning.
+- `.eyebrow`, `.caption`, `.index-num` — mono small-caps utilities.
+- `.dropcap` — first-letter Fraunces drop cap (reserved for editorial paragraphs).
+- `.rule`, `.rule-soft` — hairline dividers (ink on paper / ink on dark).
+- `.link-editorial`, `.link-oxblood` — base link treatments.
+- `.column-editorial` — narrower reading-optimized column.
+
+**Editorial motifs (Phase 19 additions)**
+- `.link-handdrawn` — link with a permanent thin baseline plus an animated oxblood ink stroke that draws left-to-right on hover (500ms ease). Used for primary action links in the Home hero and crisis section.
+- `.ink-caret` — small ink-block element with a slow editorial blink (`caret-blink` keyframes, 1.4s asymmetric steps). Placed at the end of the hero lede paragraph.
+- `.asterism` — three-star (⁂) section divider rendered with flanking hairline rules and oxblood color. Replaces `<hr>` rules between major sections.
+- `.marginalia` — left-rail annotation column with three children: `.folio` (italic Fraunces Roman numeral in oxblood), `.filed` (mono small-caps "filed under" label), `.inscription` (italic Fraunces small sentence). A thin oxblood gutter rule runs vertically on `md` and up. Used in the Home hero's left rail and at the start of §02, §03, §04.
+
+#### 19.3 Home page redesign (`src/pages/Home.jsx`)
+
+Four sections, all set on `.surface-paper`:
+
+1. **§01 Masthead opener** — publication slug line (`SafePress / Vol. I / № 01` and filing line) above a single-focal-point hero stack:
+   - Headline "Journalism is only as safe as *the journalist.*" (Fraunces, key phrase in oxblood italic), constrained to ~18ch so the line break is intentional.
+   - Lede paragraph terminated with `.ink-caret`.
+   - A quiet inline action row below: two `link-handdrawn` entries — "Take the security score" and "Open crisis mode" (oxblood). The earlier 3-column variant with left/right rails was removed: flanking the headline with marginalia + an "in this issue" column gave the eye three competing landing points with no hierarchy.
+2. **§02 Contents** — marginalia (`II.` / "§ 02 — Contents" / inscription) + a 9-col headline "Six instruments. One discipline." + an ordered list of six numbered entries (Security Assessment, Secure Setup, OS Guides, Source Protection, Community, Specialist Support). Each entry renders as an editorial row, not a card.
+3. **§03 In crisis** — marginalia (`III.`) + display-sized blockquote "When the worst happens, the next move shouldn't be a *Google search.*" + supporting paragraph + `link-handdrawn` "Open crisis mode" CTA (oxblood).
+4. **§04 Begin (colophon)** — inverted ink-on-paper section. Marginalia (`IV.`) with locally remapped tokens so it reads correctly on dark. Closing line "Five minutes. No account. *Take the assessment.*" + footer slug line (Open access / No tracking / Open source · Set in Fraunces & Geist).
+
+Asterism (⁂) dividers replace the previous `<hr className="rule" />` between sections. Each fades in on scroll via framer-motion.
+
+#### 19.4 Header (`src/components/layout/Header.jsx`)
+
+Surface-aware single-row layout (`h-16`, ~`pt-20` for content), driven by `isMarketing = useLocation().pathname === '/'`:
+- Italic-roman wordmark `<em>Safe</em><span>Press</span>` set in `.display`.
+- Mono nav (11px, 0.18em tracking) with a hairline underline for the active route (ink on paper, paper on dark — no gold).
+- Crisis banner uses `var(--color-oxblood)` instead of legacy crimson.
+- Notifications bell + user menu integrated into the header row (no floating top-right pills). Crisis toggle at bottom-right restyled as a square slim switch.
+- All auth/notification logic preserved unchanged.
+
+#### 19.5 MainLayout (`src/components/layout/MainLayout.jsx`)
+
+`<main>` padding switched from `pt-24/pt-36` to `pt-20/pt-28` to match the slimmer single-row header.
+
+#### 19.6 File-level summary
+
+| File | Change |
+|------|--------|
+| `src/index.css` | Fraunces + Geist + Geist Mono import; ink & paper tokens; `.surface-paper` with grain overlay; editorial type utilities; Phase 19 motifs (`.link-handdrawn`, `.ink-caret`, `.asterism`, `.marginalia` + `.folio` / `.filed` / `.inscription`); softened Fraunces variation tuning |
+| `src/pages/Home.jsx` | Full rewrite — 3-col masthead hero, marginalia rails on §02/§03/§04, asterism dividers, hand-drawn action links, blinking ink caret, oxblood accents |
+| `src/components/layout/Header.jsx` | Single-row surface-aware editorial header, italic-roman wordmark, integrated auth controls |
+| `src/components/layout/MainLayout.jsx` | Reduced top padding for slimmer header |
+
+No schema, no route, no auth changes in Phase 19. Other pages still render against the legacy dark surface; their redesign is sequenced after Home is approved.
+
+---
+
+### Phase 20 — Dual-state Home front page
+
+The first editorial Home pass looked better, but it still behaved like a brochure. Phase 20 keeps the visual foundation from Phase 19 and makes `Home` do more real front-page work without touching rules, auth semantics, or privileged workflows.
+
+#### 20.1 Safety constraints kept intact
+
+This pass intentionally does **not**:
+- change Firestore rules
+- broaden collection access
+- add new writes from `Home`
+- change protected-route or verification semantics
+- introduce Cloud Functions or backend logic
+
+The redesign remains read-only and compositional. `Home` now reuses:
+- hydrated `useAuth()` profile data
+- the signed-in user’s own support-request query
+- already-permitted specialist queue/case counts for approved specialists
+- public community reads
+- the existing external advisory feed infrastructure
+
+#### 20.2 New Home data layer
+
+A narrow read-only service was added at `src/features/home/services/homeService.js`.
+
+It provides:
+- `getLatestSecurityScore(user)`
+- `getSetupProgress(user)`
+- `getSupportStatusLabel(status)`
+- `getSpecialistVerificationState(user)`
+- `getJournalistHomeSupportSnapshot(userId)` — wraps the existing requester-only support query and returns the latest request
+- `getApprovedSpecialistHomeStats(userId)` — wraps the existing open / claimed / resolved specialist reads
+- `getInternalFieldSignal()` — derives one public community signal
+- `getExternalFieldSignal()` — derives one external advisory item from the existing feed list
+
+No new write helpers were added.
+
+#### 20.3 Community helper for lighter field content
+
+`src/features/community/services/communityService.js` now exports:
+- `listRecentCommunityPosts(maxPosts = 5)`
+
+This avoids loading the entire public community collection just to surface one recent public question/discussion on Home.
+
+#### 20.4 Home behavior (`src/pages/Home.jsx`)
+
+`Home` is now a **dual-state front page**.
+
+**Anonymous / logged-out**
+- keeps the editorial orientation
+- surfaces a dedicated high-contrast **emergency rail** before the hero
+- treats **Security Assessment** as the primary non-emergency path
+- moves the other tools into a supporting list instead of flattening everything into equal-weight brochure entries
+- includes a real “From the field” block:
+  - one external advisory
+  - one internal public community signal
+
+**Signed-in journalist**
+- keeps the user on Home instead of redirecting
+- uses hydrated auth data immediately for:
+  - latest score
+  - setup progress
+- progressively loads only the user’s own support-request state
+- renders a compact summary band:
+  - latest score
+  - setup progress
+  - support status
+  - one next action
+- shows one status line underneath the band instead of duplicating full dashboard panels
+
+**Approved specialist**
+- keeps the same Home shell, but swaps in:
+  - open queue count
+  - active claimed count
+  - resolved count
+  - CTA back to `/specialist-dashboard`
+- only counts already allowed specialist reads are shown; no extra case detail is surfaced on Home
+
+**Pending / rejected / pending-email-verification specialist**
+- shows verification status clearly
+- shows a single next action
+- does **not** show misleading queue summary or specialist workflow counts
+
+#### 20.5 Crisis treatment
+
+The crisis path now has its own visual register near the top of Home:
+- dark emergency rail
+- short scan-first copy
+- direct CTA to the existing `openOverlay()` entry point
+
+No crisis state-management or overlay logic changed in this phase.
+
+#### 20.6 Performance implications
+
+This pass keeps the earlier startup optimizations intact:
+- public Home still paints immediately without waiting for auth hydration
+- signed-in summary uses already-hydrated profile data first
+- secondary reads happen progressively in `useEffect`
+- no notification-style N+1 query pattern was introduced
+- the field block uses one narrow recent-community query instead of loading the whole collection
+
+#### 20.7 File-level summary
+
+| File | Change |
+|------|--------|
+| `src/pages/Home.jsx` | Rebuilt into a dual-state front page with crisis rail, signed-in summary band, primary-vs-supporting tool hierarchy, and “From the field” block |
+| `src/features/home/services/homeService.js` | New read-only Home helper layer for score/setup/support/status/advisory/community signals |
+| `src/features/community/services/communityService.js` | Added `listRecentCommunityPosts()` for a lighter public Home community read |
+
+No rule changes, no schema changes, and no new backend work were introduced in Phase 20.
+
+---
+
+### Phase 21 — Home cohesion pass (whitespace, vocabulary, crisis treatment)
+
+Phase 20 introduced real front-page work but stacked editorial typography (Phase 19 flat hairline language) against four rounded card containers (emergency rail + metrics strip + primary-tool card + field-signal cards), and the spacing ladder was too generous (`py-28 md:py-36` plus an internal `mt-10/12/14/16/20` ladder). The eye landed in three competing places per section and section margins consumed disproportionate canvas. Phase 21 unifies the vocabulary and tightens the rhythm.
+
+#### 21.1 Visual vocabulary unified
+
+All rounded-card containers on Home were flattened to editorial layouts:
+- **Metrics strip** — was `border ... rounded-[1.5rem] overflow-hidden` with a grid of 4 cells (3 metrics + a "Next move" cell). Now: hairline `border-y` with `md:divide-x`, 3 metric cells, no rounded container. The "Next move" cell was removed entirely — it duplicated §02 "Primary path" which already names the next action.
+- **Primary path** — was a `rounded-[1.5rem]` card sitting in a `lg:col-span-5` sidecar next to the supporting-tool list in §02. Now: a flat block on a hairline `border-t`, taking the full content width above the tool list. This was the single biggest layout fix — the previous sidecar pinned the tools list into a `lg:col-span-7` slot which then split internally into title (5) + body (5), so tool descriptions wrapped or truncated. The flat full-width layout gives tool bodies real reading room.
+- **Field-signal cards** — were two `rounded-[1.5rem]` `bg-paper-soft` cards. Now: two flat blocks inside a hairline `border-y` container with `md:divide-x`. The hover state still shifts to oxblood-tinted title.
+
+The emergency rail stays as a rounded ink-on-paper-inverted block (that one is meant to read as a discrete instrument, not as page surface).
+
+#### 21.2 Dismissible emergency rail
+
+The emergency rail above the headline now carries a "Not in crisis" dismiss button (with an `X` icon). Dismissal persists for the session via `sessionStorage` (`safepress:home:emergency-dismissed`). The persistent header crisis toggle (bottom-right) stays available regardless — Home no longer double-renders the same affordance permanently. The rail visual was also tightened (`rounded-[1rem]`, smaller paddings, smaller display-soft size) so it doesn't out-shout the headline.
+
+#### 21.3 Marginalia restraint
+
+Marginalia (folio + filed + inscription with oxblood gutter rule) was previously rendered in all four sections, which flattened the device. Phase 21 keeps marginalia only in **§02** and **§04** — the §01 masthead slug already does the dateline work, and §03 ("From the field") works better as a full-width content section with its own headline.
+
+#### 21.4 Spacing rhythm
+
+Section vertical padding dropped from `py-28 md:py-36` (≈7–9rem each side) to `py-16 md:py-24` (≈4–6rem). Internal `mt-*` ladder normalised to a consistent ramp: `mt-6` (headline → lede), `mt-8/10` (group → small follow-up), `mt-12/14` (group → next group), `mt-16` (section break). Asterism (⁂) dividers were removed in favour of hairline section borders — asterism was a third separator vocabulary on top of marginalia and hairlines, and dropping it lets the editorial type carry the section transitions.
+
+#### 21.5 Hand-drawn link consistency
+
+The §04 closing CTA used `italic underline decoration-1 underline-offset-[0.12em]` while every other primary action used `.link-handdrawn`. A new `.link-handdrawn-dark` variant was added to `src/index.css` — same draw-on-hover ink stroke as the light variant, but with a brass-soft accent line on a paper-tinted baseline (since oxblood loses too much contrast on the ink background). The §04 closing CTA now uses it, so every action link on Home shares one hover treatment.
+
+#### 21.6 Crisis toggle centering fix
+
+The bottom-right crisis toggle in `Header.jsx` had a subtle bug: the inner sliding indicator used `top: 3px` inside a 28px-tall button with a 1px border. With `box-sizing: border-box`, the absolute child's positioning context is the padding edge (content area = 26px), so `top: 3px` left 3px above the slider and only 1px below — visibly off-centre. Switched to `top: 50%` with `translate(X, -50%)` combined into the existing horizontal slide transform. The slider is now always vertically centred regardless of border or box-sizing.
+
+#### 21.7 File-level summary
+
+| File | Change |
+|------|--------|
+| `src/pages/Home.jsx` | Flattened metrics/primary-path/field-signal cards to editorial layouts; dismissible emergency rail with sessionStorage; marginalia kept only in §02/§04; tightened section paddings + normalised internal margin ladder; removed asterism dividers; merged "Next move" cell into primary path |
+| `src/index.css` | Added `.link-handdrawn-dark` for dark-surface action links |
+| `src/components/layout/Header.jsx` | Fixed crisis toggle inner indicator vertical centering (top:50% + translateY(-50%) instead of top:3px) |
+
+No schema, no rule, no service changes. Phase 20's read-only data layer is untouched.
+
+---
+
+## Phase 22 — Home broadsheet skeleton (May 11, 2026)
+
+### 22.1 Why a broadsheet
+
+Phase 21 left Home as a clean editorial page but the §02 grid still showed visible whitespace on the left rail (the marginalia column was mostly air after the inscription) and the user pushed back: "What if the homepage looked like a proper old-style newspaper front page? Journalists know how to navigate that, and it's unique." Phase 22 commits to that paradigm. Home is now treated as the front page of a single editorial publication — masthead, lead story, photograph, multi-column body — with the rest of the page reading as section spreads inside that issue. The unlock is *typographic hierarchy as the layout system*: weight is allocated by headline size, not by box treatments.
+
+### 22.2 Skeleton-pass discipline
+
+The user's persistent direction across the redesign has been "introduce motifs one at a time, never pile them on" (memory: `feedback_editorial_restraint`). Phase 22 is intentionally scoped as a **skeleton pass** — the structure that makes the page read as broadsheet — and explicitly defers all chrome work (kickers, drop caps, folio details, halftone photography, justified text, old-style figures). Each chrome layer will be introduced as a separate pass and confirmed before the next.
+
+The skeleton pass ships four things:
+1. A real broadsheet masthead at the top of §01.
+2. State-aware lead headlines (one per user state) with italic-oxblood emphasis on the noun that carries the headline's weight.
+3. A photograph slot below the headline, accompanied by an italic caption with a `PHOTO` kicker label.
+4. A two-column lede body adjacent to the photo, using CSS `column-count` so a single paragraph flows across columns the way newspaper body copy does.
+
+### 22.3 Broadsheet masthead
+
+A new `<header className="broadsheet-masthead">` block sits at the very top of §01, replacing the previous slim slug bar. Structure:
+- **Top dateline row** — three caption-cap items aligned left/centre/right: today's full dateline (`Monday, May 11, 2026`), issue marker (`Vol. I · № 01`), and tagline (`AN EDITORIAL BRIEF FOR JOURNALISTS AT RISK` or, for signed-in users, `FILED FOR YOUR ACCOUNT`). Anchored under a 3px thick rule (the masthead's top frame).
+- **Centred wordmark** — `SafePress` set in Fraunces via the new `.broadsheet-wordmark` utility class (`opsz:144, wght:700, SOFT:30, WONK:1, letter-spacing:-0.035em, line-height:0.85`). Rendered at `4.5rem → 11rem` across breakpoints. Single italic tagline beneath: *"Safety, drafted with a reporter's hand."*
+- **Bottom rule pair** — paired 3px thick rule + 1px hairline rule via `.broadsheet-rule-pair`, the canonical broadsheet "above-the-fold" separator.
+
+`formatMastheadDate(value)` is a small new helper that formats `new Date()` as `Monday, May 11, 2026`. The component derives `mastheadDateline` once during render.
+
+### 22.4 State-aware lead headlines
+
+The four headlines approved for the broadsheet lead are now wired through:
+
+| User state | Headline | Italic-oxblood emphasis |
+|------------|----------|------------------------|
+| Anonymous visitor | "Safety, written for the people who *write*." | `write` |
+| Logged-in journalist | "Today's brief, *{firstName}*." | first name |
+| Approved specialist | "Today on *the desk.*" | `the desk.` |
+| Pending/rejected specialist | "Your verification is *reading.*" | `reading.` |
+
+Each `pageModel` brief now carries both a plain-string `heading` (for accessibility / fallback) and a `headingNode` JSX field that wraps the emphasis word in the italic-oxblood `<em>` already established as the heading motif. The `<h1>` renders `{heroHeadingNode || heroHeading}` and falls back gracefully.
+
+A new helper `getFirstName(user)` walks `displayName` → email local-part → `'colleague'` so the journalist headline always has a noun to italicise. A small `emphasis(text)` helper centralises the `<em className="italic" style={{ color: 'var(--color-oxblood)' }}>` element used inside each brief builder.
+
+The previous special-case that detected `'the journalist'` substring inside the visitor heading and inserted an oxblood `<em>` was retired — the new `headingNode` system handles emphasis uniformly across all four states.
+
+### 22.5 Photograph slot + caption
+
+A new `.halftone-placeholder` utility renders a paper-soft block at `aspect-ratio: 4/3` with a 5px halftone-dot background pattern (radial-gradient circles over a subtle paper gradient) and a `STILL LIFE — PLACEHOLDER` label faintly centred. This is intentionally a *placeholder*, not a real photograph — the dissertation work will swap a real halftone-treated still life into this slot. Until then the placeholder communicates *where the image lives* and the texture establishes the halftone idiom.
+
+The figure sits in a `md:col-span-5` cell of a 12-column grid below the headline, with an italic Fraunces caption beneath: a `PHOTO` kicker in caps (small-caps style via `caption uppercase tracking-[0.22em]`) followed by an em-dash and the italic line *"A reporter's desk in the quiet before filing."* — classic newspaper photo-caption typography.
+
+### 22.6 Multi-column lede body
+
+The lede paragraph that previously rendered as a single `max-w-[45rem]` block now sits in the `md:col-span-7` cell next to the photograph and is wrapped in `.broadsheet-columns`. That utility sets `column-count: 1` at base and `column-count: 2` from `md:` upwards, with `column-gap: 2.25rem` and an optional `column-rule` hairline. Inside, paragraphs use `break-inside: avoid` so a paragraph never splits across the column gutter.
+
+To give the columns enough body for the flow to read as broadsheet-y, each pageModel brief now carries a `ledeBody` companion paragraph in addition to the existing `lede`. For visitor copy this expands to two paragraphs (purpose + access note); for logged-in states the `ledeBody` adds a secondary sentence about how Home defers to the dashboard or specialist workflow. Single-paragraph briefs still render correctly — the column flow just splits one paragraph across the gutter.
+
+### 22.7 Restructured §01 below-the-fold
+
+The metrics strip and activity callout were repositioned to fit the broadsheet anatomy:
+- **Activity callout** moves *inside the col-span-7 cell* directly under the lede body, separated by a top hairline rule. It reads as a continuation of the lead story rather than a flanking sidebar. The previous oxblood gutter-rule treatment was dropped — a horizontal hairline above the block is enough separation now that the lede sits in two columns.
+- **Metrics strip** moves *below* the photo+lede grid, spanning the full content width as a single border-y "by the numbers" row with `md:divide-x` between cells. This is the canonical newspaper stat-strip position — under the lead, above the section transition.
+
+For anonymous visitors, the two action links (`Take the security score`, `Browse the resource library`) sit in the same below-lede slot as the activity callout for signed-in users, separated by a top hairline. The metrics strip is hidden for visitors.
+
+### 22.8 Primary-path arrow wrap fix
+
+The screenshot in the user's feedback caught the §02 primary-path link rendering with the arrow on a second line ("Open specialist dashboard" / "→"). Root cause: `.link-handdrawn` declares `display: inline-block`, which won outright over Tailwind's `inline-flex` utility in the cascade and left the text + arrow flowing as inline content that wrapped under narrow column widths. Fixed by adding `white-space: nowrap` to both `.link-handdrawn` and `.link-handdrawn-dark` in `src/index.css` — the simplest correct fix, independent of which display mode wins.
+
+### 22.9 File-level summary
+
+| File | Change |
+|------|--------|
+| `src/pages/Home.jsx` | Broadsheet masthead block; state-aware `headingNode` JSX on every brief (visitor + journalist + specialist approved/pending); `ledeBody` companion paragraph; photo+lede 5/7 grid; activity callout moved under lede; metrics strip moved below grid; `getFirstName` + `emphasis` + `formatMastheadDate` helpers |
+| `src/index.css` | New utilities: `.broadsheet-masthead`, `.broadsheet-rule-pair`, `.broadsheet-wordmark`, `.halftone-placeholder`, `.broadsheet-columns`. Added `white-space: nowrap` to `.link-handdrawn` + `.link-handdrawn-dark` to fix arrow wrap |
+
+No schema, no rule, no service changes. The Phase 20 read-only data layer remains untouched — only presentation and copy changed.
+
+### 22.10 Explicitly deferred (next passes)
+
+In order to keep this pass to one paradigm shift, these chrome layers are intentionally **not** included:
+- Kicker labels above tool entries and field signals (small caps section-marker text).
+- Drop cap on the first character of the visitor lede.
+- Folio marks and "Continued on page X" cross-references.
+- Real halftone-treated photograph (asset sourcing).
+- Justified body text with hyphenation (currently left-aligned ragged-right).
+- Old-style (oldstyle) figures in the metrics strip.
+- Edge-to-edge masthead rules (currently constrained to content max-width).
+- Section reweighting on §02–§04 to match the broadsheet idiom (currently §02–§04 retain Phase 21 structure).
+
+Each of these will be picked up as a discrete pass, confirmed visually before moving to the next.
+
+---
+
+## Phase 23 — Three-zone broadsheet commit (May 11, 2026)
+
+### 23.1 Why the structural commit happened now
+
+After Phase 22 shipped the masthead skeleton, the page still read like "a website with a newspaper hat" rather than a genuine broadsheet front page. The user's feedback was direct: the layout was being "too shy," missing actual columns, leaving the security instruments scattered across separate sections instead of anchoring them to the left rail where a newspaper reader expects ribbons of department links. The instruction was to commit fully: real columns, instruments down the left, lead story in the centre, figures and field signals on the right, everything visible at a glance.
+
+This pass folds the previous Phase 22 §02 (working tools list), §03 (field signals), and parts of §01 (metrics strip) all into a single broadsheet front page — three zones below the masthead — so the entire page is "the front page." A separate ink-dark §02 (was Phase 21 §04) remains as the closing "back to work" call.
+
+### 23.2 The three-zone layout
+
+Below the masthead and the dismissible emergency rail, §01 now renders the full-width lead headline followed by a 12-column grid split 3 / 6 / 3:
+
+- **Left (col-span-3) — _The instruments_**: a vertical rail of 4–6 state-aware security tools. Each tool entry shows a kicker label ("01 — Assessment"), a serif title, a 1–2 line summary, and a small caps CTA with an arrow. Hovering re-tints the kicker, title, and CTA to oxblood in unison. The rail is bounded by a top caption rule and a right column rule.
+- **Center (col-span-6) — The lead**: the halftone photo placeholder, an italic photo caption with a "PHOTO" kicker, a two-column body that flows justified-with-hyphens text across the column at md+, and an activity callout (logged-in) or visitor action links beneath a horizontal rule. The activity callout for signed-in users also surfaces the next-action CTA inline.
+- **Right (col-span-3) — Sidebar**: a "By the numbers" stack of three state-aware metrics (each row: caption label / oldstyle-feeling display number / smoke detail), followed by "From the field" with two compact field signal cards (external advisory + internal community signal). Visitors still see "By the numbers" — populated with public access stats (31 score questions / 4 crisis protocols / Access: open) — so the right sidebar is never empty.
+
+Mobile order is logical reading order: headline → center lead → instruments → sidebar. The vertical column rules disappear below md.
+
+### 23.3 State-aware instruments
+
+Three constants drive the left rail content:
+
+| State | Constant | Entries |
+|-------|----------|---------|
+| Visitor | `VISITOR_INSTRUMENTS` | Security score, Source protection, OS guides & tools, Community |
+| Journalist (signed in) | `JOURNALIST_INSTRUMENTS` | Security score, Secure setup, Source protection, OS guides & tools, Community, Specialist support |
+| Specialist (approved or pending) | `SPECIALIST_INSTRUMENTS` | Specialist dashboard, Community, Source protection, OS guides & tools, Settings |
+
+Each entry has `kicker` (numbered category label), `title`, `body` (1–2 line description), `to`, and `cta`. The `pageModel` for every user state now sets `instruments` instead of the old `primaryTool` + `supportingTools` pair, and the §01 left rail iterates over that array via the new `RailInstrument` component.
+
+### 23.4 Restored visitor headline
+
+The visitor lead headline reverts to the previous "Journalism is as safe as the journalist." with italic-oxblood emphasis on _the journalist._ The Phase 22 attempt ("Safety, written for the people who write.") was retired — the user explicitly preferred the older line for its editorial bite. The four other state headlines (`Today's brief, {firstName}.` / `Today on the desk.` / `Your verification is reading.`) carry over unchanged.
+
+### 23.5 Multi-column body — justified with hyphenation
+
+`.broadsheet-columns` in `src/index.css` was tightened for the narrower center column:
+
+- Removed `break-inside: avoid` from the inner `<p>` rule so paragraphs flow naturally across columns instead of getting stuck in one.
+- Added `text-align: justify` and `hyphens: auto; -webkit-hyphens: auto` — the canonical newspaper body treatment.
+- Reduced `column-gap` from 2.25rem to 1.75rem.
+- Added `text-indent: 1.1em` to the second paragraph (the classic paragraph indent after the first paragraph in a newspaper column).
+
+Visitor and signed-in user lede copy was extended to roughly twice its Phase 22 length, so each user state now has two genuine paragraphs that fill the two-column flow rather than ~3 lines of orphaned text in column one.
+
+### 23.6 Removed sections
+
+The previous Phase 21 §02 "Working tools" and Phase 21 §03 "From the field" are gone entirely. Their content is absorbed into the §01 left rail and right sidebar respectively. The previous §04 "Continue" closing section is renumbered to §02 with the marginalia folio updated from `IV.` to `II.` and `§ 04 — Continue` to `§ 02 — Continue`. The full-width metrics strip below the §01 grid is also gone — metrics now live exclusively in the right sidebar.
+
+### 23.7 Removed components and imports
+
+- `ToolEntry` and `FieldSignal` are deleted — they served the old full-width §02 and §03 sections that no longer exist.
+- New components: `RailInstrument` (left rail item), `SidebarStat` (right sidebar metric row), `CompactFieldSignal` (right sidebar field signal card).
+- Icon imports trimmed to just `AlertTriangle`, `ArrowRight`, `ArrowUpRight`, `X` — the rail uses kicker labels instead of icons (broadsheets do not).
+- `JOURNALIST_SUPPORTING_TOOLS` and `SPECIALIST_SUPPORTING_TOOLS` constants are replaced by the three `*_INSTRUMENTS` constants above.
+
+### 23.8 File-level summary
+
+| File | Change |
+|------|--------|
+| `src/pages/Home.jsx` | Cut §02 and §03; absorbed both into the §01 three-zone broadsheet body (rail + lead + sidebar); renumbered closing §04 → §02; restored visitor headline to "Journalism is as safe as the journalist."; doubled lede length on every user state; introduced `VISITOR_INSTRUMENTS` / `JOURNALIST_INSTRUMENTS` / `SPECIALIST_INSTRUMENTS` constants; introduced `RailInstrument`, `SidebarStat`, `CompactFieldSignal` components; removed `ToolEntry`, `FieldSignal`, supporting-tools constants, and unused icon imports |
+| `src/index.css` | `.broadsheet-columns` now justified + hyphenated, column-gap 1.75rem, no break-inside lock, second paragraph indents 1.1em |
+
+No schema, no rule, no service changes. The Phase 20 read-only data layer remains untouched.
+
+### 23.9 Explicitly deferred (next passes)
+
+This pass commits to the broadsheet **structure** rather than piling on every newspaper motif at once. Still deferred:
+- Kicker labels above the §02 (closing) heading.
+- Drop cap on the first character of each lede.
+- Folio marks and "Continued on page X" cross-references.
+- Real halftone-treated photograph (asset sourcing).
+- Old-style (oldstyle) figures in the sidebar metrics.
+- Edge-to-edge masthead rules (currently constrained to content max-width).
+- Re-skinning §02 (closing) to broadsheet idiom (currently still uses the Phase 21 ink-dark closing pattern).
+
+---
+
+## Phase 23.1 — Masthead and chrome trim (May 11, 2026)
+
+Small follow-up cleanup after a visual review of the Phase 23 commit. Three pieces of chrome were called out as either tryhard or visually noisy and removed; the crisis toggle was reanchored as a proper footer pill.
+
+### 23.1.1 Masthead pared down to a strip
+
+In [src/pages/Home.jsx](src/pages/Home.jsx) the masthead block was simplified to act as a strip beneath a real-newspaper-style top rule, rather than an oversized SafePress nameplate:
+
+- Removed the third caption (`Filed for your account` / `An editorial brief for journalists at risk`) — felt like a tagline more than a dateline.
+- Removed the centered `broadsheet-wordmark` "SafePress" block and the "Safety, drafted with a reporter's hand." italic tagline.
+- Removed the `broadsheet-rule-pair` divider that was bracketing the nameplate; without the nameplate it had nothing to frame.
+
+Result: front page opens with a thin top rule, a dateline + volume/issue strip, and goes straight to the lead headline ("Journalism is as safe as the journalist."). The headline is now the sole focal point at the top, consistent with the editorial-restraint discipline.
+
+### 23.1.2 Footer caption strip in §02 removed
+
+The bottom border-divided strip in §02 reading `Open access · Crisis protocols stay public · Front page updates quietly` / `Set in Fraunces & Geist` was deleted. It read as press-release boilerplate inside an editorial layout and competed with the closing CTA without earning that attention.
+
+### 23.1.3 Crisis toggle re-anchored as a footer pill
+
+In [src/components/layout/Header.jsx](src/components/layout/Header.jsx) the bottom-right crisis toggle was previously two free-floating elements (label + pill switch) over a transparent backdrop, which made content visible behind them as the page scrolled — visually muddy.
+
+The toggle is now wrapped in a single bordered pill container with:
+- A solid surface-aware background — paper-tone (`rgba(248, 244, 236, 0.92)`) on marketing surfaces, ink-tone (`rgba(15, 14, 13, 0.88)`) on dark product surfaces.
+- `backdrop-blur-md` so any content that does scroll behind it stays muted rather than reading through.
+- A 1px surface-aware border and a soft shadow so the pill reads as its own deliberate component rather than overlay UI.
+
+It still toggles the same `useCrisis` actions; only the visual presence changed.
+
+### 23.1.4 What this confirms about restraint
+
+This pass deletes three pieces of chrome (caption row, big wordmark + tagline, footer info strip) and adds none. The crisis toggle change is purely visual containment, not new vocabulary. Editorial restraint memory rule held: every removal reduced the count of competing focal points on the front page.
+
+---
+
+**Last Updated**: May 11, 2026
+**Version**: 3.8.1
+**Documentation**: Complete (includes Phases 1-23.1)

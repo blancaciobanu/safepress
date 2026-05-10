@@ -113,6 +113,7 @@ Important new improvements since the earlier review:
 - public pages no longer wait on auth hydration before first paint; only protected routes keep the auth-loading gate
 - several logged-in screens now reuse hydrated auth data instead of re-fetching the same profile document, which trims duplicated Firestore work after sign-in
 - notification lookups are now less chatty by batching followed-post fetches and skipping comment subcollection checks for posts that have no recent activity
+- Home is now a dual-state front page rather than a static brochure: anonymous users get crisis-first orientation, while signed-in users get a lighter role-aware brief assembled from existing permitted reads only
 
 This is a strong Firebase-only architecture for the current stage, even though it is not the final possible security model.
 

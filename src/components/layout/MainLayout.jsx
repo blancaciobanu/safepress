@@ -11,11 +11,10 @@ const MainLayout = () => {
       <Header />
       <CrisisOverlay />
       {/*
-        Header height: ~96px (pt-24)
-        Crisis banner: ~40px
-        Total with crisis: ~136px → pt-36 (144px) gives safe clearance
+        Single-row editorial header: h-16 (64px) → pt-20 with breathing room.
+        Crisis banner adds ~32px → pt-28 with breathing room.
       */}
-      <main className={`pb-12 transition-[padding-top] duration-300 ${isInCrisis ? 'pt-36' : 'pt-24'}`}>
+      <main className={`pb-12 transition-[padding-top] duration-300 ${isInCrisis ? 'pt-28' : 'pt-20'}`}>
         <Outlet />
       </main>
     </div>

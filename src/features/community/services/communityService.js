@@ -9,6 +9,7 @@ import {
   getDoc,
   getDocs,
   increment,
+  limit,
   orderBy,
   query,
   runTransaction,
@@ -45,6 +46,18 @@ export const listCommunityPosts = async () => {
   return mapSnapshotDocs(snapshot)
     .map((post) => ({ ...post, commentCount: getPostCommentCount(post) }))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+};
+
+export const listRecentCommunityPosts = async (maxPosts = 5) => {
+  const recentPostsQuery = query(
+    collection(db, COMMUNITY_POSTS_COLLECTION),
+    orderBy('createdAt', 'desc'),
+    limit(maxPosts)
+  );
+
+  const snapshot = await getDocs(recentPostsQuery);
+  return mapSnapshotDocs(snapshot)
+    .map((post) => ({ ...post, commentCount: getPostCommentCount(post) }));
 };
 
 export const listCommunityPostsByIds = async (postIds = []) => {

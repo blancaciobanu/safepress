@@ -1,55 +1,63 @@
-/* Red Hat Display + Inter (editorial with character) */
-@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Inter:wght@300;400;500;600;700&display=swap');
+/* ─── Editorial type system ─────────────────────────────────────────────
+   Fraunces (variable, opsz/wght/SOFT/WONK) — display, set with tension.
+   Geist — UI/body, sharp modern grotesk.
+   Geist Mono — metadata, labels, security cues.
+─────────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
 
 @import "tailwindcss";
 
 @theme {
-  /* Dark base — deep, near-black */
+  /* ─── Ink & Paper — editorial / marketing surfaces ─────────────────── */
+  --color-paper:        #F4EFE6;   /* warm off-white, like uncoated stock */
+  --color-paper-dim:    #EAE3D5;   /* slightly toasted */
+  --color-paper-soft:   #FAF6EE;   /* near-white highlights */
+  --color-ink:          #15110C;   /* deep near-black, warm undertone */
+  --color-ink-soft:     #2A2418;   /* body text on paper */
+  --color-smoke:        #6B6253;   /* secondary text on paper */
+  --color-smoke-dim:    #948A78;   /* tertiary, captions, metadata */
+
+  /* Accents — restrained, one primary + one supporting */
+  --color-oxblood:      #6B1F1F;   /* deep serious accent */
+  --color-oxblood-soft: #8A2A2A;
+  --color-brass:        #8A6D2C;   /* muted editorial highlight */
+  --color-brass-soft:   #A6873E;
+
+  /* ─── Newsroom Dark — product / logged-in surfaces (kept compatible) ─── */
   --color-dark-900: #0B0B11;
   --color-dark-800: #13131C;
   --color-dark-700: #1A1A27;
   --color-dark-600: #222233;
 
-  /* Crimson — crisis only */
+  /* ─── Legacy accent tokens (kept so non-Home pages still render) ──── */
   --color-crimson-400: #EF4444;
   --color-crimson-500: #DC2626;
   --color-crimson-600: #B91C1C;
-
-  /* Indigo — primary interactive (replaced generic blue) */
   --color-midnight-400: #4361EE;
   --color-midnight-500: #3451D1;
   --color-midnight-600: #2540B0;
-
-  /* Warm Amber */
   --color-amber-400: #FBBF24;
   --color-amber-500: #F59E0B;
   --color-amber-600: #D97706;
-
-  /* Steel Gray */
   --color-steel-400: #94A3B8;
   --color-steel-500: #64748B;
   --color-steel-600: #475569;
-
-  /* Olive — verified/safe */
   --color-olive-400: #84CC16;
   --color-olive-500: #65A30D;
   --color-olive-600: #4D7C0F;
-
-  /* Teal */
   --color-teal-400: #2DD4BF;
   --color-teal-500: #14B8A6;
   --color-teal-600: #0D9488;
-
-  /* Purple */
   --color-purple-400: #A78BFA;
   --color-purple-500: #8B5CF6;
   --color-purple-600: #7C3AED;
 
-  /* Fonts */
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-display: 'Red Hat Display', sans-serif;
+  /* ─── Fonts ──────────────────────────────────────────────────────── */
+  --font-sans:    'Geist', system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-mono:    'Geist Mono', ui-monospace, monospace;
 
-  /* Animations */
+  /* ─── Animations ─────────────────────────────────────────────────── */
   --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
   --animate-gradient-shift: gradient-shift 8s ease infinite;
@@ -57,11 +65,17 @@
   --animate-fade-in: fade-in 0.3s ease-out;
 }
 
-/* ─── Editorial gold tokens (decorative — not used on button backgrounds) ─── */
+/* ─── Editorial tokens ──────────────────────────────────────────────── */
 :root {
   --gold: #C9A84C;
   --gold-dim: #A8872C;
   --gold-bright: #E2C27A;
+
+  /* Editorial type tuning — Fraunces variable axes
+     Softened from the previous hard cut (SOFT 0, WONK 1) for readability
+     while preserving the editorial feel. */
+  --display-axes: 'opsz' 120, 'SOFT' 50, 'WONK' 0;
+  --display-axes-soft: 'opsz' 60, 'SOFT' 70, 'WONK' 0;
 }
 
 /* ─── Keyframes ─── */
@@ -90,63 +104,78 @@
   100% { opacity: 1; }
 }
 
-/* ─── Base ─── */
+/* ─── Base ─────────────────────────────────────────────────────────────
+   Body remains dark for product surfaces still on the old system.
+   Marketing surfaces (Home, eventually About) override with paper.
+─────────────────────────────────────────────────────────────────────── */
 body {
   background-color: #0B0B11;
-  color: #EAE7E0;             /* Warm off-white — feels like quality paper */
-  font-family: 'Inter', system-ui, sans-serif;
+  color: #EAE7E0;
+  font-family: 'Geist', system-ui, sans-serif;
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "ss02", "kern";
 }
 
-/* white still means white where explicitly used */
 .text-white { color: #ffffff !important; }
 
-/* ─── Background — editorial "newsroom at night" gradient ─── */
+/* ─── Restrained background for product surfaces ────────────────────── */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   background:
-    /* Warm gold glow — top-centre, like a lamp over a desk */
-    radial-gradient(ellipse 65% 35% at 50% -8%, rgba(201, 168, 76, 0.07), transparent),
-    /* Indigo wash — left */
-    radial-gradient(ellipse 55% 60% at -8% 45%, rgba(67, 97, 238, 0.07), transparent),
-    /* Indigo wash — right */
-    radial-gradient(ellipse 55% 60% at 108% 55%, rgba(67, 97, 238, 0.05), transparent),
-    /* Crimson ember — bottom */
-    radial-gradient(ellipse 100% 55% at 50% 110%, rgba(220, 38, 38, 0.04), transparent);
-  filter: blur(90px);
+    radial-gradient(ellipse 70% 40% at 50% -10%, rgba(201, 168, 76, 0.035), transparent),
+    radial-gradient(ellipse 80% 50% at 50% 110%, rgba(107, 31, 31, 0.025), transparent);
+  filter: blur(80px);
   z-index: -2;
   pointer-events: none;
 }
 
-/* ─── Grain texture — editorial tactility ─── */
 body::after {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.8' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.065'/%3E%3C/svg%3E");
-  opacity: 0.65;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.8' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
+  opacity: 0.5;
   z-index: -1;
   pointer-events: none;
   mix-blend-mode: overlay;
 }
 
-/* ─── Glass cards ─── */
+/* ─── Editorial surface — opt-in paper canvas (Home, About) ─────────── */
+.surface-paper {
+  background-color: var(--color-paper);
+  color: var(--color-ink-soft);
+  position: relative;
+  isolation: isolate;
+}
 
-/* Standard surface — crisper than before */
+/* Paper-specific grain — subtle print noise, multiply blend */
+.surface-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.08'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.surface-paper > * { position: relative; z-index: 1; }
+
+/* ─── Glass cards (legacy — kept for product surfaces) ──────────────── */
 .glass-card {
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.625rem;   /* 10px — sharper, more editorial */
+  border-radius: 0.625rem;
 }
 
-/* Elevated — for featured/primary content */
 .glass-card-raised {
   background: rgba(255, 255, 255, 0.07);
   backdrop-filter: blur(20px);
@@ -154,14 +183,12 @@ body::after {
   border-radius: 0.625rem;
 }
 
-/* Flat — for dense lists, sidebars */
 .glass-card-flat {
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 0.5rem;
 }
 
-/* Gold-accented left border — editorial callout */
 .glass-card-accent {
   background: rgba(201, 168, 76, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -170,31 +197,91 @@ body::after {
   padding-left: 1.25rem;
 }
 
-/* ─── Typography utilities ─── */
+/* ─── Typography utilities — editorial vocabulary ───────────────────── */
 
-/* Eyebrow / section label — the thing that makes editorial design feel editorial */
+/* Display — Fraunces tuned for editorial readability */
+.display {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-axes);
+  font-weight: 480;
+  letter-spacing: -0.018em;
+  line-height: 0.98;
+}
+
+.display-soft {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-axes-soft);
+  font-weight: 440;
+  letter-spacing: -0.012em;
+  line-height: 1.08;
+}
+
+/* Eyebrow — masthead/section label */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Legacy label — used by other pages */
 .label {
-  font-size: 0.6875rem;          /* 11px */
+  font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #64748B;                /* steel-500 */
+  color: #64748B;
 }
 
-/* Tabular numbers for scores, stats */
+/* Caption — small, metadata-style */
+.caption {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--color-smoke);
+}
+
+/* Drop cap — first letter of an opening paragraph */
+.dropcap::first-letter {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-axes);
+  float: left;
+  font-size: 4.5em;
+  line-height: 0.85;
+  padding-right: 0.08em;
+  padding-top: 0.04em;
+  color: var(--color-ink);
+}
+
+/* Index number — small monospace for entry numbering */
+.index-num {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tabular numbers */
 .num {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   letter-spacing: -0.02em;
 }
 
-/* Horizontal rule */
+/* Editorial rule — hairline divider on paper */
 .rule {
+  border: none;
+  border-top: 1px solid rgba(21, 17, 12, 0.12);
+}
+
+.rule-soft {
   border: none;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* ─── Brand gradient — gold editorial ─── */
+/* ─── Brand gradient (legacy) ───────────────────────────────────────── */
 .gradient-text {
   background: linear-gradient(135deg, var(--gold-bright), var(--gold), var(--gold-dim));
   background-clip: text;
@@ -204,7 +291,7 @@ body::after {
   animation: gradient-shift 6s ease infinite;
 }
 
-/* ─── Buttons ─── */
+/* ─── Buttons (legacy — kept for product surfaces) ──────────────────── */
 .btn-glass {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(14px);
@@ -243,7 +330,194 @@ body::after {
 
 .btn-crisis:active { transform: scale(0.95); }
 
-/* ─── Layout ─── */
+/* ─── Editorial link — for paper surfaces ───────────────────────────── */
+.link-editorial {
+  position: relative;
+  color: var(--color-ink);
+  text-decoration: none;
+  background-image: linear-gradient(var(--color-ink), var(--color-ink));
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  transition: background-size 0.35s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s;
+}
+
+.link-editorial:hover {
+  background-size: 100% 100%;
+  color: var(--color-paper);
+}
+
+.link-oxblood {
+  color: var(--color-oxblood);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  transition: color 0.2s;
+}
+
+.link-oxblood:hover { color: var(--color-oxblood-soft); }
+
+/* ─── Editorial motifs — restrained, journalism-specific ─────────────── */
+
+/* Hand-drawn underline — ink stroke that draws left to right on hover.
+   Two layers: a permanent thin baseline, plus an animated "ink" line above. */
+.link-handdrawn {
+  position: relative;
+  color: var(--color-ink);
+  text-decoration: none;
+  display: inline-block;
+  padding-bottom: 0.18em;
+}
+
+.link-handdrawn::before,
+.link-handdrawn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+}
+
+.link-handdrawn::before {
+  width: 100%;
+  background: rgba(21, 17, 12, 0.18);
+}
+
+.link-handdrawn::after {
+  width: 0%;
+  background: var(--color-oxblood);
+  height: 1.5px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.link-handdrawn:hover { color: var(--color-oxblood); }
+.link-handdrawn:hover::after { width: 100%; }
+
+/* Dark-surface variant — used on the ink-on-paper closing section */
+.link-handdrawn-dark {
+  position: relative;
+  color: var(--color-paper);
+  text-decoration: none;
+  display: inline-block;
+  padding-bottom: 0.18em;
+}
+
+.link-handdrawn-dark::before,
+.link-handdrawn-dark::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+}
+
+.link-handdrawn-dark::before {
+  width: 100%;
+  background: rgba(244, 239, 230, 0.25);
+}
+
+.link-handdrawn-dark::after {
+  width: 0%;
+  background: var(--color-brass-soft);
+  height: 1.5px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.link-handdrawn-dark:hover { color: var(--color-brass-soft); }
+.link-handdrawn-dark:hover::after { width: 100%; }
+
+/* Blinking ink caret — set at end of lede paragraph, slow editorial blink */
+.ink-caret {
+  display: inline-block;
+  width: 0.08em;
+  height: 0.95em;
+  background: var(--color-ink);
+  margin-left: 0.18em;
+  vertical-align: -0.08em;
+  animation: caret-blink 1.4s steps(2, start) infinite;
+}
+
+@keyframes caret-blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0; }
+}
+
+/* Asterism — three-star section divider (⁂), oxblood, on paper */
+.asterism {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--color-oxblood);
+  letter-spacing: 0.4em;
+  line-height: 1;
+  user-select: none;
+}
+
+.asterism::before,
+.asterism::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid rgba(21, 17, 12, 0.12);
+  margin: 0 1.5rem;
+}
+
+/* Marginalia — left-column editorial annotation column with hairline gutter */
+.marginalia {
+  position: relative;
+  padding-right: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .marginalia::after {
+    content: '';
+    position: absolute;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    right: 0;
+    width: 1px;
+    background: var(--color-oxblood);
+    opacity: 0.5;
+  }
+}
+
+.marginalia .folio {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-axes-soft);
+  font-weight: 440;
+  font-style: italic;
+  font-size: 2.25rem;
+  line-height: 1;
+  color: var(--color-oxblood);
+  letter-spacing: 0.01em;
+}
+
+.marginalia .filed {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-smoke);
+  margin-top: 0.85rem;
+  display: block;
+}
+
+.marginalia .inscription {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-axes-soft);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--color-ink-soft);
+  margin-top: 1rem;
+  max-width: 14rem;
+}
+
+/* ─── Layout ────────────────────────────────────────────────────────── */
 .section-container {
   max-width: 80rem;
   margin-inline: auto;
@@ -253,7 +527,13 @@ body::after {
 @media (min-width: 640px)  { .section-container { padding-inline: 1.5rem; } }
 @media (min-width: 1024px) { .section-container { padding-inline: 2rem; } }
 
-/* ─── Scrollbar ─── */
+/* Editorial column — narrower, reading-optimized */
+.column-editorial {
+  max-width: 68rem;
+  margin-inline: auto;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────── */
 .scrollbar-thin::-webkit-scrollbar       { width: 6px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: #13131C; }
 .scrollbar-thin::-webkit-scrollbar-thumb {
@@ -281,7 +561,7 @@ body::after {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── Bento grid (kept for future use) ─── */
+/* ─── Bento grid (legacy) ──────────────────────────────────────────── */
 .bento-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
@@ -298,4 +578,117 @@ body::after {
   .bento-item,
   .bento-item.large,
   .bento-item.small { grid-column: span 12; }
+}
+
+/* ─── Broadsheet skeleton ──────────────────────────────────────────── */
+
+.broadsheet-masthead {
+  border-top: 3px solid var(--color-ink);
+  position: relative;
+  padding-top: 0.5rem;
+}
+
+.broadsheet-rule-pair {
+  border-top: 3px solid var(--color-ink);
+  position: relative;
+}
+.broadsheet-rule-pair::after {
+  content: '';
+  display: block;
+  height: 1px;
+  background: var(--color-ink);
+  margin-top: 3px;
+}
+
+.broadsheet-wordmark {
+  font-family: var(--font-display, 'Fraunces', serif);
+  font-weight: 700;
+  font-variation-settings: 'opsz' 144, 'wght' 700, 'SOFT' 30, 'WONK' 1;
+  letter-spacing: -0.035em;
+  line-height: 0.85;
+  color: var(--color-ink);
+}
+
+.halftone-placeholder {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background-color: var(--color-paper-soft);
+  background-image:
+    radial-gradient(circle at center, rgba(33, 25, 22, 0.42) 32%, transparent 33%),
+    linear-gradient(180deg, rgba(33, 25, 22, 0.08) 0%, rgba(33, 25, 22, 0.18) 100%);
+  background-size: 5px 5px, 100% 100%;
+  background-position: 0 0, 0 0;
+  border: 1px solid rgba(33, 25, 22, 0.2);
+  overflow: hidden;
+}
+
+.halftone-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg,
+    rgba(244, 239, 230, 0.0) 0%,
+    rgba(244, 239, 230, 0.25) 40%,
+    rgba(244, 239, 230, 0.55) 100%);
+  mix-blend-mode: lighten;
+}
+
+.halftone-placeholder::after {
+  content: 'STILL LIFE — PLACEHOLDER';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, 'Geist Mono', monospace);
+  font-size: 0.65rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  opacity: 0.45;
+}
+
+.broadsheet-columns {
+  column-count: 1;
+  column-gap: 1.75rem;
+  column-rule: 1px solid rgba(33, 25, 22, 0.15);
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.broadsheet-columns > p {
+  margin: 0;
+}
+
+.broadsheet-columns > p + p {
+  margin-top: 0.85rem;
+  text-indent: 1.1em;
+}
+
+@media (min-width: 768px) {
+  .broadsheet-columns {
+    column-count: 2;
+  }
+}
+
+.broadsheet-columns-tight {
+  column-count: 1;
+  column-gap: 1.5rem;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.broadsheet-columns-tight > p {
+  margin: 0;
+}
+.broadsheet-columns-tight > p + p {
+  margin-top: 0.75rem;
+  text-indent: 1em;
+}
+
+.link-handdrawn,
+.link-handdrawn-dark {
+  white-space: nowrap;
 }

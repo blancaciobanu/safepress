@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield, Menu, X, LogOut, AlertCircle, ShieldCheck, ArrowRight,
+  Menu, X, LogOut, AlertCircle, ShieldCheck, ArrowRight,
   Bell, Settings, ChevronDown,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -30,10 +30,10 @@ const notifTimeAgo = (iso) => {
 };
 
 const SCENARIO_LABELS = {
-  hacked:   "I've Been Hacked",
-  source:   "Source Exposed",
-  doxxed:   "Being Doxxed",
-  phishing: "Phishing Attempt",
+  hacked:   "I've been hacked",
+  source:   "Source exposed",
+  doxxed:   "Being doxxed",
+  phishing: "Phishing attempt",
 };
 
 const getNotifCacheKey = (uid) => `${NOTIF_COUNT_CACHE_PREFIX}${uid}`;
@@ -113,7 +113,6 @@ const Header = () => {
 
       const notifs = [];
 
-      // Support requests: claimed or resolved
       const reqSnap = await getDocs(
         query(collection(db, COLLECTIONS.SUPPORT_REQUESTS), where('requesterId', '==', user.uid))
       );
@@ -127,7 +126,6 @@ const Header = () => {
         }
       });
 
-      // Followed posts: new comments since last seen
       const followedPosts = await listCommunityPostsByIds(followedPostIds);
       for (const post of followedPosts) {
         if (!needsCommentRefresh(post, lastSeen)) continue;
@@ -157,7 +155,6 @@ const Header = () => {
       setNotifCount(0);
       persistNotifCount(0);
 
-      // Mark as seen
       await updateDoc(userRef, {
         notifLastSeen: new Date().toISOString(),
       });
@@ -167,7 +164,6 @@ const Header = () => {
     setNotifLoading(false);
   };
 
-  // Count notifications on mount so badge appears without opening the bell
   useEffect(() => {
     if (!user) {
       setNotifCount(0);
@@ -192,7 +188,7 @@ const Header = () => {
         setNotifCount(count);
         persistNotifCount(count);
       } catch {
-        // Keep this silent; notifications should never block navigation.
+        // notifications never block navigation
       }
     };
 
@@ -211,7 +207,6 @@ const Header = () => {
     };
   }, [user?.uid]);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false);
@@ -245,283 +240,315 @@ const Header = () => {
 
   const isActive = (path) => location.pathname === path;
 
+  // ─── Surface-aware palette ────────────────────────────────────────────
+  // Marketing surfaces (Home, eventually About) render on paper; product
+  // surfaces stay on the legacy dark canvas.
+  const isMarketing = location.pathname === '/';
+
+  const t = isMarketing
+    ? {
+        headerBg:     'bg-[color:var(--color-paper)]/95 backdrop-blur-md',
+        headerBorder: 'border-[color:var(--color-ink)]/10',
+        wordmark:     'text-[color:var(--color-ink)]',
+        navText:      'text-[color:var(--color-smoke)] group-hover:text-[color:var(--color-ink)]',
+        navTextActive:'text-[color:var(--color-ink)]',
+        navRule:      'var(--color-ink)',
+        controlBg:    'bg-transparent hover:bg-[color:var(--color-ink)]/[0.04]',
+        controlBorder:'border-[color:var(--color-ink)]/15',
+        controlIcon:  'text-[color:var(--color-ink-soft)]',
+        userText:     'text-[color:var(--color-ink-soft)]',
+        userChevron:  'text-[color:var(--color-smoke)]',
+        dropdownBg:   'bg-[color:var(--color-paper-soft)]',
+        dropdownBorder:'border-[color:var(--color-ink)]/10',
+        dropdownText: 'text-[color:var(--color-ink-soft)]',
+        dropdownHover:'hover:bg-[color:var(--color-ink)]/[0.04] hover:text-[color:var(--color-ink)]',
+        dropdownDivider:'border-[color:var(--color-ink)]/10',
+        dropdownLabel:'text-[color:var(--color-smoke)]',
+        badgeBg:      'bg-[color:var(--color-oxblood)]',
+      }
+    : {
+        headerBg:     'bg-dark-900/95 backdrop-blur-md',
+        headerBorder: 'border-white/[0.06]',
+        wordmark:     'text-[color:var(--color-paper)]',
+        navText:      'text-gray-500 group-hover:text-gray-200',
+        navTextActive:'text-white',
+        navRule:      'var(--color-paper)',
+        controlBg:    'bg-transparent hover:bg-white/[0.05]',
+        controlBorder:'border-white/15',
+        controlIcon:  'text-gray-400',
+        userText:     'text-gray-300',
+        userChevron:  'text-gray-500',
+        dropdownBg:   'bg-dark-800',
+        dropdownBorder:'border-white/[0.08]',
+        dropdownText: 'text-gray-300',
+        dropdownHover:'hover:bg-white/[0.04] hover:text-white',
+        dropdownDivider:'border-white/[0.06]',
+        dropdownLabel:'text-gray-500',
+        badgeBg:      'bg-[color:var(--color-oxblood)]',
+      };
+
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
 
-      {/* ── Top-right: notification bell + user menu ───────────────────── */}
-      <div className="fixed top-3 right-4 z-[60] flex items-center gap-2">
-
-        {loading ? (
-          <div className="w-20 h-8 rounded-full bg-white/[0.04] border border-white/[0.08] animate-pulse" />
-        ) : user ? (
-          <>
-            {/* Notification bell — only for logged-in users */}
-            <div className="relative" ref={notifRef}>
-              <button
-                onClick={() => {
-                  const opening = !notifOpen;
-                  setNotifOpen(o => !o);
-                  setUserMenuOpen(false);
-                  if (opening) fetchNotifications();
-                }}
-                className="relative w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-gray-500 hover:text-gray-300 transition-all"
-              >
-                <Bell className="w-3.5 h-3.5" />
-                {notifCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-crimson-500 rounded-full text-[8px] font-bold text-white flex items-center justify-center leading-none">
-                    {notifCount > 9 ? '9+' : notifCount}
-                  </span>
-                )}
-              </button>
-
-              <AnimatePresence>
-                {notifOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0,  scale: 1     }}
-                    exit={{    opacity: 0, y: -6, scale: 0.97  }}
-                    transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-                    className="absolute top-full right-0 mt-2 w-72 glass-card rounded-xl border border-white/[0.08] overflow-hidden"
-                    style={{ zIndex: 4 }}
-                  >
-                    <div className="px-4 py-3 border-b border-white/[0.06]">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">notifications</p>
-                    </div>
-                    {notifLoading ? (
-                      <div className="px-4 py-6 flex justify-center">
-                        <div className="w-4 h-4 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
-                      </div>
-                    ) : notifications.length === 0 ? (
-                      <div className="px-4 py-6 text-center">
-                        <Bell className="w-6 h-6 text-gray-700 mx-auto mb-2" />
-                        <p className="text-xs text-gray-600 lowercase">no new notifications</p>
-                      </div>
-                    ) : (
-                      <div className="max-h-64 overflow-y-auto divide-y divide-white/[0.04]">
-                        {notifications.map(n => (
-                          <div key={n.id} className="px-4 py-3 hover:bg-white/[0.02] transition-colors">
-                            <p className="text-xs text-gray-300 lowercase leading-snug">{n.text}</p>
-                            {n.time && (
-                              <p className="text-[10px] text-gray-600 mt-1 lowercase">{notifTimeAgo(n.time)}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* User menu */}
-            <div className="relative" ref={userMenuRef}>
-              <button
-                onClick={() => { setUserMenuOpen(o => !o); setNotifOpen(false); }}
-                className="flex items-center gap-1.5 pl-1.5 pr-2.5 h-8 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all"
-              >
-                <span className="text-base leading-none">{user.avatarIcon || '🔒'}</span>
-                <span className="hidden sm:inline text-[11px] text-gray-400 truncate max-w-[90px] lowercase">
-                  {user.username || user.email}
-                </span>
-                {isVerified && <VerifiedBadge size="xs" />}
-                <ChevronDown className={`w-3 h-3 text-gray-600 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              <AnimatePresence>
-                {userMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0,  scale: 1     }}
-                    exit={{    opacity: 0, y: -6, scale: 0.97  }}
-                    transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-                    className="absolute top-full right-0 mt-2 w-48 glass-card rounded-xl border border-white/[0.08] overflow-hidden"
-                    style={{ zIndex: 4 }}
-                  >
-                    <div className="px-4 py-3 border-b border-white/[0.06]">
-                      <p className="text-xs text-gray-400 lowercase truncate">{user.avatarIcon} {user.username}</p>
-                      <p className="text-[10px] text-gray-600 lowercase mt-0.5">{user.accountType}</p>
-                    </div>
-                    <Link
-                      to="/settings"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-3 text-xs text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all lowercase"
-                    >
-                      <Settings className="w-3.5 h-3.5" />
-                      settings
-                    </Link>
-                    <button
-                      onClick={() => { setUserMenuOpen(false); handleLogout(); }}
-                      className="flex items-center gap-2.5 w-full px-4 py-3 text-xs text-gray-400 hover:text-white hover:bg-white/[0.04] transition-all lowercase border-t border-white/[0.06]"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      log out
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Link to="/login" className="text-[11px] text-gray-500 hover:text-white transition-colors lowercase">
-              log in
-            </Link>
-            <Link
-              to="/signup"
-              className="px-3 py-1 bg-midnight-400 hover:bg-midnight-500 text-white rounded text-[11px] font-medium transition-all lowercase"
-            >
-              sign up
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {/* ── Bottom-right: crisis toggle ────────────────────────────────── */}
-      <div className="fixed bottom-4 right-4 z-[60] flex items-center gap-2">
-        <span className={`hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] transition-colors ${
-          isInCrisis ? 'text-crimson-400' : 'text-gray-600'
-        }`}>
-          {isInCrisis ? 'Crisis Active' : 'Crisis'}
-        </span>
-        <button
-          onClick={toggleOverlay}
-          role="switch"
-          aria-checked={overlayOpen}
-          className="relative flex-shrink-0 w-20 h-10 rounded-full transition-colors duration-200 focus:outline-none"
-          style={{
-            backgroundColor: overlayOpen
-              ? 'var(--crimson-500, #e53e3e)'
-              : isInCrisis
-                ? 'rgba(229,62,62,0.25)'
-                : 'rgba(255,255,255,0.08)',
-            border: !overlayOpen && isInCrisis ? '1px solid rgba(229,62,62,0.4)' : '1px solid transparent',
-          }}
-        >
-          <span
-            className="absolute top-[4px] w-8 h-8 rounded-full bg-white transition-transform duration-200"
-            style={{
-              left:      4,
-              transform: overlayOpen ? 'translateX(40px)' : 'translateX(0)',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.35)',
-            }}
-          />
-        </button>
-      </div>
-
-      {/* ── Main header ───────────────────────────────────────────────────── */}
+      {/* ── Header bar ─────────────────────────────────────────────────── */}
       <motion.header
-        initial={{ y: -100, opacity: 0 }}
+        initial={{ y: -32, opacity: 0 }}
         animate={{ y: 0,    opacity: 1 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="bg-dark-900/95 backdrop-blur-xl border-b border-white/[0.06]"
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className={`${t.headerBg} border-b ${t.headerBorder}`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="max-w-[1400px] mx-auto px-6 md:px-10 lg:px-14">
+          <div className="flex items-center justify-between h-16">
 
-          {/* Top bar — logo centered, standalone */}
-          <div className="py-4 flex items-center justify-center border-b border-white/[0.04]">
-            <Link to="/" className="flex items-center gap-2.5 group flex-shrink-0">
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-midnight-400/10 border border-midnight-400/20 group-hover:bg-midnight-400/15 transition-colors">
-                <Shield className="w-3.5 h-3.5 text-midnight-400" />
-              </div>
-              <span className="text-lg font-display font-semibold tracking-tight" style={{ color: '#EAE7E0' }}>
-                safe<span className="text-midnight-400">press</span>
-              </span>
+            {/* ── Wordmark ───────────────────────────────────────────── */}
+            <Link
+              to="/"
+              className={`display flex items-baseline ${t.wordmark} hover:opacity-80 transition-opacity`}
+              style={{ fontWeight: 500, fontSize: '1.5rem', lineHeight: 1 }}
+            >
+              <em className="italic" style={{ fontStyle: 'italic' }}>Safe</em>
+              <span>Press</span>
             </Link>
-          </div>
 
-          {/* Nav bar */}
-          <nav className="flex items-center justify-center py-0">
-            <div className="hidden lg:flex items-center">
-              <div className="flex items-center gap-7">
+            {/* ── Right cluster: nav + auth ──────────────────────────── */}
+            <div className="flex items-center gap-7 lg:gap-9">
+
+              {/* Desktop nav */}
+              <nav className="hidden lg:flex items-center gap-7">
                 {navItems.map((item) => (
-                  <Link key={item.path} to={item.path} className="relative py-3.5 group">
-                    <span className={`text-[11px] font-semibold tracking-[0.12em] uppercase transition-colors duration-200 ${
-                      isActive(item.path) ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
+                  <Link key={item.path} to={item.path} className="relative py-5 group">
+                    <span className={`font-mono text-[11px] tracking-[0.18em] uppercase transition-colors duration-200 ${
+                      isActive(item.path) ? t.navTextActive : t.navText
                     }`}>
                       {item.name}
                     </span>
                     {isActive(item.path) && (
                       <motion.div
-                        layoutId="nav-underline"
-                        className="absolute bottom-0 left-0 right-0 h-px"
-                        style={{ background: 'var(--gold)' }}
+                        layoutId="nav-rule"
+                        className="absolute bottom-3 left-0 right-0 h-px"
+                        style={{ background: t.navRule }}
                         transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                       />
                     )}
                   </Link>
                 ))}
+              </nav>
+
+              {/* Auth cluster */}
+              <div className="flex items-center gap-2">
+
+                {loading ? (
+                  <div className={`w-24 h-8 rounded-sm ${t.controlBg} border ${t.controlBorder} animate-pulse`} />
+                ) : user ? (
+                  <>
+                    {/* Notifications */}
+                    <div className="relative" ref={notifRef}>
+                      <button
+                        onClick={() => {
+                          const opening = !notifOpen;
+                          setNotifOpen(o => !o);
+                          setUserMenuOpen(false);
+                          if (opening) fetchNotifications();
+                        }}
+                        className={`relative w-9 h-9 flex items-center justify-center rounded-sm ${t.controlBg} border ${t.controlBorder} ${t.controlIcon} transition-all`}
+                        aria-label="Notifications"
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                        {notifCount > 0 && (
+                          <span className={`absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 ${t.badgeBg} rounded-full text-[9px] font-mono font-medium text-white flex items-center justify-center leading-none`}>
+                            {notifCount > 9 ? '9+' : notifCount}
+                          </span>
+                        )}
+                      </button>
+
+                      <AnimatePresence>
+                        {notifOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{    opacity: 0, y: -6 }}
+                            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                            className={`absolute top-full right-0 mt-3 w-80 ${t.dropdownBg} border ${t.dropdownBorder} overflow-hidden`}
+                          >
+                            <div className={`px-5 py-4 border-b ${t.dropdownDivider}`}>
+                              <p className={`font-mono text-[10px] uppercase tracking-[0.2em] ${t.dropdownLabel}`}>
+                                Notifications
+                              </p>
+                            </div>
+                            {notifLoading ? (
+                              <div className="px-5 py-8 flex justify-center">
+                                <div className={`w-4 h-4 border-2 ${isMarketing ? 'border-[color:var(--color-ink)]' : 'border-white'} border-t-transparent rounded-full animate-spin`} />
+                              </div>
+                            ) : notifications.length === 0 ? (
+                              <div className="px-5 py-8 text-center">
+                                <p className={`font-mono text-[11px] uppercase tracking-[0.15em] ${t.dropdownLabel}`}>
+                                  No new notifications
+                                </p>
+                              </div>
+                            ) : (
+                              <div className={`max-h-72 overflow-y-auto divide-y ${t.dropdownDivider}`}>
+                                {notifications.map(n => (
+                                  <div key={n.id} className={`px-5 py-4 ${t.dropdownHover} transition-colors`}>
+                                    <p className={`text-sm leading-snug ${t.dropdownText}`}>{n.text}</p>
+                                    {n.time && (
+                                      <p className={`font-mono text-[10px] uppercase tracking-[0.15em] mt-1.5 ${t.dropdownLabel}`}>
+                                        {notifTimeAgo(n.time)}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* User menu */}
+                    <div className="relative" ref={userMenuRef}>
+                      <button
+                        onClick={() => { setUserMenuOpen(o => !o); setNotifOpen(false); }}
+                        className={`flex items-center gap-2 pl-2 pr-3 h-9 rounded-sm ${t.controlBg} border ${t.controlBorder} transition-all`}
+                      >
+                        <span className="text-base leading-none">{user.avatarIcon || '·'}</span>
+                        <span className={`hidden sm:inline font-mono text-[11px] tracking-[0.1em] truncate max-w-[100px] ${t.userText}`}>
+                          {user.username || user.email}
+                        </span>
+                        {isVerified && <VerifiedBadge size="xs" />}
+                        <ChevronDown className={`w-3 h-3 ${t.userChevron} transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      <AnimatePresence>
+                        {userMenuOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{    opacity: 0, y: -6 }}
+                            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                            className={`absolute top-full right-0 mt-3 w-56 ${t.dropdownBg} border ${t.dropdownBorder} overflow-hidden`}
+                          >
+                            <div className={`px-5 py-4 border-b ${t.dropdownDivider}`}>
+                              <p className={`text-sm ${t.dropdownText} truncate`}>
+                                {user.avatarIcon} {user.username}
+                              </p>
+                              <p className={`font-mono text-[10px] uppercase tracking-[0.2em] mt-1 ${t.dropdownLabel}`}>
+                                {user.accountType}
+                              </p>
+                            </div>
+                            <Link
+                              to="/settings"
+                              onClick={() => setUserMenuOpen(false)}
+                              className={`flex items-center gap-3 px-5 py-3 text-sm ${t.dropdownText} ${t.dropdownHover} transition-all`}
+                            >
+                              <Settings className="w-3.5 h-3.5" />
+                              Settings
+                            </Link>
+                            <button
+                              onClick={() => { setUserMenuOpen(false); handleLogout(); }}
+                              className={`flex items-center gap-3 w-full px-5 py-3 text-sm ${t.dropdownText} ${t.dropdownHover} transition-all border-t ${t.dropdownDivider}`}
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                              Log out
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <Link
+                      to="/login"
+                      className={`font-mono text-[11px] uppercase tracking-[0.18em] ${t.navText.replace('group-', '')} transition-colors`}
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      to="/signup"
+                      className={`font-mono text-[11px] uppercase tracking-[0.18em] px-3.5 h-9 inline-flex items-center border ${isMarketing ? 'border-[color:var(--color-ink)] text-[color:var(--color-ink)] hover:bg-[color:var(--color-ink)] hover:text-[color:var(--color-paper)]' : 'border-white/40 text-white hover:bg-white hover:text-dark-900'} transition-colors`}
+                    >
+                      Sign up
+                    </Link>
+                  </div>
+                )}
+
+                {/* Mobile menu toggle */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className={`lg:hidden ml-1 w-9 h-9 flex items-center justify-center ${t.controlIcon}`}
+                  aria-label="Menu"
+                >
+                  {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+                </button>
               </div>
             </div>
-
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-1.5 text-gray-400 hover:text-white transition-colors my-2"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </nav>
+          </div>
 
           {/* Mobile nav */}
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="lg:hidden pb-4 space-y-0.5 border-t border-white/[0.04] pt-2"
-            >
-              {navItems.map((item) => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-3 py-2.5 text-xs font-semibold tracking-[0.1em] uppercase rounded-md transition-colors ${
-                    isActive(item.path) ? 'text-white bg-white/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
-                  }`}
-                >
-                  {item.name}
-                </Link>
-              ))}
-            </motion.div>
-          )}
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{    opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                className={`lg:hidden overflow-hidden border-t ${t.headerBorder}`}
+              >
+                <div className="py-4 space-y-0">
+                  {navItems.map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`block px-1 py-3 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors ${
+                        isActive(item.path) ? t.navTextActive : t.navText.replace('group-', '')
+                      }`}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.header>
 
-      {/* ── Crisis banner ─────────────────────────────────────────────────── */}
+      {/* ── Crisis banner ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {isInCrisis && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            exit={{    height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden bg-crimson-500 border-b border-crimson-600"
+            className="overflow-hidden bg-[color:var(--color-oxblood)] border-b border-[color:var(--color-oxblood-soft)]"
           >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2.5 min-w-0">
+            <div className="max-w-[1400px] mx-auto px-6 md:px-10 lg:px-14 py-2.5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
                 <AlertCircle className="w-3.5 h-3.5 text-white flex-shrink-0 animate-pulse" />
-                <span className="text-[11px] font-bold text-white uppercase tracking-[0.14em] whitespace-nowrap">
-                  Crisis Mode
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white whitespace-nowrap">
+                  Crisis mode
                 </span>
-                <span className="text-white/40 text-xs hidden sm:block">—</span>
-                <span className="text-white/85 text-xs font-medium truncate hidden sm:block">
+                <span className="text-white/30 hidden sm:inline">·</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/85 truncate hidden sm:block">
                   {SCENARIO_LABELS[activeScenario] ?? activeScenario}
                 </span>
               </div>
-              <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex items-center gap-4 flex-shrink-0">
                 <button
                   onClick={openOverlay}
-                  className="flex items-center gap-1 text-xs font-medium text-white/80 hover:text-white transition-colors"
+                  className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/85 hover:text-white transition-colors inline-flex items-center gap-1.5"
                 >
-                  View Steps <ArrowRight className="w-3 h-3" />
+                  View steps <ArrowRight className="w-3 h-3" />
                 </button>
-                <div className="w-px h-3.5 bg-white/25" />
+                <div className="w-px h-3 bg-white/25" />
                 <button
                   onClick={deactivateCrisis}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded bg-white/15 hover:bg-white/25 text-white text-[11px] font-bold uppercase tracking-[0.08em] transition-all"
+                  className="inline-flex items-center gap-1.5 px-3 h-7 bg-white/15 hover:bg-white/25 text-white font-mono text-[10px] uppercase tracking-[0.18em] transition-all"
                 >
                   <ShieldCheck className="w-3 h-3" />
-                  I'm Safe
+                  I'm safe
                 </button>
               </div>
             </div>
@@ -529,6 +556,62 @@ const Header = () => {
         )}
       </AnimatePresence>
 
+      {/* ── Crisis toggle — anchored as a footer pill, not a floating overlay ── */}
+      <div
+        className="fixed bottom-4 right-4 md:bottom-5 md:right-6 z-[60] flex items-center gap-3 px-3.5 py-2 backdrop-blur-md transition-colors"
+        style={{
+          backgroundColor: isMarketing
+            ? 'rgba(248, 244, 236, 0.92)'
+            : 'rgba(15, 14, 13, 0.88)',
+          border: isMarketing
+            ? '1px solid rgba(21,17,12,0.12)'
+            : '1px solid rgba(255,255,255,0.10)',
+          boxShadow: isMarketing
+            ? '0 8px 24px -12px rgba(21,17,12,0.18)'
+            : '0 8px 24px -12px rgba(0,0,0,0.55)',
+        }}
+      >
+        <span
+          className={`hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
+            isInCrisis
+              ? 'text-[color:var(--color-oxblood)]'
+              : isMarketing ? 'text-[color:var(--color-smoke)]' : 'text-gray-400'
+          }`}
+        >
+          {isInCrisis ? 'Crisis · active' : 'Crisis mode'}
+        </span>
+        <button
+          onClick={toggleOverlay}
+          role="switch"
+          aria-checked={overlayOpen}
+          className="relative flex-shrink-0 w-14 h-7 transition-colors duration-200 focus:outline-none"
+          style={{
+            backgroundColor: overlayOpen
+              ? 'var(--color-oxblood)'
+              : isInCrisis
+                ? 'rgba(107,31,31,0.32)'
+                : isMarketing
+                  ? 'rgba(21,17,12,0.10)'
+                  : 'rgba(255,255,255,0.12)',
+            border: !overlayOpen && isInCrisis
+              ? '1px solid rgba(107,31,31,0.55)'
+              : isMarketing
+                ? '1px solid rgba(21,17,12,0.22)'
+                : '1px solid rgba(255,255,255,0.18)',
+          }}
+        >
+          <span
+            className="absolute w-[22px] h-[22px] transition-transform duration-200"
+            style={{
+              left: 3,
+              top: '50%',
+              transform: overlayOpen ? 'translate(28px, -50%)' : 'translate(0, -50%)',
+              backgroundColor: overlayOpen ? '#fff' : isMarketing ? 'var(--color-ink)' : '#fff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+            }}
+          />
+        </button>
+      </div>
     </div>
   );
 };

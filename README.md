@@ -30,6 +30,7 @@ Visit the Vite URL shown in your terminal, usually `http://localhost:5173`.
 - **OS Security Guides** — Step-by-step hardening for Windows, macOS, Linux, iOS, Android
 - **AI Security Section** — Safe AI usage, deepfake detection, privacy-respecting tools
 - **Crisis Mode Overlay** — Fullscreen overlay triggered by a pill toggle in the header; 4 scenarios (hacked, source exposed, doxxed, phishing) with checklist, progress bar, and per-step "how?" guides; direct-call links to CPJ/RSF/EFF
+- **Dual-state Home** — Public visitors get editorial orientation with crisis-first hierarchy; signed-in users get a lighter front-page summary driven by existing auth/session state and read-only role-specific queries
 - **Community Hub** — Discussions, true anonymous stories, and Q&A with likes, comments, category filtering, always-on role labels (journalist / verified specialist / unverified specialist / anonymous), sort controls (newest / top / unanswered), accepted-answer on Q&A, self-service delete (hard-delete for posts, soft-delete `[deleted]` for comments), unified journalist/specialist profile modal, and user-reporting with 5 reasons
 - **Source Protection Playbook** — New `/source-protection` page: 5-tab investigative-journalism operational-security guide (compartmentalization, first contact, meeting & handoff, after publication, legal protections) with accordion content cards + 3 interactive decision-tree scenarios
 - **Support Request Workflow** — Journalists submit crisis requests, verified specialists claim and resolve them; request form shows live count and avatars of available verified specialists
@@ -66,6 +67,8 @@ safepress/
 │   │   │   └── services/     # Admin Firestore access (reports, specialist review)
 │   │   ├── community/
 │   │   │   └── services/     # Community posts, comment subcollections, reports
+│   │   ├── home/
+│   │   │   └── services/     # Read-only Home summary + field signal helpers
 │   │   ├── support/
 │   │   │   └── services/     # Support request workflow queries/mutations
 │   │   └── users/
@@ -101,7 +104,7 @@ safepress/
 - **Backend**: Firebase (Auth + Firestore, used as a backend-as-a-service)
 - **Routing**: React Router DOM
 - **Icons**: Lucide React
-- **Design**: Editorial Bauhaus, lowercase aesthetic, glass morphism
+- **Design**: Editorial premium Home surface (Fraunces + Geist) layered on top of the existing newsroom-dark product UI
 
 ## Pages
 
@@ -158,6 +161,7 @@ safepress/
 - Logged-in pages now reuse hydrated auth profile data more aggressively, reducing duplicate Firestore reads on `Dashboard`, `SecureSetup`, and `SpecialistDashboard`.
 - Header notifications now batch followed-post lookups and only inspect posts that appear updated since the last seen timestamp.
 - Console hardening now includes restricted browser API key website referrers and Firebase Authentication authorized domains for Google sign-in.
+- Home now has two presentation states: anonymous visitors get editorial orientation, while signed-in journalists/specialists get a read-only front-page brief assembled from already-authorized data sources without any new writes or rule loosening.
 
 ## Data Structure
 
