@@ -2374,6 +2374,214 @@ This pass deletes three pieces of chrome (caption row, big wordmark + tagline, f
 
 ---
 
-**Last Updated**: May 11, 2026
-**Version**: 3.8.1
-**Documentation**: Complete (includes Phases 1-23.1)
+## Phase 23.2 — Per-page personality: Resources as a reference notebook (May 15, 2026)
+
+Per-page personality direction: the app is one editorial world, but each page is a different newsroom object. First pass lands on Resources, which becomes a **reference notebook**. The other pages (Source Protection as field manual, Security Score as clipboard, Community as letters page, etc.) are deferred to subsequent passes.
+
+The first iteration of this pass leaned skeuomorphic (taupe desk surface, stitched oxblood binding strip, punched binding holes, dog-eared cards, yellow pinned-caution notes, brass tack, tilted stamps) and read as 2010-era tactile UI. **The pass was rebuilt with print-magazine restraint**: the notebook metaphor survives through structure (proportion, margin rule, numbered entries, typography), not depicted props. The implementation described below is the current restrained state.
+
+### 23.2.1 Why Resources first
+
+Resources is the most information-heavy page in the product (OS hardening steps, vetted tools, AI-risk guidance). It needs a personality that signals "look things up here" rather than the broadsheet-front-page logic Home uses. A reference notebook reads as a place to scan, jump between sections, and return to — which matches the page's actual job.
+
+### 23.2.2 Page surface ([src/index.css](src/index.css))
+
+A scoped `.resource-notebook` class wraps only this page. All work is CSS — no images, no new dependencies, no JS.
+
+- **Outer surface** is `var(--color-paper-dim)` (`#EAE3D5`). No grain, no gradient, no depicted material — just a hint of warmer cream so the inner page reads as distinct.
+- **Page** is `var(--color-paper-soft)` (`#FAF6EE`) on a 1px hairline ink border with a soft single-layer drop shadow (`0 12px 32px -16px` + `0 2px 6px`). No multi-layer shadow stack, no inset highlight beyond a 1px paper-white inner top edge.
+- **Left margin column** uses 5.5rem of left padding (1.5rem on mobile). The only notebook prop on the whole page is a **single oxblood hairline** painted at 4.5rem from the left as `::before` — `rgba(123, 46, 46, 0.22)`, 1px wide. That hairline is the entire "this is a notebook" signal. Mobile drops the hairline along with the wider margin.
+
+There is no desk taupe, no grain pattern, no horizontal ruled lines across the page, no binding spine, no punched holes, no stitched top edge.
+
+### 23.2.3 Masthead caption
+
+Below the page title, a single line of mono small caps in smoke reads `Reference / Vol. 01`. No border box, no oxblood stamp, no rotation, no shadow.
+
+### 23.2.4 Index tabs — typographic with one accent underline
+
+`.notebook-index` is a flat horizontal strip with a single hairline bottom rule. Tabs are typographic only: no background, no border box, no radius, no 3D, no transform. Hover paints a soft ink underline on the tab's bottom edge; the active tab paints a 2px accent-colored underline using `--tab-accent`. The result reads as section markers in a book's contents, not as physical tabs.
+
+### 23.2.5 OS hardening — numbered entries
+
+`.notebook-ledger` is a simple list separated by hairline rules. The step number (`.news-row-index`) is set in **Fraunces display soft, 1.5rem, weight 500**, in the OS accent color. No circle, no ring, no inset highlight, no badge. It reads as a print catalog index numeral.
+
+The OS selector buttons (Windows / macOS / Linux / iOS / Android) become typographic with a bottom hairline — no pill, no border, no fill. Active state shifts text color to the OS accent and underlines.
+
+### 23.2.6 Tool & item cards — flat, hairline
+
+`.notebook-card` is paper-soft on a hairline ink border (`rgba(21, 17, 12, 0.10)`), no radius, no gradient, no left color rule, no dog-ear, no rotation. The shadow is `0 2px 6px` (`0 4px 12px` on hover). Section label inside the card is mono small caps in the category accent color; no dashed divider beneath it. The priority/use badge (`.notebook-stamp`) is a flat hairline-outlined pill — no tilt, no background, no shadow.
+
+The category accent now appears only as: the small mono section label inside the card, and the color of the priority badge text/border. Cards no longer carry a colored stripe or left bar.
+
+### 23.2.7 Caution notice — quiet ink
+
+`.notebook-warning` is paper-soft on a hairline ink border with a 2px oxblood left rule. The "Caution" label sits inside the box (top-left) in mono small caps in oxblood. No yellow background, no rotation, no brass tack, no protruding tag. It reads as a footnote of importance, not as a sticker.
+
+### 23.2.8 What this confirms
+
+Restraint over depiction. The notebook metaphor survives — wide left margin, oxblood margin hairline, numbered entries set in display type, typographic section tabs — without rendering any literal notebook props. Bundle stayed flat (Resources chunk unchanged at 23.27 kB / 7.11 kB gzip), and the global CSS actually shrank from 108.4 kB / 18.4 kB gzip to 105.0 kB / 17.6 kB gzip because the restrained pass uses fewer multi-layer gradients and pseudo-elements.
+
+Editorial restraint memory rule held: per "one focal point per section, introduce motifs one at a time," the only motif on the page is the red margin hairline. Everything else is typography.
+
+---
+
+**Last Updated**: May 15, 2026
+**Version**: 3.8.3
+**Documentation**: Complete (includes Phases 1-23.2)
+
+---
+
+## Phase 24 — Design system implementation: Foundations + Settings (May 15, 2026)
+
+A Claude Design bundle was fetched and processed. It documents the per-page newsroom-object personalities (notebook / field manual / clipboard / workbench / corkboard / intake form / case desk / editor's ledger / personnel record) plus a crisis-overlay rewrite, sitting on a shared editorial token system. Home is excluded — kept as-is per user direction. Dashboard isn't in the design.
+
+The user mandated **restraint everywhere** (no skeuomorphic props — no cork textures, push pins, manila tabs, metal clips, ink cover bands, tilted slips) and asked for an efficient master-style architecture that doesn't undo route splitting.
+
+### 24.1 Architecture decision
+
+The "master style" is two files we already had:
+
+1. **[src/index.css](src/index.css)** — single global editorial vocabulary (tokens + classes). All editorial classes (`.eyebrow`, `.display`, `.italic-ox`, `.btn`, `.f-row`, `.news-*`) live here, scoped by their own names. No per-page CSS.
+2. **[src/components/editorial/NewsPage.jsx](src/components/editorial/NewsPage.jsx)** — shared React primitives. Imported by every editorial page.
+
+Vite's chunking automatically extracts the editorial primitives into a shared chunk loaded once across pages. Route-level code splitting (`React.lazy` on each `src/pages/*.jsx`) stays intact — page chunks just consume the shared chunk.
+
+### 24.2 Foundations added to src/index.css
+
+**Tokens** added to `:root`:
+- `--display-axes-italic: 'opsz' 60, 'SOFT' 80, 'WONK' 0;`
+- `--display-axes-tight: 'opsz' 144, 'SOFT' 30, 'WONK' 1;` (masthead wordmark)
+- `--ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);`
+- `--t-fast: 160ms; --t-medium: 320ms; --t-slow: 520ms;`
+
+**Classes** added after `.rule-soft`:
+- `.italic-ox` — italic Fraunces in oxblood (the single piece of inline color in the system)
+- `.eyebrow.sm` — smaller eyebrow modifier for datelines
+- `.btn`, `.btn.ghost`, `.btn.mono` — the single button system on paper
+- `.f-row` form vocabulary — numbered mono label above + ink underline input + oxblood underline on focus
+
+### 24.3 Editorial primitives added to NewsPage.jsx
+
+- `NewsRule` — broadsheet rule pair (3px ink + 1px below), with optional `tone="oxblood"`
+- `NewsField` — wraps a `<label>` around an `№ N` eyebrow label + child input
+- `NewsButton` — composes `.btn` / `.btn.ghost` / `.btn.mono` with optional icon children
+- `NewsFiled` — the filed-at strip used on form headers / ledgers
+
+The existing primitives (`NewsPage`, `NewsHeader`, `NewsTabs`, `NewsSectionHeader`, `NewsNotice`, `NewsBadge`, `NewsCard`) are unchanged.
+
+### 24.4 Page 1 — Settings ([src/pages/Settings.jsx](src/pages/Settings.jsx))
+
+The legacy 575-line Settings was rewritten end-to-end to the personnel-record direction, applying the restraint discipline strictly:
+
+- **No manila folder tab** sticking up — replaced with a typographic `Personnel · username` / `Account file` strip + the broadsheet rule pair.
+- **No card-shadow stack** on the header — the 3-column name/account/verification strip sits flat on paper with a hairline bottom border.
+- **No glass cards** anywhere; all the previous `bg-white/5` / `glass-card` styling is gone.
+- **Section nav moved** from horizontal tabs at the top to a vertical left column with `§ 01` / `§ 02` / `§ 03` numbering. The `§` glyph is the only "newsroom artifact" used.
+- **All numbered fields** use the new `.f-row` vocabulary — mono uppercase labels above, ink underline below, oxblood underline on focus.
+- **All buttons** use the new `.btn` system — primary `.btn` for submit, `.btn.mono` for cancel/secondary, oxblood-bordered `.btn.mono` for destructive actions.
+- **The delete-confirm modal** kept its functionality but lost the glass aesthetic: paper-soft background, 2px oxblood left rule, "Caution" mono label, hairline ink border.
+
+All existing copy is preserved verbatim (lowercase throughout: "account settings", "manage your profile and security preferences", "profile", "security", "danger zone", every form label, every status message). All Firebase + auth flows are unchanged.
+
+### 24.5 Bundle impact
+
+| | Before | After Phase 24 |
+|---|---|---|
+| Global CSS | 105.03 kB / 17.60 kB gzip | 108.17 kB / 18.10 kB gzip |
+| Settings chunk | 14.94 kB / 3.42 kB gzip | 14.50 kB / 3.74 kB gzip |
+| Resources chunk | 23.27 kB / 7.11 kB gzip | 20.89 kB / 6.44 kB gzip *(de-duped editorial imports)* |
+| **New** NewsPage chunk | — | 3.34 kB / 1.17 kB gzip |
+
+Net: +3.14 kB raw / +0.5 kB gzip on CSS. Settings raw size unchanged in practice; Resources actually shrank by 2.4 kB raw / 0.7 kB gzip because the editorial primitives it was inlining now live in the shared NewsPage chunk. Every future editorial page rewrite benefits from this same de-duping.
+
+### 24.6 Pages still on the legacy "newsroom dark" system
+
+- **Source Protection** (740 lines) — needs field-manual rewrite
+- **Security Score** (1270 lines) — needs clipboard rewrite
+- **Secure Setup** (823 lines) — needs workbench rewrite
+- **Community** (1717 lines) — needs corkboard rewrite (restraint version: letter cards + attribution dashes, no cork board)
+- **Request Support** (471 lines) — needs intake-form rewrite
+- **Specialist Dashboard** (738 lines) — needs case-desk rewrite
+- **Admin** (650 lines) — needs editor's-ledger rewrite
+- **CrisisOverlay** (725 lines) — needs EXTRA-edition rewrite
+
+Each will follow the same pattern: NewsPage shell + editorial vocabulary classes + new editorial primitives, applied with restraint (no depicted props).
+
+---
+
+**Last Updated**: May 15, 2026
+**Version**: 3.9.0
+**Documentation**: Complete (includes Phases 1-24)
+
+---
+
+## Phase 24.1 — Settings cleanup + Request Support (May 15, 2026)
+
+### 24.1.1 Style discipline & casing
+
+User dropped the lowercase-forcing convention from product copy. All editorial pages going forward use sentence case (display headlines, button labels, form labels, status messages, eyebrow labels). The Settings page was retroactively updated.
+
+### 24.1.2 Architecture clarification
+
+User flagged that the rewrite was inlining `style={{ color: 'var(--color-oxblood)' }}` and `className="text-[color:var(--color-ink-soft)]"` (Tailwind's escape-hatch arbitrary-value syntax) everywhere — which made the global file in [src/index.css](src/index.css) look like it wasn't doing its job.
+
+The answer: it IS the global file, but I wasn't using it cleanly. Tailwind v4's `@theme` block auto-generates utilities from color tokens. So `text-ink`, `bg-paper-soft`, `border-oxblood`, `text-smoke`, `border-ink/12` all work directly without escape-hatch syntax.
+
+**Architecture from now on:**
+1. **Tokens** → use Tailwind utilities from `@theme` (`text-ink`, `bg-paper-soft`, `border-oxblood/35`)
+2. **Repeated patterns** → editorial classes in [src/index.css](src/index.css) (`.eyebrow`, `.italic-ox`, `.btn`, `.f-row`, `.news-notice` with `--brass`/`--danger`/`--info` tone variants)
+3. **Composition primitives** → JSX wrappers in [src/components/editorial/NewsPage.jsx](src/components/editorial/NewsPage.jsx) (`NewsPage`, `NewsRule`, `NewsField`, `NewsButton`, `NewsNotice`, `NewsTabs`, etc.)
+4. **No inline `style={{...}}`** for tokenized colors. No `text-[color:var(--color-X)]` escape-hatch when `text-X` works.
+
+### 24.1.3 Settings refactor
+
+[src/pages/Settings.jsx](src/pages/Settings.jsx) was refactored end-to-end against the architecture above:
+- All inline `style` props for color → Tailwind utilities
+- All `text-[color:var(...)]` → short form
+- The 5 repeated "info notice with left bar" patterns → the existing `.news-notice` class with new `news-notice--brass` and `news-notice--info` tone variants (added to global CSS)
+- All copy from `lowercase` → sentence case
+- Same functionality, same copy intent, much shorter file
+
+**Header surface-awareness fix:** [src/components/layout/Header.jsx](src/components/layout/Header.jsx) had `PAPER_SURFACE_PATHS = new Set(['/', '/resources'])` — every other route fell through to the legacy dark header. `/settings` and `/request-support` joined the set; the misleading `isMarketing` variable was renamed to `isPaperSurface`. As more pages migrate, they each just add their path to that array.
+
+### 24.1.4 Page 2 — Request Support ([src/pages/RequestSupport.jsx](src/pages/RequestSupport.jsx))
+
+The 471-line legacy form was rewritten end-to-end to the intake-form direction:
+
+- **Form masthead** — `Form SP-S — Specialist support request` in mono oxblood eyebrow, with `N specialists on duty` on the right. Broadsheet rule pair (3px ink + 1px) below.
+- **Display title** preserves the existing copy: "Request specialist support." with the period as `italic-ox`.
+- **Specialist availability strip** sits under the masthead — small avatar row + verified badge, no glass pill.
+- **Three numbered sections** (§ 01 Reporter / § 02 Crisis details / § 03 How should we contact you?), each with a hairline rule and inset content.
+- **Seven numbered fields** (№ 01–07) using the `.f-row` vocabulary. Required-field asterisks in oxblood.
+- **Crisis type** (was a select) → radio cluster with ink dots — quicker to scan.
+- **Urgency** (was a select) → segmented control with the Emergency option styled oxblood (the alarm color).
+- **Contact method** (was a select) → segmented ink control.
+- **Auth gating banners** use the `.news-notice tone="brass"` class instead of inline amber styling.
+- **Privacy notice** uses `.news-notice tone="info"`.
+- **Submit button** uses `NewsButton` with `Send` + `ArrowRight` icons. Disabled states unchanged.
+- **Success state** uses the design's "Your request is on the desk." pattern: file reference (`SP-2026-NNNN`), filed-at timestamp, type, urgency in a paper-soft notice box with oxblood left rule. Asterism divider. Hand-drawn links back to dashboard / crisis steps.
+
+All Firebase service calls (`createSupportRequest`, `listApprovedSpecialists`), auth gating, verification flow, and emergency-contact footer are unchanged.
+
+### 24.1.5 Bundle deltas
+
+| Chunk | Before P24 | After P24.0 (Settings) | After P24.1 (RequestSupport) |
+|---|---|---|---|
+| Global CSS | 105.03 kB / 17.60 kB gzip | 108.17 / 18.10 | 109.74 / 18.33 |
+| Settings | 14.94 / 3.42 | 12.13 / 3.56 | (unchanged) |
+| RequestSupport | 12.89 / 3.26 | (unchanged) | 11.69 / 3.79 |
+| Resources | 23.27 / 7.11 | 20.89 / 6.44 | (unchanged) |
+| NewsPage (shared) | — | 3.34 / 1.17 | 3.35 / 1.18 |
+
+Both rewrites SHRANK their page chunks net of imports. Resources also shrank because its editorial primitives now live in the shared chunk. Global CSS picked up ~4.7 kB raw / 0.7 kB gzip for the new tokens, classes, and notice variants — paid once, reused by every editorial page.
+
+### 24.1.6 Pages still on the legacy "newsroom dark" system
+
+Remaining: Source Protection, Security Score, Secure Setup, Community, Specialist Dashboard, Admin, CrisisOverlay. Each follows the same approach now: NewsPage shell + Tailwind tokens + editorial classes + editorial primitives, with sentence case copy.
+
+---
+
+**Last Updated**: May 15, 2026
+**Version**: 3.9.1
+**Documentation**: Complete (includes Phases 1-24.1)

@@ -19,6 +19,17 @@ import { logError } from '../../utils/logger';
 
 const NOTIF_COUNT_CACHE_PREFIX = 'notif-count:';
 
+/* Paths where the page below the header is on the editorial paper system.
+   Add a path here when you migrate that page off the legacy dark surfaces.
+   Remaining legacy pages: /source-protection, /security-score, /secure-setup,
+   /community, /request-support, /specialist-dashboard, /admin, /dashboard. */
+const PAPER_SURFACE_PATHS = new Set([
+  '/',
+  '/resources',
+  '/settings',
+  '/request-support',
+]);
+
 const notifTimeAgo = (iso) => {
   const sec = Math.floor((Date.now() - new Date(iso)) / 1000);
   if (sec < 60) return 'just now';
@@ -241,11 +252,11 @@ const Header = () => {
   const isActive = (path) => location.pathname === path;
 
   // ─── Surface-aware palette ────────────────────────────────────────────
-  // Marketing surfaces (Home, eventually About) render on paper; product
-  // surfaces stay on the legacy dark canvas.
-  const isMarketing = location.pathname === '/';
+  // Paper surfaces render under the editorial header; legacy product surfaces
+  // stay on the dark canvas until they are migrated.
+  const isPaperSurface = PAPER_SURFACE_PATHS.has(location.pathname);
 
-  const t = isMarketing
+  const t = isPaperSurface
     ? {
         headerBg:     'bg-[color:var(--color-paper)]/95 backdrop-blur-md',
         headerBorder: 'border-[color:var(--color-ink)]/10',
@@ -377,7 +388,7 @@ const Header = () => {
                             </div>
                             {notifLoading ? (
                               <div className="px-5 py-8 flex justify-center">
-                                <div className={`w-4 h-4 border-2 ${isMarketing ? 'border-[color:var(--color-ink)]' : 'border-white'} border-t-transparent rounded-full animate-spin`} />
+                                <div className={`w-4 h-4 border-2 ${isPaperSurface ? 'border-[color:var(--color-ink)]' : 'border-white'} border-t-transparent rounded-full animate-spin`} />
                               </div>
                             ) : notifications.length === 0 ? (
                               <div className="px-5 py-8 text-center">
@@ -465,7 +476,7 @@ const Header = () => {
                     </Link>
                     <Link
                       to="/signup"
-                      className={`font-mono text-[11px] uppercase tracking-[0.18em] px-3.5 h-9 inline-flex items-center border ${isMarketing ? 'border-[color:var(--color-ink)] text-[color:var(--color-ink)] hover:bg-[color:var(--color-ink)] hover:text-[color:var(--color-paper)]' : 'border-white/40 text-white hover:bg-white hover:text-dark-900'} transition-colors`}
+                      className={`font-mono text-[11px] uppercase tracking-[0.18em] px-3.5 h-9 inline-flex items-center border ${isPaperSurface ? 'border-[color:var(--color-ink)] text-[color:var(--color-ink)] hover:bg-[color:var(--color-ink)] hover:text-[color:var(--color-paper)]' : 'border-white/40 text-white hover:bg-white hover:text-dark-900'} transition-colors`}
                     >
                       Sign up
                     </Link>
@@ -560,13 +571,13 @@ const Header = () => {
       <div
         className="fixed bottom-4 right-4 md:bottom-5 md:right-6 z-[60] flex items-center gap-3 px-3.5 py-2 backdrop-blur-md transition-colors"
         style={{
-          backgroundColor: isMarketing
+          backgroundColor: isPaperSurface
             ? 'rgba(248, 244, 236, 0.92)'
             : 'rgba(15, 14, 13, 0.88)',
-          border: isMarketing
+          border: isPaperSurface
             ? '1px solid rgba(21,17,12,0.12)'
             : '1px solid rgba(255,255,255,0.10)',
-          boxShadow: isMarketing
+          boxShadow: isPaperSurface
             ? '0 8px 24px -12px rgba(21,17,12,0.18)'
             : '0 8px 24px -12px rgba(0,0,0,0.55)',
         }}
@@ -575,7 +586,7 @@ const Header = () => {
           className={`hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
             isInCrisis
               ? 'text-[color:var(--color-oxblood)]'
-              : isMarketing ? 'text-[color:var(--color-smoke)]' : 'text-gray-400'
+              : isPaperSurface ? 'text-[color:var(--color-smoke)]' : 'text-gray-400'
           }`}
         >
           {isInCrisis ? 'Crisis · active' : 'Crisis mode'}
@@ -590,12 +601,12 @@ const Header = () => {
               ? 'var(--color-oxblood)'
               : isInCrisis
                 ? 'rgba(107,31,31,0.32)'
-                : isMarketing
+                : isPaperSurface
                   ? 'rgba(21,17,12,0.10)'
                   : 'rgba(255,255,255,0.12)',
             border: !overlayOpen && isInCrisis
               ? '1px solid rgba(107,31,31,0.55)'
-              : isMarketing
+              : isPaperSurface
                 ? '1px solid rgba(21,17,12,0.22)'
                 : '1px solid rgba(255,255,255,0.18)',
           }}
@@ -606,7 +617,7 @@ const Header = () => {
               left: 3,
               top: '50%',
               transform: overlayOpen ? 'translate(28px, -50%)' : 'translate(0, -50%)',
-              backgroundColor: overlayOpen ? '#fff' : isMarketing ? 'var(--color-ink)' : '#fff',
+              backgroundColor: overlayOpen ? '#fff' : isPaperSurface ? 'var(--color-ink)' : '#fff',
               boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
             }}
           />

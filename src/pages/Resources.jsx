@@ -6,15 +6,24 @@ import {
   Eye, Mic, Camera, FileText, User, Fingerprint, ShieldAlert, Book,
 } from 'lucide-react';
 import { useState } from 'react';
+import {
+  NewsBadge,
+  NewsCard,
+  NewsHeader,
+  NewsNotice,
+  NewsPage,
+  NewsSectionHeader,
+  NewsTabs,
+} from '../components/editorial/NewsPage';
 
 const Resources = () => {
   const [activeTab, setActiveTab]   = useState('os-guides');
   const [selectedOS, setSelectedOS] = useState('windows');
 
   const tabs = [
-    { id: 'os-guides',   label: 'OS Security Guides', desc: 'step-by-step hardening for every platform', icon: Monitor },
-    { id: 'tools',       label: 'Recommended Tools',  desc: 'vetted apps for messaging, privacy & more', icon: Wrench  },
-    { id: 'ai-security', label: 'AI Security',        desc: 'threats, safe tools & what never to share', icon: Brain   },
+    { id: 'os-guides',   label: 'OS security guides', desc: 'step-by-step hardening for every platform', icon: Monitor, accent: '#7B2E2E' },
+    { id: 'tools',       label: 'Recommended tools',  desc: 'vetted apps for messaging, privacy, and storage', icon: Wrench, accent: '#8A6D2C' },
+    { id: 'ai-security', label: 'AI security',        desc: 'threats, safer tools, and what never to share', icon: Brain, accent: '#15110C' },
   ];
 
   /* ─── Data ──────────────────────────────────────────────────────────────── */
@@ -24,7 +33,7 @@ const Resources = () => {
       id: 'windows',
       name: 'Windows',
       icon: Monitor,
-      color: '#4361EE',
+      color: '#7B2E2E',
       description: 'Harden your Windows system for maximum security.',
       steps: [
         { title: 'Enable Windows Defender', details: 'Settings → Update & Security → Windows Security → Virus & threat protection' },
@@ -40,7 +49,7 @@ const Resources = () => {
       id: 'macos',
       name: 'macOS',
       icon: Apple,
-      color: '#A78BFA',
+      color: '#8A6D2C',
       description: "Secure your Mac with Apple's built-in tools.",
       steps: [
         { title: 'Enable FileVault encryption', details: 'System Settings → Privacy & Security → FileVault → Turn On FileVault' },
@@ -56,7 +65,7 @@ const Resources = () => {
       id: 'linux',
       name: 'Linux',
       icon: Terminal,
-      color: '#84CC16',
+      color: '#4D5D35',
       description: 'Lock down your Linux distribution.',
       steps: [
         { title: 'Enable full disk encryption (LUKS)', details: 'During install, or: sudo cryptsetup luksFormat /dev/sdX' },
@@ -72,7 +81,7 @@ const Resources = () => {
       id: 'ios',
       name: 'iOS',
       icon: Smartphone,
-      color: '#2DD4BF',
+      color: '#34515E',
       description: 'Maximise privacy on your iPhone or iPad.',
       steps: [
         { title: 'Enable Face ID / Touch ID', details: 'Settings → Face ID & Passcode → Turn on for all features' },
@@ -88,7 +97,7 @@ const Resources = () => {
       id: 'android',
       name: 'Android',
       icon: Smartphone,
-      color: '#4CAF50',
+      color: '#5C6B3C',
       description: 'Harden your Android device security.',
       steps: [
         { title: 'Enable device encryption', details: 'Settings → Security → Encryption → Encrypt phone (usually on by default)' },
@@ -107,7 +116,7 @@ const Resources = () => {
       id: 'messaging',
       name: 'Secure Messaging',
       icon: MessageSquare,
-      color: 'from-teal-500 to-teal-600',
+      color: '#375E5A',
       description: 'End-to-end encrypted communication tools.',
       tools: [
         { name: 'Signal',          description: 'The gold standard for secure messaging — end-to-end encrypted calls, messages, and file sharing.',               url: 'https://signal.org',         priority: 'essential',   platforms: ['iOS', 'Android', 'Windows', 'macOS', 'Linux'] },
@@ -119,7 +128,7 @@ const Resources = () => {
       id: 'offline',
       name: 'Offline & Blackout Comms',
       icon: Radio,
-      color: 'from-purple-500 to-purple-600',
+      color: '#7B2E2E',
       description: 'Peer-to-peer communication without internet.',
       tools: [
         { name: 'Bridgefy', description: 'Bluetooth mesh networking — works when cellular and Wi-Fi networks are down.',           url: 'https://bridgefy.me',        priority: 'emergency',    platforms: ['iOS', 'Android'] },
@@ -131,7 +140,7 @@ const Resources = () => {
       id: 'email',
       name: 'Secure Email & File Transfer',
       icon: Mail,
-      color: 'from-blue-500 to-blue-600',
+      color: '#34515E',
       description: 'Encrypted email and anonymous document submission.',
       tools: [
         { name: 'ProtonMail',  description: 'End-to-end encrypted email — Swiss-based with strong privacy laws.',                           url: 'https://proton.me',          priority: 'essential',          platforms: ['Web', 'iOS', 'Android'] },
@@ -143,7 +152,7 @@ const Resources = () => {
       id: 'browser',
       name: 'Browser Privacy',
       icon: Globe,
-      color: 'from-indigo-500 to-indigo-600',
+      color: '#6B6253',
       description: 'Anonymous browsing and tracker blocking.',
       tools: [
         { name: 'Tor Browser',    description: 'Routes all traffic through the Tor network — essential for sensitive research.',       url: 'https://www.torproject.org', priority: 'essential', platforms: ['Windows', 'macOS', 'Linux', 'Android'] },
@@ -155,7 +164,7 @@ const Resources = () => {
       id: 'encryption',
       name: 'Encryption & Containers',
       icon: Lock,
-      color: 'from-crimson-500 to-crimson-600',
+      color: '#7B2E2E',
       description: 'Encrypt files, folders, and entire drives.',
       tools: [
         { name: 'VeraCrypt',    description: 'Create encrypted containers — open-source disk encryption for any platform.',          url: 'https://www.veracrypt.fr',   priority: 'recommended', platforms: ['Windows', 'macOS', 'Linux'] },
@@ -167,7 +176,7 @@ const Resources = () => {
       id: 'passwords',
       name: 'Passwords & 2FA',
       icon: Key,
-      color: 'from-olive-500 to-olive-600',
+      color: '#8A6D2C',
       description: 'Password management and two-factor authentication.',
       tools: [
         { name: 'Bitwarden',              description: 'Open-source password manager — encrypted vault with cross-platform sync.',           url: 'https://bitwarden.com',      priority: 'essential',   platforms: ['Web', 'iOS', 'Android', 'Windows', 'macOS', 'Linux', 'Browser Extension'] },
@@ -183,7 +192,7 @@ const Resources = () => {
       id: 'never-share',
       name: 'Never share with AI chatbots',
       icon: ShieldAlert,
-      color: 'from-crimson-500 to-crimson-600',
+      color: '#7B2E2E',
       description: 'Data you should never input into commercial AI systems.',
       items: [
         { title: 'Source identities',           description: 'Real names, contact info, or identifying details of confidential sources — AI companies may log this data.',               icon: User,        severity: 'critical' },
@@ -198,7 +207,7 @@ const Resources = () => {
       id: 'ai-threats',
       name: 'AI threats to journalists',
       icon: AlertTriangle,
-      color: 'from-amber-500 to-amber-600',
+      color: '#8A6D2C',
       description: 'Emerging AI-powered threats targeting press freedom.',
       items: [
         { title: 'Deepfake videos',          description: 'AI-generated fake videos used to discredit journalists or fabricate statements.',                                           icon: Camera,      severity: 'critical' },
@@ -213,7 +222,7 @@ const Resources = () => {
       id: 'safer-ai',
       name: 'Privacy-respecting AI tools',
       icon: Lock,
-      color: 'from-olive-500 to-olive-600',
+      color: '#4D5D35',
       description: 'AI assistants with better privacy guarantees.',
       tools: [
         { name: 'Ollama',            description: 'Run AI models locally on your computer — no data leaves your device, fully offline capable.',                   url: 'https://ollama.ai',                          platforms: ['Windows', 'macOS', 'Linux'],  privacy: 'fully local'  },
@@ -226,7 +235,7 @@ const Resources = () => {
       id: 'protection',
       name: 'Protection & Detection Tools',
       icon: Shield,
-      color: 'from-midnight-400 to-midnight-500',
+      color: '#34515E',
       description: 'Protect yourself from AI surveillance and detect synthetic media.',
       tools: [
         { name: 'Fawkes',             description: 'Subtly alters your photos to prevent AI facial recognition while remaining visually normal to humans.',        url: 'https://sandlab.cs.uchicago.edu/fawkes/', platforms: ['Windows', 'macOS', 'Linux'],  use: 'face protection'    },
@@ -242,334 +251,275 @@ const Resources = () => {
   /* ─── Render ─────────────────────────────────────────────────────────────── */
 
   return (
-    <div className="min-h-screen pt-32 pb-24 px-4">
-      <div className="max-w-7xl mx-auto">
+    <NewsPage className="resource-notebook">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <NewsHeader
+          className="notebook-cover"
+          kicker="Reference desk"
+          title="Resources"
+          lede="Security guides and field-ready tools for journalists. Start with operating-system hardening, then move into communications, storage, browsing, passwords, and AI-risk habits."
+          meta="Notebook index / OS hardening / tools / AI security"
+          icon={Book}
+        />
+      </motion.div>
 
-        {/* Page header */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-12"
-        >
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-midnight-400/10 border border-midnight-400/20 mb-5">
-            <Book className="w-7 h-7 text-midnight-400" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
-            resources
-          </h1>
-          <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed"
-            style={{ letterSpacing: '0.03em' }}>
-            security guides and tools, built for journalists
-          </p>
-        </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <NewsTabs tabs={tabs} activeId={activeTab} onChange={setActiveTab} className="notebook-index" />
+      </motion.div>
 
-        {/* Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-12"
-        >
-          {tabs.map(tab => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center gap-3 p-5 rounded-2xl border transition-all text-center ${
-                  active
-                    ? 'bg-midnight-400/10 border-midnight-400/20 text-white'
-                    : 'bg-white/[0.02] border-white/[0.07] text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]'
-                }`}
-              >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  active ? 'bg-midnight-400/20' : 'bg-white/[0.05]'
-                }`}>
-                  <Icon className={`w-5 h-5 ${active ? 'text-midnight-400' : ''}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold lowercase leading-tight">{tab.label}</p>
-                  <p className={`text-[11px] mt-0.5 lowercase leading-snug ${active ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {tab.desc}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </motion.div>
+      <AnimatePresence mode="wait">
+        {activeTab === 'os-guides' && (
+          <motion.div
+            key="os-guides"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+          >
+            <NewsSectionHeader
+              className="notebook-section"
+              kicker="Operating system hardening"
+              title={currentOS.name}
+              lede={currentOS.description}
+              icon={currentOS.icon}
+              accent={currentOS.color}
+            />
 
-        {/* Tab content */}
-        <AnimatePresence mode="wait">
+            <div className="news-selector">
+              {osGuides.map((os) => {
+                const Icon = os.icon;
+                const active = selectedOS === os.id;
 
-          {/* ── OS Security Guides ── */}
-          {activeTab === 'os-guides' && (
-            <motion.div
-              key="os-guides"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.35 }}
-            >
-              {/* OS selector */}
-              <div className="flex flex-wrap gap-2 mb-8">
-                {osGuides.map(os => {
-                  const Icon = os.icon;
-                  const active = selectedOS === os.id;
-                  return (
-                    <button
-                      key={os.id}
-                      onClick={() => setSelectedOS(os.id)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border lowercase"
-                      style={active ? {
-                        backgroundColor: `${os.color}18`,
-                        borderColor: `${os.color}40`,
-                        color: os.color,
-                      } : {
-                        borderColor: 'transparent',
-                        color: '#6b7280',
-                      }}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {os.name}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Steps for selected OS */}
-              <p className="text-sm text-gray-500 mb-6 lowercase">{currentOS.description}</p>
-              <div className="space-y-3">
-                {currentOS.steps.map((step, i) => (
-                  <div
-                    key={i}
-                    className="glass-card p-5 flex gap-4 items-start border-l-4"
-                    style={{ borderLeftColor: `${currentOS.color}60` }}
+                return (
+                  <button
+                    key={os.id}
+                    type="button"
+                    onClick={() => setSelectedOS(os.id)}
+                    className={`news-selector-button ${active ? 'is-active' : ''}`}
+                    style={{ '--selector-accent': os.color }}
                   >
-                    <span
-                      className="flex-shrink-0 w-7 h-7 rounded-full border flex items-center justify-center text-xs font-bold"
-                      style={{
-                        backgroundColor: `${currentOS.color}15`,
-                        borderColor: `${currentOS.color}35`,
-                        color: currentOS.color,
-                      }}
-                    >
-                      {i + 1}
-                    </span>
-                    <div>
-                      <h4 className="text-sm font-semibold text-white mb-1 lowercase">{step.title}</h4>
-                      <p className="text-sm text-gray-400 leading-relaxed">{step.details}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* ── Recommended Tools ── */}
-          {activeTab === 'tools' && (
-            <motion.div
-              key="tools"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.35 }}
-              className="space-y-12"
-            >
-              {toolCategories.map((category) => {
-                const CategoryIcon = category.icon;
-                return (
-                  <div key={category.id}>
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center flex-shrink-0`}>
-                        <CategoryIcon className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-0.5">category</p>
-                        <h2 className="text-sm font-semibold text-white lowercase">{category.name}</h2>
-                        <p className="text-xs text-gray-500 lowercase">{category.description}</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {category.tools.map((tool, i) => (
-                        <ToolCard key={i} tool={tool} />
-                      ))}
-                    </div>
-                  </div>
+                    <Icon className="w-4 h-4" />
+                    {os.name}
+                  </button>
                 );
               })}
+            </div>
 
-              <p className="text-xs text-gray-600 pt-4 border-t border-white/5">
-                Always verify downloads from official sources · Keep software updated · Enable 2FA everywhere
-              </p>
-            </motion.div>
-          )}
-
-          {/* ── AI Security ── */}
-          {activeTab === 'ai-security' && (
-            <motion.div
-              key="ai-security"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.35 }}
-              className="space-y-10"
-            >
-              {/* Warning banner */}
-              <div className="glass-card p-5 border-l-4 border-crimson-500 flex gap-4 items-start">
-                <ShieldAlert className="w-5 h-5 text-crimson-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-crimson-400 mb-1 text-sm">
-                    AI is not secure by default
-                  </h3>
-                  <p className="text-sm text-gray-400 leading-relaxed">
-                    Commercial AI chatbots (ChatGPT, Gemini, etc.) log your conversations, may use them for model training, and can be subpoenaed by governments.{' '}
-                    <span className="text-white font-medium">Never input sensitive source information or unpublished findings.</span>
-                  </p>
+            <div className="news-ledger notebook-ledger">
+              {currentOS.steps.map((step, i) => (
+                <div key={step.title} className="news-ledger-row">
+                  <span className="news-row-index" style={{ '--row-accent': currentOS.color }}>
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <div>
+                    <h3 className="news-card-title">{step.title}</h3>
+                    <p className="news-card-copy mt-1">{step.details}</p>
+                  </div>
                 </div>
-              </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
-              {aiSecurityCategories.map((category) => {
-                const CategoryIcon = category.icon;
-                return (
-                  <div key={category.id}>
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center flex-shrink-0`}>
-                        <CategoryIcon className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-0.5">category</p>
-                        <h2 className="text-sm font-semibold text-white lowercase">{category.name}</h2>
-                        <p className="text-xs text-gray-500 lowercase">{category.description}</p>
-                      </div>
-                    </div>
+        {activeTab === 'tools' && (
+          <motion.div
+            key="tools"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            className="space-y-12"
+          >
+            {toolCategories.map((category) => (
+              <section key={category.id}>
+                <NewsSectionHeader
+                  className="notebook-section"
+                  kicker="Category"
+                  title={category.name}
+                  lede={category.description}
+                  icon={category.icon}
+                  accent={category.color}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {category.tools.map((tool) => (
+                    <ToolCard key={tool.name} tool={tool} accent={category.color} section={category.name} />
+                  ))}
+                </div>
+              </section>
+            ))}
 
-                    {category.items && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {category.items.map((item, i) => {
-                          const ItemIcon = item.icon;
-                          return (
-                            <div
-                              key={i}
-                              className={`glass-card p-4 border-l-4 flex gap-3 items-start ${
-                                item.severity === 'critical' ? 'border-l-crimson-500' : 'border-l-amber-500'
-                              }`}
-                            >
-                              <ItemIcon className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                              <div>
-                                <h4 className="text-sm font-semibold text-white mb-1">{item.title}</h4>
-                                <p className="text-xs text-gray-400 leading-relaxed">{item.description}</p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+            <p className="border-t border-ink/15 pt-4 text-xs leading-relaxed text-smoke">
+              Always verify downloads from official sources. Keep software updated. Enable 2FA everywhere.
+            </p>
+          </motion.div>
+        )}
 
-                    {category.tools && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {category.tools.map((tool, i) => (
-                          <AIToolCard key={i} tool={tool} />
-                        ))}
-                      </div>
-                    )}
+        {activeTab === 'ai-security' && (
+          <motion.div
+            key="ai-security"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35 }}
+            className="space-y-10"
+          >
+            <NewsNotice tone="danger" icon={ShieldAlert} className="notebook-warning">
+              <h2 className="news-card-title text-oxblood">
+                AI is not secure by default
+              </h2>
+              <p className="news-card-copy mt-1">
+                Commercial AI chatbots can log conversations, use them for model improvement, or expose them through legal demands and breaches. <strong className="text-ink">Never input sensitive source information or unpublished findings.</strong>
+              </p>
+            </NewsNotice>
+
+            {aiSecurityCategories.map((category) => (
+              <section key={category.id}>
+                <NewsSectionHeader
+                  className="notebook-section"
+                  kicker="Category"
+                  title={category.name}
+                  lede={category.description}
+                  icon={category.icon}
+                  accent={category.color}
+                />
+
+                {category.items && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {category.items.map((item) => {
+                      const ItemIcon = item.icon;
+                      const accent = item.severity === 'critical' ? '#7B2E2E' : '#8A6D2C';
+
+                      return (
+                        <NewsCard key={item.title} className="notebook-card flex gap-3 items-start" accent={accent}>
+                          <ItemIcon className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: accent }} />
+                          <div>
+                            <h3 className="news-card-title">{item.title}</h3>
+                            <p className="news-card-copy mt-1">{item.description}</p>
+                          </div>
+                        </NewsCard>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </motion.div>
-          )}
+                )}
 
-        </AnimatePresence>
-      </div>
-    </div>
+                {category.tools && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {category.tools.map((tool) => (
+                      <AIToolCard key={tool.name} tool={tool} accent={category.color} section={category.name} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </NewsPage>
   );
 };
 
 /* ─── Tool card (recommended tools tab) ─────────────────────────────────── */
 
 const priorityConfig = {
-  'essential':         { label: 'Essential',         cls: 'bg-teal-500/10 text-teal-400 border-teal-500/20'           },
-  'recommended':       { label: 'Recommended',       cls: 'bg-midnight-400/10 text-midnight-300 border-midnight-400/20' },
-  'high-threat':       { label: 'High-threat',       cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20'         },
-  'source-protection': { label: 'Source protection', cls: 'bg-purple-500/10 text-purple-400 border-purple-500/20'      },
-  'emergency':         { label: 'Emergency',         cls: 'bg-orange-500/10 text-orange-400 border-orange-500/20'      },
-  'advanced':          { label: 'Advanced',          cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20'            },
-  'experimental':      { label: 'Experimental',      cls: 'bg-gray-500/10 text-gray-400 border-gray-500/20'            },
+  'essential':         { label: 'Essential',         color: '#375E5A' },
+  'recommended':       { label: 'Recommended',       color: '#15110C' },
+  'high-threat':       { label: 'High-threat',       color: '#8A6D2C' },
+  'source-protection': { label: 'Source protection', color: '#7B2E2E' },
+  'emergency':         { label: 'Emergency',         color: '#7B2E2E' },
+  'advanced':          { label: 'Advanced',          color: '#34515E' },
+  'experimental':      { label: 'Experimental',      color: '#6B6253' },
 };
 
-const ToolCard = ({ tool }) => {
+const ToolCard = ({ tool, accent, section }) => {
   const p = priorityConfig[tool.priority] ?? priorityConfig['recommended'];
+
   return (
-    <div className="glass-card p-4 flex flex-col gap-3 hover:border-white/15 transition-colors">
+    <NewsCard className="notebook-card flex flex-col gap-3" accent={accent}>
+      <span className="notebook-card__section" style={{ color: accent }}>{section}</span>
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold text-white text-sm">{tool.name}</span>
+        <h3 className="news-card-title">{tool.name}</h3>
         {tool.url && (
-          <a href={tool.url} target="_blank" rel="noopener noreferrer"
-            className="text-gray-600 hover:text-midnight-400 transition-colors flex-shrink-0">
+          <a
+            href={tool.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-smoke hover:text-oxblood transition-colors flex-shrink-0"
+            aria-label={`Open ${tool.name}`}
+          >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         )}
       </div>
-      <p className="text-xs text-gray-400 leading-relaxed flex-1">{tool.description}</p>
+      <p className="news-card-copy flex-1">{tool.description}</p>
       <div className="flex flex-wrap gap-1.5">
         {tool.platforms.map((pl, i) => (
-          <span key={i} className="text-[10px] px-2 py-0.5 bg-white/5 border border-white/8 rounded text-gray-500">
+          <span key={i} className="news-chip">
             {pl}
           </span>
         ))}
       </div>
-      <span className={`self-start text-[10px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wider ${p.cls}`}>
-        {p.label}
-      </span>
-    </div>
+      <NewsBadge color={p.color} className="notebook-stamp self-start">{p.label}</NewsBadge>
+    </NewsCard>
   );
 };
 
 /* ─── AI tool card (AI security tab) ────────────────────────────────────── */
 
 const privacyConfig = {
-  'fully local': { label: 'Fully local',  cls: 'bg-teal-500/10 text-teal-400 border-teal-500/20'             },
-  'anonymous':   { label: 'Anonymous',    cls: 'bg-midnight-400/10 text-midnight-300 border-midnight-400/20'  },
-  'transparent': { label: 'Transparent',  cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20'              },
-  'commercial':  { label: 'Commercial',   cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20'           },
+  'fully local': { label: 'Fully local', color: '#375E5A' },
+  'anonymous':   { label: 'Anonymous',   color: '#34515E' },
+  'transparent': { label: 'Transparent', color: '#15110C' },
+  'commercial':  { label: 'Commercial',  color: '#8A6D2C' },
 };
 
 const useConfig = {
-  'face protection':    { label: 'Face protection',    cls: 'bg-purple-500/10 text-purple-400 border-purple-500/20'  },
-  'deepfake detection': { label: 'Deepfake detection', cls: 'bg-crimson-500/10 text-crimson-400 border-crimson-500/20' },
-  'authenticity':       { label: 'Authenticity',       cls: 'bg-teal-500/10 text-teal-400 border-teal-500/20'        },
+  'face protection':    { label: 'Face protection',    color: '#7B2E2E' },
+  'deepfake detection': { label: 'Deepfake detection', color: '#7B2E2E' },
+  'authenticity':       { label: 'Authenticity',       color: '#375E5A' },
 };
 
-const AIToolCard = ({ tool }) => {
+const AIToolCard = ({ tool, accent, section }) => {
   const badge = tool.privacy ? privacyConfig[tool.privacy]
               : tool.use     ? useConfig[tool.use]
               : null;
+
   return (
-    <div className="glass-card p-4 flex flex-col gap-3 hover:border-white/15 transition-colors">
+    <NewsCard className="notebook-card flex flex-col gap-3" accent={accent}>
+      <span className="notebook-card__section" style={{ color: accent }}>{section}</span>
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold text-white text-sm">{tool.name}</span>
+        <h3 className="news-card-title">{tool.name}</h3>
         {tool.url && (
-          <a href={tool.url} target="_blank" rel="noopener noreferrer"
-            className="text-gray-600 hover:text-midnight-400 transition-colors flex-shrink-0">
+          <a
+            href={tool.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-smoke hover:text-oxblood transition-colors flex-shrink-0"
+            aria-label={`Open ${tool.name}`}
+          >
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         )}
       </div>
-      <p className="text-xs text-gray-400 leading-relaxed flex-1">{tool.description}</p>
+      <p className="news-card-copy flex-1">{tool.description}</p>
       <div className="flex flex-wrap gap-1.5">
         {tool.platforms.map((pl, i) => (
-          <span key={i} className="text-[10px] px-2 py-0.5 bg-white/5 border border-white/8 rounded text-gray-500">
+          <span key={i} className="news-chip">
             {pl}
           </span>
         ))}
       </div>
       {badge && (
-        <span className={`self-start text-[10px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wider ${badge.cls}`}>
-          {badge.label}
-        </span>
+        <NewsBadge color={badge.color} className="notebook-stamp self-start">{badge.label}</NewsBadge>
       )}
-    </div>
+    </NewsCard>
   );
 };
 

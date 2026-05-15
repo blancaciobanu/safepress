@@ -1,3 +1,43 @@
+/* ─── HOW TO USE THIS FILE ──────────────────────────────────────────────
+   This is the master style sheet. Everything in the editorial system is
+   defined here once and consumed by every page.
+
+   1.  Color tokens live in @theme (below). Tailwind v4 auto-generates
+       utilities from them. Use them directly:
+
+         className="text-ink"            ← NOT text-[color:var(--color-ink)]
+         className="bg-paper-soft"       ← NOT bg-[color:var(--color-paper-soft)]
+         className="border-oxblood/30"   ← opacity modifier works as expected
+         className="text-smoke"
+
+       DO NOT use `style={{ color: 'var(--color-X)' }}` or
+       `text-[color:var(--color-X)]`. Those are escape hatches; if you find
+       yourself reaching for them, the token probably exists as a utility.
+
+   2.  Editorial classes (below @theme) bundle repeated patterns. Reach for:
+         .eyebrow / .eyebrow.sm   — mono uppercase kicker / dateline
+         .display / .display-soft — Fraunces display headings
+         .italic-ox               — italic Fraunces in oxblood (the only
+                                    inline color in the system)
+         .btn / .btn.ghost / .btn.mono
+         .f-row                   — numbered form-field vocabulary
+         .news-card / .news-notice (+ --danger / --brass / --info tones)
+         .news-tab / .news-tabs / .news-section-header
+         .rule / .rule-soft
+         .asterism                — three-star section divider
+         .halftone-placeholder    — "still life — placeholder" image slot
+
+   3.  JSX composition primitives live in
+       src/components/editorial/NewsPage.jsx —
+         <NewsPage>, <NewsHeader>, <NewsTabs>, <NewsRule>,
+         <NewsSectionHeader>, <NewsNotice>, <NewsCard>, <NewsBadge>,
+         <NewsField>, <NewsButton>, <NewsFiled>.
+
+   4.  When adding a paper-surface page, also add its path to
+       PAPER_SURFACE_PATHS in src/components/layout/Header.jsx so the
+       editorial header renders correctly on it.
+   ────────────────────────────────────────────────────────────────────── */
+
 /* ─── Editorial type system ─────────────────────────────────────────────
    Fraunces (variable, opsz/wght/SOFT/WONK) — display, set with tension.
    Geist — UI/body, sharp modern grotesk.
@@ -76,6 +116,14 @@
      while preserving the editorial feel. */
   --display-axes: 'opsz' 120, 'SOFT' 50, 'WONK' 0;
   --display-axes-soft: 'opsz' 60, 'SOFT' 70, 'WONK' 0;
+  --display-axes-italic: 'opsz' 60, 'SOFT' 80, 'WONK' 0;
+  --display-axes-tight: 'opsz' 144, 'SOFT' 30, 'WONK' 1;
+
+  /* Editorial motion — one ease, three speeds */
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 160ms;
+  --t-medium: 320ms;
+  --t-slow: 520ms;
 }
 
 /* ─── Keyframes ─── */
@@ -167,6 +215,13 @@ body::after {
 }
 
 .surface-paper > * { position: relative; z-index: 1; }
+
+.surface-newsroom {
+  background-color: var(--color-paper);
+  color: var(--color-ink-soft);
+  position: relative;
+  isolation: isolate;
+}
 
 /* ─── Glass cards (legacy — kept for product surfaces) ──────────────── */
 .glass-card {
@@ -279,6 +334,122 @@ body::after {
 .rule-soft {
   border: none;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Italic Fraunces in oxblood — the single piece of inline color in the
+   editorial system. Used on display headlines and short emphasis spans. */
+.italic-ox {
+  font-style: italic;
+  font-variation-settings: var(--display-axes-italic);
+  color: var(--color-oxblood);
+}
+
+/* Smaller eyebrow modifier — datelines, masthead kickers */
+.eyebrow.sm {
+  font-size: 0.625rem;
+  letter-spacing: 0.22em;
+}
+
+/* ─── Editorial buttons — the single button system on paper ───────────
+   .btn         filled ink (primary)
+   .btn.ghost   transparent with 1px ink border, inverts on hover
+   .btn.mono    mono uppercase, soft border — secondary affordance       */
+.btn {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.625rem 1.125rem;
+  border-radius: 2px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background var(--t-fast) var(--ease-editorial),
+              color var(--t-fast) var(--ease-editorial),
+              border-color var(--t-fast) var(--ease-editorial),
+              transform var(--t-fast) var(--ease-editorial);
+}
+
+.btn:hover  { background: var(--color-ink-soft); }
+.btn:active { transform: scale(0.98); }
+
+.btn.ghost {
+  background: transparent;
+  color: var(--color-ink);
+  border-color: var(--color-ink);
+}
+.btn.ghost:hover { background: var(--color-ink); color: var(--color-paper); }
+
+.btn.mono {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0.5625rem 0.875rem;
+  background: transparent;
+  color: var(--color-ink);
+  border-color: rgba(21, 17, 12, 0.25);
+}
+.btn.mono:hover {
+  background: rgba(21, 17, 12, 0.04);
+  color: var(--color-ink);
+}
+
+/* ─── Form vocabulary — the single field system on paper ──────────────
+   Numbered label above + single ink underline + oxblood underline on
+   focus. Used by Settings (Personnel Record), Request Support, etc.   */
+.f-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.f-row .f-lbl {
+  display: flex;
+  gap: 0.625rem;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-smoke);
+}
+
+.f-row .f-lbl .no {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
+.f-row input,
+.f-row textarea,
+.f-row select {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  color: var(--color-ink);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-ink);
+  border-radius: 0;
+  padding: 0.375rem 0;
+  outline: none;
+  width: 100%;
+  transition: border-bottom-color var(--t-fast) var(--ease-editorial),
+              border-bottom-width var(--t-fast) var(--ease-editorial);
+}
+
+.f-row input:focus,
+.f-row textarea:focus,
+.f-row select:focus {
+  border-bottom-width: 1.5px;
+  border-bottom-color: var(--color-oxblood);
+}
+
+.f-row textarea {
+  resize: vertical;
+  min-height: 4rem;
 }
 
 /* ─── Brand gradient (legacy) ───────────────────────────────────────── */
@@ -427,6 +598,755 @@ body::after {
 .link-handdrawn-dark:hover { color: var(--color-brass-soft); }
 .link-handdrawn-dark:hover::after { width: 100%; }
 
+/* Newsprint jump link — compact continuation cue for broadsheet surfaces. */
+.link-newsprint,
+.link-newsprint-dark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  padding-top: 0.65rem;
+  border-top: 1px solid currentColor;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  line-height: 1.25;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: normal;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.link-newsprint {
+  color: var(--color-ink);
+  border-color: rgba(21, 17, 12, 0.4);
+}
+
+.link-newsprint-dark {
+  color: var(--color-paper);
+  border-color: rgba(244, 239, 230, 0.42);
+}
+
+.link-newsprint svg,
+.link-newsprint-dark svg {
+  flex: 0 0 auto;
+  width: 0.9rem;
+  height: 0.9rem;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.link-newsprint:hover {
+  color: var(--color-oxblood);
+  border-color: var(--color-oxblood);
+}
+
+.link-newsprint-dark:hover {
+  color: var(--color-brass-soft);
+  border-color: var(--color-brass-soft);
+}
+
+.link-newsprint:hover,
+.link-newsprint-dark:hover {
+  transform: translateX(0.15rem);
+}
+
+.link-newsprint:hover svg,
+.link-newsprint-dark:hover svg {
+  transform: translateX(0.15rem);
+}
+
+/* Editorial app primitives - lighter than the Home broadsheet texture. */
+.news-header {
+  padding-top: 1rem;
+  padding-bottom: 2rem;
+}
+
+.news-header__rule {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-top: 3px solid var(--color-ink);
+  border-bottom: 1px solid rgba(21, 17, 12, 0.22);
+  padding-top: 0.85rem;
+  padding-bottom: 1rem;
+}
+
+.news-header__mark,
+.news-section-mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(21, 17, 12, 0.18);
+  color: var(--color-ink);
+  background: rgba(250, 246, 238, 0.55);
+}
+
+.news-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--color-smoke);
+}
+
+.news-title {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-axes);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--color-ink);
+  font-size: 3rem;
+  line-height: 0.92;
+  margin-top: 0.6rem;
+}
+
+@media (min-width: 640px) {
+  .news-title {
+    font-size: 4rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .news-title {
+    font-size: 6.5rem;
+  }
+}
+
+.news-header__body {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .news-header__body {
+    grid-template-columns: minmax(0, 1.45fr) minmax(14rem, 0.55fr);
+    align-items: start;
+  }
+}
+
+.news-lede {
+  max-width: 54rem;
+  color: var(--color-ink-soft);
+  font-size: 1.03rem;
+  line-height: 1.65;
+}
+
+.news-meta {
+  border-left: 1px solid rgba(21, 17, 12, 0.18);
+  padding-left: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: var(--color-smoke);
+}
+
+.news-tabs {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border-top: 1px solid rgba(21, 17, 12, 0.2);
+  border-bottom: 1px solid rgba(21, 17, 12, 0.2);
+  margin-bottom: 2.75rem;
+}
+
+@media (min-width: 768px) {
+  .news-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.news-tab {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  min-height: 5.5rem;
+  padding: 1rem 0;
+  text-align: left;
+  color: var(--color-smoke);
+  border-bottom: 1px solid rgba(21, 17, 12, 0.12);
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+@media (min-width: 768px) {
+  .news-tab {
+    border-bottom: 0;
+    border-right: 1px solid rgba(21, 17, 12, 0.12);
+    padding: 1rem;
+  }
+
+  .news-tab:first-child {
+    padding-left: 0;
+  }
+}
+
+.news-tab:last-child {
+  border-bottom: 0;
+  border-right: 0;
+}
+
+.news-tab:hover,
+.news-tab.is-active {
+  color: var(--color-ink);
+}
+
+.news-tab.is-active {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tab-accent) 9%, transparent), transparent 72%);
+}
+
+.news-tab__icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+  color: var(--tab-accent);
+}
+
+.news-tab__copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.news-tab__label {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-axes-soft);
+  font-size: 1.15rem;
+  line-height: 1.08;
+  color: var(--color-ink);
+}
+
+.news-tab__desc {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--color-smoke);
+}
+
+.news-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid rgba(21, 17, 12, 0.22);
+  padding-top: 0.95rem;
+  margin-bottom: 1.25rem;
+}
+
+.news-section-title {
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-axes-soft);
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--color-ink);
+  margin-top: 0.35rem;
+  letter-spacing: 0;
+}
+
+@media (min-width: 768px) {
+  .news-section-title {
+    font-size: 2.35rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .news-section-title {
+    font-size: 3rem;
+  }
+}
+
+.news-section-lede {
+  margin-top: 0.65rem;
+  max-width: 48rem;
+  color: var(--color-smoke);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.news-section-mark {
+  color: var(--section-accent);
+}
+
+.news-card,
+.news-notice {
+  border: 1px solid rgba(21, 17, 12, 0.14);
+  border-left: 3px solid var(--card-accent);
+  background: rgba(250, 246, 238, 0.58);
+}
+
+.news-card {
+  padding: 1rem;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.news-card:hover {
+  border-color: rgba(21, 17, 12, 0.26);
+  background: rgba(250, 246, 238, 0.82);
+}
+
+.news-card-title {
+  color: var(--color-ink);
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.news-card-copy {
+  color: var(--color-smoke);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.news-notice {
+  --card-accent: var(--color-brass);
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+.news-notice--danger {
+  --card-accent: var(--color-oxblood);
+}
+
+.news-notice--brass {
+  --card-accent: var(--color-brass);
+}
+
+.news-notice--info {
+  --card-accent: var(--color-smoke);
+}
+
+.news-notice__icon {
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--card-accent);
+  margin-top: 0.15rem;
+}
+
+.news-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--badge-color) 38%, transparent);
+  color: var(--badge-color);
+  background: color-mix(in srgb, var(--badge-color) 8%, transparent);
+  padding: 0.22rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.news-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(21, 17, 12, 0.12);
+  color: var(--color-smoke);
+  background: rgba(21, 17, 12, 0.025);
+  padding: 0.18rem 0.42rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.2;
+}
+
+.news-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1.5rem;
+}
+
+.news-selector-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid transparent;
+  padding: 0.5rem 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-smoke);
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.news-selector-button:hover,
+.news-selector-button.is-active {
+  color: var(--selector-accent);
+  border-color: color-mix(in srgb, var(--selector-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--selector-accent) 8%, transparent);
+}
+
+.news-ledger {
+  border-top: 1px solid rgba(21, 17, 12, 0.18);
+}
+
+.news-ledger-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  border-bottom: 1px solid rgba(21, 17, 12, 0.13);
+  padding: 1rem 0;
+}
+
+.news-row-index {
+  color: var(--row-accent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.35;
+  min-width: 2ch;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Resources: reference notebook personality.
+   Structural — the metaphor reads through proportion, margin rule, and
+   numbered entries. No depicted props (no stitched bindings, no tacks,
+   no tape, no tilt). Print-magazine restraint.
+   ────────────────────────────────────────────────────────────────────── */
+
+.resource-notebook {
+  position: relative;
+  background: var(--color-paper-dim);
+  padding-bottom: 6rem;
+}
+
+.resource-notebook > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* The page — paper-soft sheet, single soft shadow */
+.resource-notebook > div {
+  position: relative;
+  background: var(--color-paper-soft);
+  border: 1px solid rgba(21, 17, 12, 0.08);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 12px 32px -16px rgba(21, 17, 12, 0.18),
+    0 2px 6px rgba(21, 17, 12, 0.06);
+  margin-top: 1.5rem;
+  padding-top: 2.25rem;
+  padding-left: 5.5rem;
+  padding-right: 2.5rem;
+  padding-bottom: 4rem;
+}
+
+/* The only notebook prop: one oxblood margin hairline at the left edge */
+.resource-notebook > div::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4.5rem;
+  width: 1px;
+  background: rgba(123, 46, 46, 0.22);
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .resource-notebook > div {
+    margin-top: 0.5rem;
+    padding-top: 1.5rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .resource-notebook > div::before {
+    display: none;
+  }
+}
+
+/* Header on the page */
+.resource-notebook .news-header__rule {
+  border-top-width: 3px;
+  border-top-color: var(--color-ink);
+  border-bottom-color: rgba(21, 17, 12, 0.12);
+}
+
+.resource-notebook .news-header__mark,
+.resource-notebook .news-section-mark {
+  background: transparent;
+  border-color: rgba(21, 17, 12, 0.14);
+  box-shadow: none;
+}
+
+.resource-notebook .news-meta {
+  background: transparent;
+  border-left-color: rgba(21, 17, 12, 0.16);
+}
+
+.resource-notebook .news-section-title {
+  font-size: 2rem;
+}
+
+@media (min-width: 768px) {
+  .resource-notebook .news-section-title {
+    font-size: 2.5rem;
+  }
+}
+
+/* ── Masthead caption — typographic only ── */
+.notebook-cover {
+  position: relative;
+}
+
+.notebook-cover::after {
+  content: 'Reference · Vol. 01';
+  display: block;
+  margin-top: 1rem;
+  color: var(--color-smoke);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.notebook-cover .news-title {
+  font-weight: 500;
+}
+
+/* ── Index tabs — typographic, with a single accent underline ── */
+.notebook-index {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  border: 0;
+  border-bottom: 1px solid rgba(21, 17, 12, 0.14);
+  gap: 0;
+  margin-top: 2rem;
+  margin-bottom: 2.5rem;
+  padding: 0;
+}
+
+.notebook-index .news-tab {
+  position: relative;
+  min-height: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.85rem 1.5rem 1rem;
+  margin-right: 0.25rem;
+  margin-bottom: -1px;
+  box-shadow: none;
+  transform: none;
+  transition: color 0.18s ease;
+}
+
+.notebook-index .news-tab:first-child {
+  padding-left: 0;
+}
+
+.notebook-index .news-tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: transparent;
+  transition: background 0.18s ease, height 0.18s ease;
+}
+
+.notebook-index .news-tab:first-child::after {
+  left: 0;
+}
+
+.notebook-index .news-tab:hover {
+  background: transparent;
+}
+
+.notebook-index .news-tab:hover::after {
+  background: rgba(21, 17, 12, 0.22);
+}
+
+.notebook-index .news-tab.is-active {
+  background: transparent;
+}
+
+.notebook-index .news-tab.is-active::after {
+  background: var(--tab-accent);
+  height: 2px;
+}
+
+.notebook-index .news-tab__icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.notebook-index .news-tab__label {
+  font-size: 1rem;
+  color: var(--color-ink);
+}
+
+.notebook-index .news-tab__desc {
+  color: var(--color-smoke);
+}
+
+/* ── Section headers ── */
+.notebook-section {
+  margin-top: 0.5rem;
+  border-top-color: rgba(21, 17, 12, 0.16);
+}
+
+.notebook-section .news-section-mark {
+  color: var(--section-accent);
+  border-color: rgba(21, 17, 12, 0.14);
+}
+
+/* ── OS selector — typographic pills with a hairline underline ── */
+.resource-notebook .news-selector {
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+  margin-bottom: 2.25rem;
+}
+
+.resource-notebook .news-selector-button {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.4rem 0;
+  box-shadow: none;
+  color: var(--color-smoke);
+  letter-spacing: 0.12em;
+}
+
+.resource-notebook .news-selector-button:hover {
+  color: var(--color-ink);
+  background: transparent;
+  border-bottom-color: rgba(21, 17, 12, 0.2);
+}
+
+.resource-notebook .news-selector-button.is-active {
+  color: var(--selector-accent);
+  background: transparent;
+  border-bottom-color: var(--selector-accent);
+}
+
+/* ── Ledger — numbered entries, no circles ── */
+.notebook-ledger {
+  border-top: 1px solid rgba(21, 17, 12, 0.16);
+  padding-top: 0;
+}
+
+.notebook-ledger .news-ledger-row {
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 1.25rem;
+  border-bottom-color: rgba(21, 17, 12, 0.08);
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+
+.notebook-ledger .news-row-index {
+  display: block;
+  width: auto;
+  height: auto;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--row-accent);
+  font-family: var(--font-display);
+  font-variation-settings: var(--display-axes-soft);
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.1;
+  margin-top: -0.1rem;
+}
+
+/* ── Cards — flat cream on cream, hairline border, quiet shadow ── */
+.notebook-card {
+  position: relative;
+  border: 1px solid rgba(21, 17, 12, 0.10);
+  border-radius: 0;
+  padding: 1.25rem 1.25rem 1.1rem;
+  background: var(--color-paper-soft);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 6px rgba(21, 17, 12, 0.05);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.notebook-card:hover {
+  border-color: rgba(21, 17, 12, 0.20);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 4px 12px rgba(21, 17, 12, 0.08);
+}
+
+.notebook-card__section {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+/* Priority/use badge — flat, no tilt */
+.notebook-stamp {
+  border-width: 1px;
+  background: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Caution — quiet ink notice, oxblood left rule, no yellow ── */
+.notebook-warning {
+  position: relative;
+  border: 1px solid rgba(21, 17, 12, 0.10);
+  border-left: 2px solid var(--color-oxblood);
+  border-radius: 0;
+  padding: 2.25rem 1.5rem 1.25rem;
+  margin-top: 0.5rem;
+  margin-bottom: 2.75rem;
+  background: var(--color-paper-soft);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 6px rgba(21, 17, 12, 0.05);
+  transform: none;
+}
+
+.notebook-warning::before {
+  content: 'Caution';
+  position: absolute;
+  top: 1.25rem;
+  left: 1.5rem;
+  color: var(--color-oxblood);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 /* Blinking ink caret — set at end of lede paragraph, slow editorial blink */
 .ink-caret {
   display: inline-block;
@@ -501,8 +1421,12 @@ body::after {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--color-smoke);
-  margin-top: 0.85rem;
+  margin-top: 0;
   display: block;
+}
+
+.marginalia .folio + .filed {
+  margin-top: 0.85rem;
 }
 
 .marginalia .inscription {

@@ -217,7 +217,7 @@ const buildJournalistBrief = ({ user, latestScore, setupProgress, latestRequest,
       : 'none active';
 
   let nextAction = {
-    label: 'Open dashboard',
+    label: 'Turn to your desk',
     to: '/dashboard',
     note: 'See the fuller breakdown without leaving the front page blind.',
   };
@@ -345,7 +345,7 @@ const buildJournalistBrief = ({ user, latestScore, setupProgress, latestRequest,
       heading: 'Keep the routine close.',
       lead: 'A better front page is only useful if it sends you back to work faster.',
       to: '/dashboard',
-      label: 'Open dashboard',
+      label: 'Turn to your desk',
     },
   };
 };
@@ -356,7 +356,7 @@ const buildApprovedSpecialistBrief = ({ stats, loading }) => {
   const resolvedCount = loading ? '...' : `${stats.resolvedCount}`;
 
   let nextAction = {
-    label: 'Open specialist dashboard',
+    label: 'Turn to the specialist desk',
     to: '/specialist-dashboard',
     note: 'The detailed queue and case workflow still belongs in the specialist desk.',
   };
@@ -437,7 +437,7 @@ const buildApprovedSpecialistBrief = ({ stats, loading }) => {
       heading: 'Stay current, then go back to work.',
       lead: 'The dashboard is still the real workspace. Home is only the front page summary.',
       to: '/specialist-dashboard',
-      label: 'Open specialist dashboard',
+      label: 'Turn to the specialist desk',
     },
   };
 };
@@ -539,7 +539,7 @@ const buildPendingSpecialistBrief = ({ verificationState, emailVerified }) => {
 
 const Marginalia = ({ folio, filed, inscription }) => (
   <div className="marginalia">
-    <span className="folio">{folio}</span>
+    {folio && <span className="folio">{folio}</span>}
     <span className="filed">{filed}</span>
     {inscription && <p className="inscription">{inscription}</p>}
   </div>
@@ -804,7 +804,7 @@ const Home = () => {
           heading: 'Five minutes. No account.',
           lead: 'The assessment stays open, the crisis protocols stay visible, and the rest of the toolkit waits until you need it.',
           to: '/security-score',
-          label: 'Take the assessment',
+          label: 'Turn to the assessment',
         },
       };
     }
@@ -997,10 +997,7 @@ const Home = () => {
                     {pageModel.activity.detail}
                   </p>
                   {pageModel.nextAction && (
-                    <Link
-                      to={pageModel.nextAction.to}
-                      className="mt-5 inline-flex items-center gap-2 link-handdrawn display-soft text-lg"
-                    >
+                    <Link to={pageModel.nextAction.to} className="mt-5 link-newsprint">
                       {pageModel.nextAction.label}
                       <ArrowRight className="w-4 h-4" />
                     </Link>
@@ -1015,9 +1012,10 @@ const Home = () => {
                     <Link
                       key={action.label}
                       to={action.to}
-                      className="link-handdrawn display-soft text-lg md:text-xl"
+                      className="link-newsprint"
                     >
                       {action.label}
+                      <ArrowRight className="w-4 h-4" />
                     </Link>
                   ))}
                 </motion.div>
@@ -1083,15 +1081,14 @@ const Home = () => {
         </div>
       </section>
 
-      {/* ─── §02  Continue ─────────────────────────────────────────────── */}
+      {/* ─── Continue ──────────────────────────────────────────────────── */}
       <section className="px-6 md:px-10 lg:px-14 pt-16 md:pt-24 pb-16 md:pb-20 bg-[color:var(--color-ink)] text-[color:var(--color-paper)]">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-12 gap-8 md:gap-10">
 
           <motion.div {...fadeUp} className="md:col-span-3">
             <div style={{ '--color-oxblood': '#A6873E', '--color-smoke': 'rgba(244, 239, 230, 0.55)', '--color-ink-soft': 'rgba(244, 239, 230, 0.85)' }}>
               <Marginalia
-                folio="II."
-                filed="§ 02 — Continue"
+                filed="Continue"
                 inscription="The front page should orient you, then send you back into the work without more theatre."
               />
             </div>
@@ -1106,7 +1103,7 @@ const Home = () => {
             </p>
             <Link
               to={pageModel.closing.to}
-              className="link-handdrawn-dark display-soft text-xl md:text-2xl mt-10 inline-flex items-baseline gap-2"
+              className="link-newsprint-dark mt-10"
             >
               {pageModel.closing.label}
               <ArrowRight className="w-4 h-4 self-center" />
