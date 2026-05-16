@@ -20,6 +20,7 @@ export const NewsPage = ({ children, max = 'wide', className = '' }) => {
 
 export const NewsHeader = ({ kicker, title, lede, meta, icon: Icon, className = '' }) => (
   <header className={cx('news-header', className)}>
+    <NewsRule className="news-header__pair" />
     <div className="news-header__rule">
       <div>
         {kicker && <p className="news-kicker">{kicker}</p>}

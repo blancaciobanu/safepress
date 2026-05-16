@@ -1,4 +1,4 @@
-import { motion as Motion, AnimatePresence, Reorder } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   Lock, Smartphone, Database, MessageSquare, MapPin,
   Check, ExternalLink, AlertTriangle, ArrowRight, GripVertical,
@@ -11,7 +11,6 @@ import { db } from '../firebase/config';
 import { COLLECTIONS } from '../config/firebaseCollections';
 import {
   NewsNotice,
-  NewsPanel,
   NewsPage,
   NewsRule,
 } from '../components/editorial/NewsPage';
@@ -409,6 +408,16 @@ const mergeOrderedSubset = (currentOrder, nextVisibleIds, visibleIds) => {
   return currentOrder.map((id) => (visibleIds.has(id) ? nextVisibleIds[cursor++] : id));
 };
 
+const zoneSequence = ['source', 'pinned'];
+
+const getTaskTilt = (taskId, zone) => {
+  const seed = [...taskId].reduce((total, char) => total + char.charCodeAt(0), 0);
+  const base = ((seed % 7) - 3) * 0.6;
+  if (zone === 'pinned') return `${base * 0.55}deg`;
+  if (zone === 'filed') return `${base * 1.2}deg`;
+  return '0deg';
+};
+
 const deriveWeakCategories = (scores = []) => {
   if (!scores?.length) return [];
   const latest = scores[scores.length - 1];
@@ -451,7 +460,16 @@ const CategoryTrayCard = ({ categoryKey, category, progress, done, active, flagg
   );
 };
 
-const TaskCard = ({ task, done, selectedCategory, canToggle, onToggle }) => {
+const TaskCard = ({
+  task,
+  done,
+  zone = 'source',
+  selectedCategory,
+  canToggle,
+  onToggle,
+  onDragStart,
+  onDragEnd,
+}) => {
   const category = setupTasks[task.categoryKey];
   const priorityBorder = done
     ? 'rgba(21, 17, 12, 0.12)'
@@ -464,8 +482,11 @@ const TaskCard = ({ task, done, selectedCategory, canToggle, onToggle }) => {
 
   return (
     <article
-      className={`workbench-task-card ${done ? 'is-done' : ''}`}
-      style={{ '--task-accent': priorityBorder }}
+      draggable={!done}
+      onDragStart={done ? undefined : onDragStart}
+      onDragEnd={done ? undefined : onDragEnd}
+      className={`workbench-task-card workbench-task-card--${zone} ${done ? 'is-done' : ''}`}
+      style={{ '--task-accent': priorityBorder, '--card-tilt': getTaskTilt(task.id, zone) }}
     >
       <div className="workbench-task-card__topline">
         <span className="eyebrow sm">
@@ -556,6 +577,9 @@ const SecureSetup = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [taskOrder,        setTaskOrder]        = useState(DEFAULT_TASK_ORDER);
   const [completedDrafts,  setCompletedDrafts]  = useState({});
+  const [taskZones,        setTaskZones]        = useState({});
+  const [draggedTaskId,    setDraggedTaskId]    = useState(null);
+  const [activeDropZone,   setActiveDropZone]   = useState(null);
 
   const currentUserKey = user?.uid ?? 'guest';
   const persistedCompletedIds = useMemo(
@@ -628,11 +652,56 @@ const SecureSetup = () => {
 
   const weakFocus = weakCategories[0] ? setupTasks[weakCategories[0]] : null;
   const selectedCategoryData = selectedCategory ? setupTasks[selectedCategory] : null;
-  const nextThreeTasks = activeTasks.slice(0, 3);
 
-  const handleReorder = (nextIds) => {
+  const zoneBuckets = useMemo(() => {
+    const buckets = { source: [], pinned: [] };
+    activeTasks.forEach((task, index) => {
+      const zone = taskZones[task.id] ?? zoneSequence[Math.min(index, zoneSequence.length - 1)] ?? 'source';
+      buckets[zone]?.push(task);
+    });
+    return buckets;
+  }, [activeTasks, taskZones]);
+
+  const moveTaskToZone = (taskId, zone) => {
+    if (zone === 'filed') {
+      if (!completedTasks.has(taskId)) {
+        void toggleTask(taskId);
+      }
+      return;
+    }
+
+    setTaskZones((prev) => ({ ...prev, [taskId]: zone }));
     const visibleIds = new Set(activeTasks.map((task) => task.id));
-    setTaskOrder((currentOrder) => mergeOrderedSubset(currentOrder, nextIds, visibleIds));
+    const nextVisibleIds = activeTasks
+      .map((task) => task.id)
+      .filter((id) => id !== taskId);
+    const insertionIndex = zone === 'pinned' ? Math.min(1, nextVisibleIds.length) : 0;
+    nextVisibleIds.splice(insertionIndex, 0, taskId);
+    setTaskOrder((currentOrder) => mergeOrderedSubset(currentOrder, nextVisibleIds, visibleIds));
+  };
+
+  const beginDrag = (taskId) => (event) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', taskId);
+    setDraggedTaskId(taskId);
+  };
+
+  const endDrag = () => {
+    setDraggedTaskId(null);
+    setActiveDropZone(null);
+  };
+
+  const allowDrop = (zone) => (event) => {
+    event.preventDefault();
+    if (draggedTaskId) setActiveDropZone(zone);
+  };
+
+  const dropInZone = (zone) => (event) => {
+    event.preventDefault();
+    const taskId = event.dataTransfer.getData('text/plain') || draggedTaskId;
+    if (taskId) moveTaskToZone(taskId, zone);
+    setDraggedTaskId(null);
+    setActiveDropZone(null);
   };
 
   if (loading) {
@@ -778,7 +847,7 @@ const SecureSetup = () => {
         <div className="workbench-tray__header">
           <div>
             <p className="eyebrow sm text-oxblood">Task trays</p>
-            <h2 className="workbench-section-title">Choose a stack to work through.</h2>
+            <h2 className="workbench-section-title">Pull cards onto the desk.</h2>
           </div>
           {selectedCategory && (
             <button
@@ -816,117 +885,122 @@ const SecureSetup = () => {
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           className="workbench-board"
         >
-          <div className="workbench-board__heading">
-            <div>
-              <p className="eyebrow sm">
-                {selectedCategoryData
-                  ? `${selectedCategoryData.name} · ${visibleTasks.length} tasks`
-                  : `Open board · ${visibleTasks.length} tasks`}
-              </p>
-              <h2 className="workbench-section-title">
-                {selectedCategoryData
-                  ? `Arrange your ${selectedCategoryData.name.toLowerCase()} checklist.`
-                  : 'Arrange the next tasks on your desk.'}
-              </h2>
-            </div>
-            <p className="workbench-drag-note">Drag active cards to reorder your bench.</p>
-          </div>
-
-          <div className="workbench-board__layout">
-            <div>
-              <div className="workbench-stack-head">
-                <span className="eyebrow sm text-oxblood">Active</span>
-                <span className="eyebrow sm">{activeTasks.length} open</span>
+          <div className="workbench-board__inner">
+            <div className="workbench-board__heading">
+              <div>
+                <p className="eyebrow sm">
+                  {selectedCategoryData
+                    ? `${selectedCategoryData.name} · ${visibleTasks.length} tasks`
+                    : `Desk layout · ${visibleTasks.length} tasks`}
+                </p>
+                <h2 className="workbench-section-title">
+                  {selectedCategoryData
+                    ? `Move the ${selectedCategoryData.name.toLowerCase()} cards across the desk.`
+                    : 'Move the cards across the desk.'}
+                </h2>
               </div>
+              <p className="workbench-drag-note">Drag cards between source, pinned, and filed scraps.</p>
+            </div>
 
-              {activeTasks.length > 0 ? (
-                <Reorder.Group
-                  axis="y"
-                  values={activeTasks.map((task) => task.id)}
-                  onReorder={handleReorder}
-                  className="workbench-task-list"
+            {activeTasks.length > 0 ? (
+              <div className="workbench-desk-spread">
+                <div className="workbench-desk">
+                <section
+                  className={`workbench-lane workbench-lane--source ${activeDropZone === 'source' ? 'is-target' : ''}`}
+                  onDragOver={allowDrop('source')}
+                  onDragLeave={() => setActiveDropZone((current) => (current === 'source' ? null : current))}
+                  onDrop={dropInZone('source')}
                 >
-                  {activeTasks.map((task) => (
-                    <Reorder.Item
-                      key={task.id}
-                      value={task.id}
-                      className="list-none"
-                    >
+                  <div className="workbench-stack-head">
+                    <span className="eyebrow sm text-oxblood">Source stack</span>
+                    <span className="eyebrow sm">{zoneBuckets.source.length} waiting</span>
+                  </div>
+                  <div className="workbench-task-list workbench-task-list--stack">
+                    {zoneBuckets.source.length > 0 ? zoneBuckets.source.map((task) => (
                       <TaskCard
+                        key={task.id}
                         task={task}
+                        zone="source"
                         done={false}
                         selectedCategory={selectedCategory}
                         canToggle={Boolean(user)}
                         onToggle={toggleTask}
+                        onDragStart={beginDrag(task.id)}
+                        onDragEnd={endDrag}
                       />
-                    </Reorder.Item>
-                  ))}
-                </Reorder.Group>
-              ) : (
-                <NewsNotice tone="info" icon={Check}>
-                  <p className="eyebrow sm text-ink">Bench cleared</p>
-                  <p className="mt-2 text-sm text-ink-soft">
-                    Everything in this tray is already checked off. Pick another category
-                    or reopen a task if you want it back on the bench.
-                  </p>
-                </NewsNotice>
-              )}
-            </div>
+                    )) : (
+                      <p className="workbench-empty">No cards waiting in this stack.</p>
+                    )}
+                  </div>
+                </section>
 
-            <div className="space-y-4">
-              <NewsPanel className="workbench-sidecard">
-                <p className="eyebrow sm text-oxblood">On deck</p>
-                <ul className="workbench-sidecard__list">
-                  {nextThreeTasks.length > 0 ? nextThreeTasks.map((task, index) => (
-                    <li key={task.id}>
-                      <span>{String(index + 1).padStart(2, '0')}</span>
-                      <p>{task.title}</p>
-                    </li>
-                  )) : (
-                    <li className="is-empty">
-                      <p>No open tasks in this tray.</p>
-                    </li>
-                  )}
-                </ul>
-              </NewsPanel>
+                <section
+                  className={`workbench-lane workbench-lane--pinned ${activeDropZone === 'pinned' ? 'is-target' : ''}`}
+                  onDragOver={allowDrop('pinned')}
+                  onDragLeave={() => setActiveDropZone((current) => (current === 'pinned' ? null : current))}
+                  onDrop={dropInZone('pinned')}
+                >
+                  <div className="workbench-stack-head">
+                    <span className="eyebrow sm text-oxblood">Pinned slip</span>
+                    <span className="eyebrow sm">{zoneBuckets.pinned.length} marked</span>
+                  </div>
+                  <div className="workbench-task-list workbench-task-list--pinned">
+                    {zoneBuckets.pinned.length > 0 ? zoneBuckets.pinned.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        zone="pinned"
+                        done={false}
+                        selectedCategory={selectedCategory}
+                        canToggle={Boolean(user)}
+                        onToggle={toggleTask}
+                        onDragStart={beginDrag(task.id)}
+                        onDragEnd={endDrag}
+                      />
+                    )) : (
+                      <p className="workbench-empty">Pin the items you want to keep in view.</p>
+                    )}
+                  </div>
+                </section>
 
-              <NewsPanel muted className="workbench-sidecard">
-                <p className="eyebrow sm">Reference links</p>
-                <div className="workbench-reference-links">
-                  <Link to="/resources" className="workbench-link workbench-link--ink">
-                    Resource notebook <ExternalLink className="w-3 h-3" />
-                  </Link>
-                  <Link to="/source-protection" className="workbench-link workbench-link--brass">
-                    Field manual <ArrowRight className="w-3 h-3" />
-                  </Link>
-                  <Link to="/security-score" className="workbench-link workbench-link--oxblood">
-                    Re-take assessment <ArrowRight className="w-3 h-3" />
-                  </Link>
+                <section
+                  className={`workbench-lane workbench-lane--filed ${activeDropZone === 'filed' ? 'is-target' : ''}`}
+                  onDragOver={allowDrop('filed')}
+                  onDragLeave={() => setActiveDropZone((current) => (current === 'filed' ? null : current))}
+                  onDrop={dropInZone('filed')}
+                >
+                  <div className="workbench-stack-head">
+                    <span className="eyebrow sm text-oxblood">Filed scraps</span>
+                    <span className="eyebrow sm">{completedVisibleTasks.length} checked off</span>
+                  </div>
+                  <div className="workbench-complete__grid workbench-complete__grid--desk">
+                    {completedVisibleTasks.length > 0 ? completedVisibleTasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        zone="filed"
+                        done
+                        selectedCategory={selectedCategory}
+                        canToggle={Boolean(user)}
+                        onToggle={toggleTask}
+                      />
+                    )) : (
+                      <p className="workbench-empty">Drop completed cards here or check them off into the pile.</p>
+                    )}
+                  </div>
+                </section>
                 </div>
-              </NewsPanel>
-            </div>
+              </div>
+            ) : (
+              <NewsNotice tone="info" icon={Check}>
+                <p className="eyebrow sm text-ink">Bench cleared</p>
+                <p className="mt-2 text-sm text-ink-soft">
+                  Everything in this tray is already checked off. Pick another category
+                  or reopen a task if you want it back on the desk.
+                </p>
+              </NewsNotice>
+            )}
           </div>
-
-          {completedVisibleTasks.length > 0 && (
-            <div className="workbench-complete">
-              <div className="workbench-stack-head">
-                <span className="eyebrow sm">Filed</span>
-                <span className="eyebrow sm">{completedVisibleTasks.length} checked off</span>
-              </div>
-              <div className="workbench-complete__grid">
-                {completedVisibleTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    done
-                    selectedCategory={selectedCategory}
-                    canToggle={Boolean(user)}
-                    onToggle={toggleTask}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
         </Motion.section>
       </AnimatePresence>
 
