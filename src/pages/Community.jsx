@@ -10,10 +10,7 @@ import {
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import {
-  collection, getDocs, doc, updateDoc,
-  arrayUnion, arrayRemove, query, where,
-} from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { getPublicProfile } from '../features/users/services/userService';
 import {
@@ -21,6 +18,7 @@ import {
   createCommunityPost,
   createCommunityReport,
   deleteCommunityPostWithComments,
+  getAuthorProfile,
   getPostCommentCount,
   listCommunityComments,
   listCommunityPosts,
@@ -386,36 +384,8 @@ const Community = () => {
     if (!uid) return;
     setAuthorProfile({ uid, loading: true, type });
     try {
-      const publicData = await getPublicProfile(uid) || {};
-
-      // Journalist or specialist post count + recent posts
-      const postsSnap = await getDocs(query(collection(db, COLLECTIONS.COMMUNITY_POSTS), where('authorId', '==', uid)));
-      const userPosts = postsSnap.docs.map((entry) => {
-        const data = entry.data();
-        return { id: entry.id, ...data, commentCount: getPostCommentCount(data) };
-      });
-      const visiblePosts = userPosts.filter(p => !p.isAnonymous);
-      const recentPosts = visiblePosts
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 3);
-
-      setAuthorProfile({
-        uid,
-        loading: false,
-        type: publicData.accountType || type,
-        username: publicData.username || 'user',
-        avatarIcon: publicData.avatarIcon || '🔒',
-        bio: publicData.specialistProfile?.bio || '',
-        specializations: publicData.specialistProfile?.expertiseAreas || [],
-        verified: publicData.verificationStatus === 'approved',
-        createdAt: publicData.createdAt,
-        postCount: visiblePosts.length,
-        recentPosts,
-        resolvedCount: 0,
-        avgRating: null,
-        recentFeedback: [],
-        supportStatsVisible: false,
-      });
+      const profile = await getAuthorProfile(uid, getPublicProfile, type);
+      setAuthorProfile(profile ? { ...profile, loading: false } : null);
     } catch (err) {
       logError('Error loading profile:', err);
       setAuthorProfile(null);

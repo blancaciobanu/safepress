@@ -192,3 +192,41 @@ export const getCommunityPost = async (postId) => {
   const snapshot = await getDoc(doc(db, COMMUNITY_POSTS_COLLECTION, postId));
   return snapshot.exists() ? { id: snapshot.id, ...snapshot.data(), commentCount: getPostCommentCount(snapshot.data()) } : null;
 };
+
+/* Build the read-only author profile view used by the AuthorProfileModal.
+   Combines the user's public profile with their visible community posts. */
+export const getAuthorProfile = async (uid, getPublicProfile, fallbackType = 'journalist') => {
+  if (!uid) return null;
+
+  const publicData = (await getPublicProfile(uid)) || {};
+
+  const postsSnap = await getDocs(
+    query(collection(db, COMMUNITY_POSTS_COLLECTION), where('authorId', '==', uid)),
+  );
+  const userPosts = postsSnap.docs.map((entry) => {
+    const data = entry.data();
+    return { id: entry.id, ...data, commentCount: getPostCommentCount(data) };
+  });
+  const visiblePosts = userPosts.filter((p) => !p.isAnonymous);
+  const recentPosts = visiblePosts
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 3);
+
+  return {
+    uid,
+    type: publicData.accountType || fallbackType,
+    username: publicData.username || 'user',
+    avatarIcon: publicData.avatarIcon || '🔒',
+    bio: publicData.specialistProfile?.bio || '',
+    specializations: publicData.specialistProfile?.expertiseAreas || [],
+    verified: publicData.verificationStatus === 'approved',
+    createdAt: publicData.createdAt,
+    postCount: visiblePosts.length,
+    recentPosts,
+    /* Specialist support stats — not yet wired; reserved for future use. */
+    resolvedCount: 0,
+    avgRating: null,
+    recentFeedback: [],
+    supportStatsVisible: false,
+  };
+};
