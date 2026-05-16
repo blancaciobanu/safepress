@@ -415,10 +415,7 @@ const Resources = () => {
                             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                             style={{ overflow: 'hidden' }}
                           >
-                            <div
-                              className="border-t border-ink/8 bg-paper-soft/50"
-                              style={{ padding: '1.25rem 0 1.25rem calc(3rem + 1.25rem)' }}
-                            >
+                            <div className="border-t border-ink/8 bg-paper-soft/50 flex justify-center py-8">
                               <OSMockup osId={currentOS.id} step={step} />
                             </div>
                           </motion.div>
