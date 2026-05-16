@@ -8,7 +8,8 @@ import {
   writeBatch,
   where,
 } from 'firebase/firestore';
-import { db } from '../../../firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../../firebase/config';
 import { COLLECTIONS } from '../../../config/firebaseCollections';
 import {
   SUPPORT_CONTACT_METHODS,
@@ -108,6 +109,16 @@ export const createSupportRequest = async ({
   await batch.commit();
 
   return { id: requestRef.id, ...privatePayload };
+};
+
+export const draftSupportRequestWithAI = async ({ roughDetails }) => {
+  if (typeof roughDetails !== 'string' || roughDetails.trim().length < 20) {
+    throw new Error('support-draft-too-short');
+  }
+
+  const callable = httpsCallable(functions, 'draftSupportRequest');
+  const result = await callable({ roughDetails: roughDetails.trim() });
+  return result.data;
 };
 
 export const getActiveSupportRequests = async () => {

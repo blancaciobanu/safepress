@@ -17,7 +17,7 @@ export const NewsSidebar = ({ className = '' }) => {
       transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
       className={`lg:sticky lg:top-32 ${className}`}
     >
-      <NewsPanel muted className="rounded-2xl p-5">
+      <NewsPanel muted className="p-5">
         <div className="flex items-center gap-2 mb-5">
           <div className="w-7 h-7 rounded-lg bg-oxblood/8 border border-oxblood/20 flex items-center justify-center">
             <Newspaper className="w-3.5 h-3.5 text-oxblood" />

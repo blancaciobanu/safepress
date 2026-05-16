@@ -1,9 +1,9 @@
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
-  Lock, Smartphone, Database, MessageSquare, MapPin,
-  Check, ExternalLink, AlertTriangle, ArrowRight, GripVertical,
+  Check, AlertTriangle, ArrowRight, GripVertical,
 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { setupTasks, allTasks, TASKS_BY_ID, DEFAULT_TASK_ORDER } from '../features/setup/data/setupTasks';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
@@ -19,8 +19,6 @@ import {
    A numbered checklist of practical tasks, grouped by category.
    Editorial restraint: no metal-clip skeuomorphism, no rainbow brand
    colors. Category identity is a single subtle accent + the icon. */
-
-const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
 
 /* Single subtle accent per category — used for the gauge ring and the
    category chip border. Stays inside the editorial palette. */
@@ -38,12 +36,19 @@ const DIFFICULTY_TONE = {
   advanced: 'text-oxblood border-oxblood/40 bg-oxblood/[0.06]',
 };
 
+const WORKBENCH_LEVELS = [
+  { threshold: 0, label: 'Getting started', tone: 'text-smoke', accent: 'rgba(123, 114, 101, 0.9)' },
+  { threshold: 25, label: 'Building habits', tone: 'text-ink-soft', accent: 'var(--color-ink-soft)' },
+  { threshold: 50, label: 'Security aware', tone: 'text-brass', accent: 'var(--color-brass)' },
+  { threshold: 75, label: 'Conscious', tone: 'text-oxblood', accent: 'var(--color-oxblood-soft)' },
+  { threshold: 100, label: 'Hardened', tone: 'text-oxblood', accent: 'var(--color-oxblood)' },
+];
+
 const getLevelInfo = (pct) => {
-  if (pct >= 100) return { label: 'Security hardened',  tone: 'text-oxblood' };
-  if (pct >= 75)  return { label: 'Security conscious', tone: 'text-ink' };
-  if (pct >= 50)  return { label: 'Security aware',     tone: 'text-brass' };
-  if (pct >= 25)  return { label: 'Building habits',    tone: 'text-ink-soft' };
-  return                 { label: 'Getting started',    tone: 'text-smoke' };
+  return WORKBENCH_LEVELS.reduce(
+    (current, step) => (pct >= step.threshold ? step : current),
+    WORKBENCH_LEVELS[0],
+  );
 };
 
 const ProgressRing = ({ progress, color, size = 44, strokeWidth = 2.5 }) => {
@@ -67,348 +72,10 @@ const ProgressRing = ({ progress, color, size = 44, strokeWidth = 2.5 }) => {
   );
 };
 
-/* ─── Static data (preserved verbatim from the legacy page) ──────────── */
 
-const setupTasks = {
-    password: {
-      name: 'Password security',
-      icon: Lock,
-      tasks: [
-        {
-          id: 'pass-manager',
-          title: 'Install a password manager',
-          why: 'Prevents password reuse and makes it easy to use strong, unique passwords for every account',
-          how: 'Download Bitwarden (free, open-source) or 1Password (premium)',
-          link: '/resources',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'critical',
-        },
-        {
-          id: 'pass-audit',
-          title: 'Audit existing passwords',
-          why: 'Identifies weak, reused, or compromised passwords that need to be changed',
-          how: "Use your password manager's security audit feature to find weak passwords",
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'pass-2fa-email',
-          title: 'Enable 2FA on email accounts',
-          why: 'Email is the key to all your accounts — if compromised, attackers can reset everything',
-          how: 'Go to your email security settings and enable two-factor authentication using an authenticator app',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'critical',
-        },
-        {
-          id: 'pass-2fa-social',
-          title: 'Enable 2FA on social media',
-          why: 'Prevents account takeover and protects your professional identity',
-          how: 'Enable 2FA in security settings for Twitter, Facebook, LinkedIn, Instagram',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'pass-2fa-banking',
-          title: 'Enable 2FA on financial accounts',
-          why: 'Protects your money and prevents unauthorized transactions',
-          how: 'Log into your bank/payment apps and enable 2FA in security settings',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'critical',
-        },
-        {
-          id: 'pass-change-weak',
-          title: 'Change all weak passwords',
-          why: 'Weak passwords can be cracked in seconds by automated tools',
-          how: 'Use your password manager to generate strong passwords for flagged accounts',
-          difficulty: 'medium',
-          os: ['all'],
-          priority: 'high',
-        },
-      ],
-    },
-    device: {
-      name: 'Device security',
-      icon: Smartphone,
-      tasks: [
-        {
-          id: 'device-encryption-windows',
-          title: 'Enable BitLocker (Windows)',
-          why: 'Protects your files if your device is stolen — cannot be accessed without your password',
-          how: 'Settings → Privacy & Security → Device Encryption → Turn on BitLocker',
-          link: '/resources',
-          difficulty: 'easy',
-          os: ['Windows'],
-          priority: 'critical',
-        },
-        {
-          id: 'device-encryption-mac',
-          title: 'Enable FileVault (macOS)',
-          why: 'Encrypts your entire disk so files are protected if device is stolen',
-          how: 'System Settings → Privacy & Security → FileVault → Turn On',
-          link: '/resources',
-          difficulty: 'easy',
-          os: ['macOS'],
-          priority: 'critical',
-        },
-        {
-          id: 'device-encryption-mobile',
-          title: 'Enable device encryption (mobile)',
-          why: 'Protects sensitive data on your phone if lost or stolen',
-          how: 'iOS: enabled by default with passcode. Android: Settings → Security → Encrypt phone',
-          difficulty: 'easy',
-          os: ['iOS', 'Android'],
-          priority: 'critical',
-        },
-        {
-          id: 'device-auto-updates',
-          title: 'Enable automatic updates',
-          why: 'Security patches fix vulnerabilities that hackers actively exploit',
-          how: 'Windows: Settings → Windows Update → Advanced → Automatic updates. Mac: System Settings → Software Update → Automatic',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'device-antivirus',
-          title: 'Install antivirus software',
-          why: 'Detects and blocks malware before it can compromise your system',
-          how: 'Windows: Windows Defender is built-in. Mac: install Malwarebytes or Bitdefender',
-          difficulty: 'easy',
-          os: ['Windows', 'macOS'],
-          priority: 'high',
-        },
-        {
-          id: 'device-screen-lock',
-          title: 'Set up strong screen lock',
-          why: 'Prevents unauthorized physical access to your device',
-          how: 'Use 6+ digit PIN, fingerprint, or face ID. Set auto-lock to 1–5 minutes',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'device-remote-wipe',
-          title: 'Enable remote wipe',
-          why: "Allows you to erase your device remotely if it's stolen",
-          how: 'iOS: Find My iPhone. Android: Find My Device. Windows/Mac: Microsoft/Apple account settings',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'medium',
-        },
-      ],
-    },
-    data: {
-      name: 'Data protection',
-      icon: Database,
-      tasks: [
-        {
-          id: 'data-backup-setup',
-          title: 'Set up automatic backups',
-          why: 'Protects against ransomware, hardware failure, and accidental deletion',
-          how: 'Use external drive + cloud: Time Machine (Mac), File History (Windows), or Backblaze',
-          difficulty: 'medium',
-          os: ['all'],
-          priority: 'critical',
-        },
-        {
-          id: 'data-backup-encrypt',
-          title: 'Encrypt your backups',
-          why: 'Backups contain sensitive data — must be protected if storage is compromised',
-          how: 'Enable encryption in backup software settings or use Cryptomator for cloud backups',
-          link: '/resources',
-          difficulty: 'medium',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'data-cloud-audit',
-          title: 'Audit cloud storage',
-          why: 'Sensitive files may be synced to cloud without encryption',
-          how: 'Review Google Drive, Dropbox, iCloud — remove sensitive files or encrypt them first',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'data-usb-encrypt',
-          title: 'Encrypt USB drives',
-          why: 'USB drives are easily lost — encryption protects the data on them',
-          how: 'Use VeraCrypt or BitLocker To Go to create encrypted USB drives',
-          link: '/resources',
-          difficulty: 'medium',
-          os: ['Windows', 'macOS', 'Linux'],
-          priority: 'medium',
-        },
-        {
-          id: 'data-secure-delete',
-          title: 'Use secure file deletion',
-          why: 'Deleted files can be recovered — secure deletion makes recovery impossible',
-          how: 'Windows: Eraser. Mac: built-in secure empty trash. Linux: shred command',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'medium',
-        },
-        {
-          id: 'data-backup-test',
-          title: 'Test your backups',
-          why: "Backups are useless if they don't work when you need them",
-          how: 'Try restoring a test file from your backup to verify it works',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'high',
-        },
-      ],
-    },
-    communication: {
-      name: 'Communication security',
-      icon: MessageSquare,
-      tasks: [
-        {
-          id: 'comm-signal',
-          title: 'Install Signal messenger',
-          why: 'End-to-end encrypted messaging protects sensitive source communications',
-          how: 'Download Signal from signal.org for iOS, Android, Windows, Mac, Linux',
-          link: '/resources',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'critical',
-        },
-        {
-          id: 'comm-protonmail',
-          title: 'Create ProtonMail account',
-          why: 'Encrypted email prevents interception of sensitive correspondence',
-          how: 'Sign up at proton.me for a free encrypted email account',
-          link: '/resources',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'comm-vpn',
-          title: 'Install a VPN',
-          why: 'Encrypts internet traffic and hides your location, especially on public wifi',
-          how: 'Use ProtonVPN (free), Mullvad, or IVPN for privacy-focused VPN service',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'comm-tor',
-          title: 'Install Tor Browser',
-          why: 'Provides anonymity for research and accessing information without tracking',
-          how: 'Download from torproject.org — essential for investigative research',
-          link: '/resources',
-          difficulty: 'easy',
-          os: ['Windows', 'macOS', 'Linux', 'Android'],
-          priority: 'high',
-        },
-        {
-          id: 'comm-messaging-audit',
-          title: 'Switch from SMS to Signal',
-          why: 'SMS is not encrypted — easily intercepted by governments and hackers',
-          how: 'Convince key contacts to install Signal, gradually move conversations over',
-          difficulty: 'medium',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'comm-metadata',
-          title: 'Enable disappearing messages',
-          why: 'Reduces metadata trail and prevents message history from being recovered',
-          how: 'In Signal: Settings → Privacy → Disappearing Messages → Default timer',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'medium',
-        },
-      ],
-    },
-    physical: {
-      name: 'Physical security',
-      icon: MapPin,
-      tasks: [
-        {
-          id: 'phys-webcam-cover',
-          title: 'Cover your webcam',
-          why: 'Malware can activate webcams without your knowledge',
-          how: 'Use webcam cover sticker or tape when not in use',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'medium',
-        },
-        {
-          id: 'phys-privacy-screen',
-          title: 'Use privacy screen protectors',
-          why: 'Prevents shoulder surfing in public spaces',
-          how: 'Buy privacy screen filters for laptop and phone from Amazon or electronics stores',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'low',
-        },
-        {
-          id: 'phys-location-services',
-          title: 'Review location permissions',
-          why: 'Apps track your movement unnecessarily — creates security risk',
-          how: 'Phone: Settings → Privacy → Location Services → review and disable unnecessary apps',
-          difficulty: 'easy',
-          os: ['iOS', 'Android'],
-          priority: 'medium',
-        },
-        {
-          id: 'phys-secure-storage',
-          title: 'Secure device storage',
-          why: 'Devices left unattended can be tampered with or stolen',
-          how: 'Use laptop locks, keep devices in locked drawers when not in use',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'medium',
-        },
-        {
-          id: 'phys-public-wifi',
-          title: 'Avoid sensitive work on public wifi',
-          why: 'Public networks are easily monitored — credentials can be intercepted',
-          how: 'Use VPN if you must use public wifi, or use phone hotspot instead',
-          difficulty: 'easy',
-          os: ['all'],
-          priority: 'high',
-        },
-        {
-          id: 'phys-usb-security',
-          title: 'Disable USB auto-run',
-          why: 'Malware can auto-execute from infected USB drives',
-          how: 'Windows: Group Policy Editor → disable autoplay. Mac: disabled by default',
-          difficulty: 'medium',
-          os: ['Windows'],
-          priority: 'medium',
-        },
-      ],
-    },
-};
-
-const allTasks = Object.entries(setupTasks).flatMap(([key, cat]) =>
-  cat.tasks.map(t => ({ ...t, categoryKey: key }))
-);
-
-const TASKS_BY_ID = Object.fromEntries(allTasks.map((task) => [task.id, task]));
-
-const DEFAULT_TASK_ORDER = [...allTasks]
-  .sort((a, b) => {
-    const priorityDelta = (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
-    if (priorityDelta !== 0) return priorityDelta;
-    return a.title.localeCompare(b.title);
-  })
-  .map((task) => task.id);
-
-const mergeOrderedSubset = (currentOrder, nextVisibleIds, visibleIds) => {
-  let cursor = 0;
-  return currentOrder.map((id) => (visibleIds.has(id) ? nextVisibleIds[cursor++] : id));
-};
-
-const zoneSequence = ['source', 'pinned'];
+const DESK_PREVIEW_LIMIT = 4;
+const INITIAL_STACK_CURSOR = { source: 0, pinned: 0, filed: 0 };
+const getZoneStorageKey = (userKey) => `safepress:setup:task-zones:${userKey}`;
 
 const getTaskTilt = (taskId, zone) => {
   const seed = [...taskId].reduce((total, char) => total + char.charCodeAt(0), 0);
@@ -432,6 +99,31 @@ const deriveWeakCategories = (scores = []) => {
     .filter(([key, value]) => QUIZ_TO_SETUP[key] && value.score < 70)
     .sort((left, right) => left[1].score - right[1].score)
     .map(([key]) => QUIZ_TO_SETUP[key]);
+};
+
+const getDeskWindow = (tasks, cursor) => {
+  if (tasks.length <= DESK_PREVIEW_LIMIT) {
+    return {
+      start: 0,
+      end: tasks.length,
+      total: tasks.length,
+      hiddenBefore: 0,
+      hiddenAfter: 0,
+      tasks,
+    };
+  }
+
+  const start = Math.min(cursor, tasks.length);
+  const end   = Math.min(start + DESK_PREVIEW_LIMIT, tasks.length);
+
+  return {
+    start,
+    end,
+    total: tasks.length,
+    hiddenBefore: start,
+    hiddenAfter: tasks.length - end,
+    tasks: tasks.slice(start, end),
+  };
 };
 
 const CategoryTrayCard = ({ categoryKey, category, progress, done, active, flagged, onSelect }) => {
@@ -555,7 +247,7 @@ const TaskCard = ({
             )}
             {task.link && (
               <Link to={task.link} className="workbench-link workbench-link--oxblood">
-                View tools <ExternalLink className="w-3 h-3" />
+                {task.linkLabel ?? 'See in Resources'} <ArrowRight className="w-3 h-3" />
               </Link>
             )}
             {task.categoryKey === 'communication' && (
@@ -570,16 +262,53 @@ const TaskCard = ({
   );
 };
 
+const StackSummary = ({
+  stackWindow,
+  onNext,
+  onReset,
+  label = 'in stack',
+}) => {
+  if (stackWindow.total <= DESK_PREVIEW_LIMIT) return null;
+
+  return (
+    <div className="workbench-pile-controls">
+      {stackWindow.hiddenAfter > 0 ? (
+        <button
+          type="button"
+          onClick={onNext}
+          className="workbench-pile"
+          aria-label={`Show ${stackWindow.hiddenAfter} more cards ${label}`}
+        >
+          <span className="workbench-pile__papers" aria-hidden="true" />
+          <span className="workbench-pile__label">+{stackWindow.hiddenAfter} more {label}</span>
+        </button>
+      ) : (
+        <span className="workbench-pile__end">End of stack</span>
+      )}
+      {stackWindow.hiddenBefore > 0 && (
+        <button
+          type="button"
+          onClick={onReset}
+          className="workbench-link workbench-link--ink workbench-pile__reset"
+        >
+          Back to first cards
+        </button>
+      )}
+    </div>
+  );
+};
+
 /* ─── Main ────────────────────────────────────────────────────────────── */
 
 const SecureSetup = () => {
   const { user, loading } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [taskOrder,        setTaskOrder]        = useState(DEFAULT_TASK_ORDER);
+  const taskOrder = DEFAULT_TASK_ORDER;
   const [completedDrafts,  setCompletedDrafts]  = useState({});
-  const [taskZones,        setTaskZones]        = useState({});
+  const [taskZoneDrafts,   setTaskZoneDrafts]   = useState({});
   const [draggedTaskId,    setDraggedTaskId]    = useState(null);
   const [activeDropZone,   setActiveDropZone]   = useState(null);
+  const [stackCursor,      setStackCursor]      = useState(INITIAL_STACK_CURSOR);
 
   const currentUserKey = user?.uid ?? 'guest';
   const persistedCompletedIds = useMemo(
@@ -595,6 +324,31 @@ const SecureSetup = () => {
     () => new Set(completedDrafts[currentUserKey] ?? persistedCompletedIds),
     [completedDrafts, currentUserKey, persistedCompletedIds],
   );
+  const persistedTaskZones = useMemo(
+    () => user?.setupProgress?.taskZones || {},
+    [user?.setupProgress?.taskZones],
+  );
+  const taskZones = useMemo(
+    () => {
+      const draftZones = taskZoneDrafts[currentUserKey];
+      if (draftZones) return draftZones;
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = window.localStorage.getItem(getZoneStorageKey(currentUserKey));
+          if (stored) return JSON.parse(stored);
+        } catch {
+          // Ignore malformed local storage payloads.
+        }
+      }
+      return persistedTaskZones;
+    },
+    [taskZoneDrafts, currentUserKey, persistedTaskZones],
+  );
+
+  const updateSelectedCategory = (nextCategory) => {
+    setSelectedCategory(nextCategory);
+    setStackCursor({ ...INITIAL_STACK_CURSOR });
+  };
 
   const toggleTask = async (taskId) => {
     if (!user) return;
@@ -616,10 +370,24 @@ const SecureSetup = () => {
     }
   };
 
+  const persistTaskZones = async (nextZones) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+        'setupProgress.taskZones': nextZones,
+        'setupProgress.lastUpdated': new Date().toISOString(),
+      });
+    } catch {
+      // Zone positions saved in localStorage; Firestore sync is best-effort.
+    }
+  };
+
   const totalTasks     = allTasks.length;
   const completedCount = allTasks.filter(t => completedTasks.has(t.id)).length;
   const overallPct     = Math.round((completedCount / totalTasks) * 100);
   const level          = getLevelInfo(overallPct);
+  const nextLevel      = WORKBENCH_LEVELS.find((step) => step.threshold > overallPct) ?? WORKBENCH_LEVELS[WORKBENCH_LEVELS.length - 1];
+  const meterCursorPct = Math.min(99.4, Math.max(0.6, overallPct));
 
   const catPct = (key) => {
     const tasks = setupTasks[key].tasks;
@@ -650,17 +418,68 @@ const SecureSetup = () => {
     [visibleTasks, completedTasks],
   );
 
+  const autoInitDone = useRef(false);
+
+  useEffect(() => {
+    if (loading || autoInitDone.current) return;
+    autoInitDone.current = true;
+
+    if (Object.keys(taskZones).length > 0 || !weakCategories.length) return;
+
+    const topCategories = weakCategories.slice(0, 2);
+    const toPin = allTasks.filter(
+      (t) => topCategories.includes(t.categoryKey) && t.priority === 'critical',
+    );
+    if (!toPin.length) return;
+
+    const initialZones = Object.fromEntries(toPin.map((t) => [t.id, 'pinned']));
+    setTaskZoneDrafts((prev) => ({ ...prev, [currentUserKey]: initialZones }));
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(getZoneStorageKey(currentUserKey), JSON.stringify(initialZones));
+    }
+    if (user) {
+      updateDoc(doc(db, COLLECTIONS.USERS, user.uid), {
+        'setupProgress.taskZones': initialZones,
+        'setupProgress.lastUpdated': new Date().toISOString(),
+      }).catch(() => {});
+    }
+  }, [loading, weakCategories, taskZones, currentUserKey, user]);
+
   const weakFocus = weakCategories[0] ? setupTasks[weakCategories[0]] : null;
   const selectedCategoryData = selectedCategory ? setupTasks[selectedCategory] : null;
 
   const zoneBuckets = useMemo(() => {
     const buckets = { source: [], pinned: [] };
-    activeTasks.forEach((task, index) => {
-      const zone = taskZones[task.id] ?? zoneSequence[Math.min(index, zoneSequence.length - 1)] ?? 'source';
+    activeTasks.forEach((task) => {
+      const zone = taskZones[task.id] ?? 'source';
       buckets[zone]?.push(task);
     });
     return buckets;
   }, [activeTasks, taskZones]);
+
+  const sourceWindow = useMemo(
+    () => getDeskWindow(zoneBuckets.source, stackCursor.source),
+    [zoneBuckets.source, stackCursor.source],
+  );
+  const pinnedWindow = useMemo(
+    () => getDeskWindow(zoneBuckets.pinned, stackCursor.pinned),
+    [zoneBuckets.pinned, stackCursor.pinned],
+  );
+  const filedWindow = useMemo(
+    () => getDeskWindow(completedVisibleTasks, stackCursor.filed),
+    [completedVisibleTasks, stackCursor.filed],
+  );
+
+  const shiftStack = (zone, total, direction = 1) => {
+    if (total <= DESK_PREVIEW_LIMIT) return;
+    setStackCursor((current) => {
+      const nextStart = current[zone] + (direction * DESK_PREVIEW_LIMIT);
+      return {
+        ...current,
+        [zone]: Math.max(0, Math.min(nextStart, total)),
+      };
+    });
+  };
 
   const moveTaskToZone = (taskId, zone) => {
     if (zone === 'filed') {
@@ -670,14 +489,12 @@ const SecureSetup = () => {
       return;
     }
 
-    setTaskZones((prev) => ({ ...prev, [taskId]: zone }));
-    const visibleIds = new Set(activeTasks.map((task) => task.id));
-    const nextVisibleIds = activeTasks
-      .map((task) => task.id)
-      .filter((id) => id !== taskId);
-    const insertionIndex = zone === 'pinned' ? Math.min(1, nextVisibleIds.length) : 0;
-    nextVisibleIds.splice(insertionIndex, 0, taskId);
-    setTaskOrder((currentOrder) => mergeOrderedSubset(currentOrder, nextVisibleIds, visibleIds));
+    const nextZones = { ...taskZones, [taskId]: zone };
+    setTaskZoneDrafts((prev) => ({ ...prev, [currentUserKey]: nextZones }));
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(getZoneStorageKey(currentUserKey), JSON.stringify(nextZones));
+    }
+    void persistTaskZones(nextZones);
   };
 
   const beginDrag = (taskId) => (event) => {
@@ -706,7 +523,7 @@ const SecureSetup = () => {
 
   if (loading) {
     return (
-      <NewsPage max="reading">
+      <NewsPage >
         <p className="eyebrow sm text-smoke">Loading your setup progress…</p>
       </NewsPage>
     );
@@ -727,13 +544,13 @@ const SecureSetup = () => {
 
         <div className="workbench-hero">
           <div className="max-w-prose">
-            <h1 className="display text-4xl md:text-6xl leading-none">
+            <h1 className="display workbench-main-title leading-none">
               Secure your setup<span className="italic-ox">.</span>
             </h1>
             <p className="workbench-lede">
               Work through practical security tasks as if they were laid out on a real desk:
-              choose a tray, drag the active cards into the order that makes sense, and keep
-              completed work filed below.
+              choose a tray, pull the cards into focus, pin what matters, and file the finished work
+              into the scraps pile.
             </p>
           </div>
 
@@ -766,8 +583,34 @@ const SecureSetup = () => {
         </div>
 
         <div className="workbench-meter">
-          <div className="workbench-meter__bar">
-              <Motion.div
+          <div className="workbench-meter__summary">
+            <div>
+              <p className="workbench-meter__value">{overallPct}% complete</p>
+              <p className="workbench-meter__goal">
+                {overallPct >= 100 ? (
+                  'All milestones reached'
+                ) : (
+                  <>
+                    Next marker <span className="workbench-meter__goal-target" style={{ color: nextLevel.accent }}>{nextLevel.label}</span> at {nextLevel.threshold}%
+                  </>
+                )}
+              </p>
+            </div>
+            <p className="workbench-meter__fraction">{completedCount} / {totalTasks} tasks checked</p>
+          </div>
+          <div className="workbench-meter__bar" style={{ '--meter-accent': level.accent }}>
+            {WORKBENCH_LEVELS.slice(1).map((step, index) => (
+              <span
+                key={step.threshold}
+                className="workbench-meter__zone"
+                style={{
+                  left: `${index * 25}%`,
+                  width: '25%',
+                  '--zone-accent': step.accent,
+                }}
+              />
+            ))}
+            <Motion.div
               initial={{ width: 0 }}
               animate={{ width: `${overallPct}%` }}
               transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
@@ -783,20 +626,40 @@ const SecureSetup = () => {
             {[25, 50, 75].map((m) => (
               <span
                 key={m}
-                className={`workbench-meter__marker ${overallPct >= m ? 'is-passed' : ''}`}
+                className={[
+                  'workbench-meter__marker',
+                  overallPct > m ? 'is-passed' : '',
+                  level.threshold === m ? 'is-current' : '',
+                  nextLevel.threshold === m ? 'is-next' : '',
+                ].filter(Boolean).join(' ')}
                 style={{
                   left: `${m}%`,
-                  transform: 'translate(-50%, -50%) rotate(45deg)',
+                  '--marker-accent': WORKBENCH_LEVELS.find((step) => step.threshold === m)?.accent,
                 }}
               />
             ))}
+            <Motion.span
+              initial={{ left: 0 }}
+              animate={{ left: `${meterCursorPct}%` }}
+              transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+              className="workbench-meter__cursor"
+            />
           </div>
           <div className="workbench-meter__labels">
-            <span>Getting started</span>
-            <span>Building habits</span>
-            <span>Security aware</span>
-            <span>Conscious</span>
-            <span>Hardened</span>
+            {WORKBENCH_LEVELS.map((step) => (
+              <span
+                key={step.threshold}
+                className={[
+                  'workbench-meter__label',
+                  overallPct >= step.threshold ? 'is-passed' : '',
+                  level.threshold === step.threshold ? 'is-current' : '',
+                ].filter(Boolean).join(' ')}
+                style={{ '--label-accent': step.accent }}
+              >
+                <strong>{step.threshold === 0 ? 'Start' : `${step.threshold}%`}</strong>
+                {step.label}
+              </span>
+            ))}
           </div>
         </div>
       </Motion.header>
@@ -821,7 +684,7 @@ const SecureSetup = () => {
                 return (
                   <button
                     key={key}
-                    onClick={() => setSelectedCategory(active ? null : key)}
+                    onClick={() => updateSelectedCategory(active ? null : key)}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 border font-mono text-[10px] uppercase tracking-[0.16em] transition-colors ${
                       active
                         ? 'bg-ink text-paper border-ink'
@@ -845,18 +708,24 @@ const SecureSetup = () => {
         className="workbench-tray"
       >
         <div className="workbench-tray__header">
-          <div>
-            <p className="eyebrow sm text-oxblood">Task trays</p>
-            <h2 className="workbench-section-title">Pull cards onto the desk.</h2>
+          <div className="workbench-tray__copy">
+            <p className="eyebrow sm text-oxblood">Choose a stack</p>
+            <h2 className="workbench-section-title">Pick the security area you want to work through.</h2>
+            <p className="workbench-tray__note">
+              Each tray filters the desk below to one set of cards, so you can focus on a single area at a time.
+            </p>
           </div>
           {selectedCategory && (
             <button
               type="button"
-              onClick={() => setSelectedCategory(null)}
+              onClick={() => updateSelectedCategory(null)}
               className="workbench-link workbench-link--oxblood"
             >
               Clear filter
             </button>
+          )}
+          {!selectedCategory && (
+            <p className="workbench-tray__hint">Leave all trays open to work across the full setup.</p>
           )}
         </div>
 
@@ -870,41 +739,39 @@ const SecureSetup = () => {
               done={cat.tasks.filter((task) => completedTasks.has(task.id)).length}
               active={selectedCategory === key}
               flagged={weakCategories.includes(key)}
-              onSelect={setSelectedCategory}
+              onSelect={updateSelectedCategory}
             />
           ))}
         </div>
       </Motion.div>
 
       <AnimatePresence mode="wait">
-        <Motion.section
+        <Motion.div
           key={selectedCategory ?? 'all'}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="workbench-board"
         >
-          <div className="workbench-board__inner">
-            <div className="workbench-board__heading">
-              <div>
+          <div className="workbench-board__heading">
+            <div>
+              {selectedCategoryData && (
                 <p className="eyebrow sm">
-                  {selectedCategoryData
-                    ? `${selectedCategoryData.name} · ${visibleTasks.length} tasks`
-                    : `Desk layout · ${visibleTasks.length} tasks`}
+                  {selectedCategoryData.name} · {visibleTasks.length} tasks
                 </p>
-                <h2 className="workbench-section-title">
-                  {selectedCategoryData
-                    ? `Move the ${selectedCategoryData.name.toLowerCase()} cards across the desk.`
-                    : 'Move the cards across the desk.'}
-                </h2>
-              </div>
-              <p className="workbench-drag-note">Drag cards between source, pinned, and filed scraps.</p>
+              )}
+              <h2 className="workbench-section-title">
+                {selectedCategoryData
+                  ? `Move the ${selectedCategoryData.name.toLowerCase()} cards across the desk.`
+                  : 'Move the cards across the desk.'}
+              </h2>
             </div>
-
+            <p className="workbench-drag-note">Drag cards between source, pinned, and filed scraps.</p>
+          </div>
+          <section className="workbench-board">
+          <div className="workbench-board__inner">
             {activeTasks.length > 0 ? (
-              <div className="workbench-desk-spread">
-                <div className="workbench-desk">
+              <div className="workbench-desk">
                 <section
                   className={`workbench-lane workbench-lane--source ${activeDropZone === 'source' ? 'is-target' : ''}`}
                   onDragOver={allowDrop('source')}
@@ -916,7 +783,7 @@ const SecureSetup = () => {
                     <span className="eyebrow sm">{zoneBuckets.source.length} waiting</span>
                   </div>
                   <div className="workbench-task-list workbench-task-list--stack">
-                    {zoneBuckets.source.length > 0 ? zoneBuckets.source.map((task) => (
+                    {sourceWindow.tasks.length > 0 ? sourceWindow.tasks.map((task) => (
                       <TaskCard
                         key={task.id}
                         task={task}
@@ -932,6 +799,11 @@ const SecureSetup = () => {
                       <p className="workbench-empty">No cards waiting in this stack.</p>
                     )}
                   </div>
+                  <StackSummary
+                    stackWindow={sourceWindow}
+                    onNext={() => shiftStack('source', zoneBuckets.source.length, 1)}
+                    onReset={() => setStackCursor((current) => ({ ...current, source: 0 }))}
+                  />
                 </section>
 
                 <section
@@ -945,7 +817,7 @@ const SecureSetup = () => {
                     <span className="eyebrow sm">{zoneBuckets.pinned.length} marked</span>
                   </div>
                   <div className="workbench-task-list workbench-task-list--pinned">
-                    {zoneBuckets.pinned.length > 0 ? zoneBuckets.pinned.map((task) => (
+                    {pinnedWindow.tasks.length > 0 ? pinnedWindow.tasks.map((task) => (
                       <TaskCard
                         key={task.id}
                         task={task}
@@ -961,6 +833,11 @@ const SecureSetup = () => {
                       <p className="workbench-empty">Pin the items you want to keep in view.</p>
                     )}
                   </div>
+                  <StackSummary
+                    stackWindow={pinnedWindow}
+                    onNext={() => shiftStack('pinned', zoneBuckets.pinned.length, 1)}
+                    onReset={() => setStackCursor((current) => ({ ...current, pinned: 0 }))}
+                  />
                 </section>
 
                 <section
@@ -974,7 +851,7 @@ const SecureSetup = () => {
                     <span className="eyebrow sm">{completedVisibleTasks.length} checked off</span>
                   </div>
                   <div className="workbench-complete__grid workbench-complete__grid--desk">
-                    {completedVisibleTasks.length > 0 ? completedVisibleTasks.map((task) => (
+                    {filedWindow.tasks.length > 0 ? filedWindow.tasks.map((task) => (
                       <TaskCard
                         key={task.id}
                         task={task}
@@ -988,20 +865,28 @@ const SecureSetup = () => {
                       <p className="workbench-empty">Drop completed cards here or check them off into the pile.</p>
                     )}
                   </div>
+                  <StackSummary
+                    stackWindow={filedWindow}
+                    onNext={() => shiftStack('filed', completedVisibleTasks.length, 1)}
+                    onReset={() => setStackCursor((current) => ({ ...current, filed: 0 }))}
+                    label="in pile"
+                  />
                 </section>
-                </div>
               </div>
             ) : (
               <NewsNotice tone="info" icon={Check}>
-                <p className="eyebrow sm text-ink">Bench cleared</p>
-                <p className="mt-2 text-sm text-ink-soft">
-                  Everything in this tray is already checked off. Pick another category
-                  or reopen a task if you want it back on the desk.
-                </p>
+                <div>
+                  <p className="eyebrow sm text-ink">Bench cleared</p>
+                  <p className="mt-2 text-sm text-ink-soft">
+                    Everything in this tray is already checked off. Pick another category
+                    or reopen a task if you want it back on the desk.
+                  </p>
+                </div>
               </NewsNotice>
             )}
           </div>
-        </Motion.section>
+          </section>
+        </Motion.div>
       </AnimatePresence>
 
       {!user && (

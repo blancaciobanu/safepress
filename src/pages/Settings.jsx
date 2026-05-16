@@ -143,7 +143,7 @@ const Settings = () => {
   const currentSection = SECTIONS.find((s) => s.id === section);
 
   return (
-    <NewsPage max="reading">
+    <NewsPage >
       {/* Personnel header — typographic only. No manila tab, no shadow stack. */}
       <motion.header
         initial={{ opacity: 0, y: 6 }}

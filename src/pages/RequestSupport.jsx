@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowRight, CheckCircle, Send } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle, Send, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import VerifiedBadge from '../components/VerifiedBadge';
 import {
   createSupportRequest,
+  draftSupportRequestWithAI,
   listApprovedSpecialists,
 } from '../features/support/services/supportService';
 import { EMERGENCY_SUPPORT_CONTACTS } from '../config/externalResources';
@@ -18,6 +19,8 @@ import {
   NewsPage,
   NewsRule,
 } from '../components/editorial/NewsPage';
+import PrivacyGuardModal from '../features/ai/components/PrivacyGuardModal';
+import { analyzePrivacyPayload, REDACTION_FLAG_LABELS } from '../features/ai/services/privacyGuard';
 
 /* Intake form — typed carbon-copy. Numbered sections (§ 01 / § 02 / § 03),
    numbered fields (№ 01 / № 02 …), and a stamped "Filed at" success state.
@@ -51,6 +54,11 @@ const RequestSupport = () => {
   const [specialists, setSpecialists] = useState([]);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const [filedAt, setFiledAt] = useState(null);
+  const [draftNotes, setDraftNotes] = useState('');
+  const [drafting, setDrafting] = useState(false);
+  const [draftError, setDraftError] = useState('');
+  const [draftMeta, setDraftMeta] = useState(null);
+  const [pendingPrivacyReview, setPendingPrivacyReview] = useState(null);
 
   useEffect(() => {
     const fetchSpecialists = async () => {
@@ -112,6 +120,57 @@ const RequestSupport = () => {
     setVerificationEmailSent(sent);
   };
 
+  const runDraftAssist = async (roughDetails, clientFlags = []) => {
+    setDrafting(true);
+    setDraftError('');
+
+    try {
+      const { draft, redaction } = await draftSupportRequestWithAI({ roughDetails });
+      setFormData((prev) => ({
+        ...prev,
+        crisisType: draft.crisisType,
+        urgency: draft.urgency,
+        contactMethod: draft.contactMethod || prev.contactMethod,
+        description: draft.description,
+      }));
+      const flags = [...new Set([...(clientFlags || []), ...(redaction?.flags || [])])];
+      setDraftMeta({
+        applied: flags.length > 0,
+        flags,
+        clientReviewed: clientFlags.length > 0,
+      });
+    } catch (error) {
+      logError('Error drafting support request:', error);
+      setDraftError('The drafting assistant is unavailable right now. You can still fill in the form manually.');
+    } finally {
+      setDrafting(false);
+    }
+  };
+
+  const handleDraftAssist = async () => {
+    const roughDetails = draftNotes.trim();
+    if (!user || !user.emailVerified || drafting) return;
+
+    if (roughDetails.length < 20) {
+      setDraftError('Add a few more notes so the assistant has enough context to structure the request.');
+      return;
+    }
+
+    const analysis = analyzePrivacyPayload([
+      { key: 'roughNotes', label: 'Rough notes for the drafting assistant', text: roughDetails },
+    ]);
+
+    if (analysis.hasSensitive) {
+      setPendingPrivacyReview({
+        analysis,
+        payload: roughDetails,
+      });
+      return;
+    }
+
+    await runDraftAssist(roughDetails);
+  };
+
   const updateField = (field) => (e) =>
     setFormData({ ...formData, [field]: e.target.value });
 
@@ -134,7 +193,7 @@ const RequestSupport = () => {
     });
 
     return (
-      <NewsPage max="reading">
+      <NewsPage >
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -187,8 +246,8 @@ const RequestSupport = () => {
           <div className="asterism mt-10 mb-8">⁂</div>
 
           <div className="flex flex-col sm:flex-row gap-5 items-baseline">
-            <Link to="/dashboard" className="link-handdrawn">
-              Return to dashboard
+            <Link to="/" className="link-handdrawn">
+              Return home
             </Link>
             <Link to="/crisis" className="link-handdrawn">
               View crisis steps
@@ -206,7 +265,23 @@ const RequestSupport = () => {
     : 'Specialists on call';
 
   return (
-    <NewsPage max="reading">
+    <NewsPage >
+      <PrivacyGuardModal
+        open={Boolean(pendingPrivacyReview)}
+        title="Review the redacted drafting notes"
+        description="Your rough notes appear to contain identifying or source-sensitive details. Review the redacted version before SafePress drafts the specialist request."
+        analysis={pendingPrivacyReview?.analysis}
+        confirmLabel="Draft from redacted notes"
+        loading={drafting}
+        onClose={() => setPendingPrivacyReview(null)}
+        onEdit={() => setPendingPrivacyReview(null)}
+        onConfirm={async () => {
+          const redactedText = pendingPrivacyReview?.analysis?.entries?.[0]?.redacted || '';
+          const clientFlags = pendingPrivacyReview?.analysis?.flags || [];
+          setPendingPrivacyReview(null);
+          await runDraftAssist(redactedText, clientFlags);
+        }}
+      />
       {/* Form header — printed-form heading. */}
       <motion.header
         initial={{ opacity: 0, y: 6 }}
@@ -299,6 +374,66 @@ const RequestSupport = () => {
             )}
           </NewsNotice>
         )}
+
+        <Section n="00" label="Rapid draft">
+          <NewsNotice tone="info" icon={Sparkles}>
+            <p className="text-sm leading-relaxed text-ink-soft">
+              If you are under pressure, write rough notes here and SafePress will draft the crisis section for you. You can still review and edit every field before filing.
+            </p>
+          </NewsNotice>
+
+          <NewsField
+            no="00"
+            label="Rough notes for the drafting assistant"
+            className="mt-7"
+          >
+            <textarea
+              value={draftNotes}
+              onChange={(event) => {
+                setDraftNotes(event.target.value);
+                if (draftError) setDraftError('');
+              }}
+              rows="5"
+              placeholder="What happened, when did it start, what accounts or devices are affected, whether a source may be at risk, and the safest way for a specialist to contact you."
+            />
+          </NewsField>
+
+          <div className="mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="eyebrow text-[10px] normal-case text-smoke">
+              The AI sees a redacted version of these notes, not the raw draft.
+            </p>
+            <NewsButton
+              type="button"
+              onClick={handleDraftAssist}
+              disabled={drafting || !user || !user.emailVerified}
+              className="disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="w-4 h-4" />
+              {drafting
+                ? 'Drafting the request...'
+                : !user
+                  ? 'Sign in to use AI draft'
+                  : !user.emailVerified
+                    ? 'Verify email to use AI draft'
+                    : 'Draft the crisis section'}
+            </NewsButton>
+          </div>
+
+          {draftError && (
+            <p className="mt-3 text-sm text-oxblood">{draftError}</p>
+          )}
+
+          {draftMeta && (
+            <NewsNotice tone="info" icon={CheckCircle} className="mt-6">
+              <p className="text-sm leading-relaxed text-ink-soft">
+                The incident fields below were drafted from your notes.
+                {draftMeta.applied && draftMeta.flags?.length
+                  ? ` Redacted before sending to the model: ${draftMeta.flags.map((flag) => REDACTION_FLAG_LABELS[flag] || flag).join(', ')}.`
+                  : ' The current privacy scan did not flag obvious identifiers in the notes sent to the model.'}
+              </p>
+            </NewsNotice>
+          )}
+        </Section>
 
         {/* §01 Reporter */}
         <Section n="01" label="Reporter">

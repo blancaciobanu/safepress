@@ -84,7 +84,7 @@ const RequestCard = ({ req, userId, onClaim, onResolve }) => {
               {urgency.label}
             </span>
             {req.status === 'claimed' && isMine && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-midnight-400/15 text-oxblood border border-ink/30">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-ink/[0.06] text-oxblood border border-ink/30">
                 active
               </span>
             )}
@@ -97,13 +97,13 @@ const RequestCard = ({ req, userId, onClaim, onResolve }) => {
           <p className="text-sm text-smoke lowercase line-clamp-1">
             {req.description}
           </p>
-          <p className="text-[10px] text-gray-700 lowercase mt-1">
+          <p className="text-[10px] text-smoke lowercase mt-1">
             {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             {req.claimedByName && req.claimedBy !== userId && ` · claimed by ${req.claimedByName}`}
           </p>
         </div>
 
-        <ChevronRight className={`flex-shrink-0 w-4 h-4 text-gray-700 transition-transform mt-0.5 ${expanded ? 'rotate-90' : ''}`} />
+        <ChevronRight className={`flex-shrink-0 w-4 h-4 text-smoke transition-transform mt-0.5 ${expanded ? 'rotate-90' : ''}`} />
       </button>
 
       {/* Expanded details */}
@@ -158,7 +158,7 @@ const RequestCard = ({ req, userId, onClaim, onResolve }) => {
             {req.status === 'open' && (
               <button
                 onClick={() => onClaim(req.id)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-midnight-400/20 border border-ink/30  text-sm text-oxblood hover:bg-midnight-400/30 transition-all lowercase font-medium"
+                className="flex items-center gap-1.5 px-4 py-2 bg-ink/[0.08] border border-ink/30  text-sm text-oxblood hover:bg-ink/[0.10] transition-all lowercase font-medium"
               >
                 <User className="w-3.5 h-3.5" />
                 claim this request
@@ -293,7 +293,7 @@ const SpecialistDashboard = () => {
 
   if (loading || !isSpecialist) {
     return (
-      <NewsPage max="reading">
+      <NewsPage >
         <div className="flex items-center justify-center py-32">
           <div className="text-center">
             <div className="w-6 h-6 border-2 border-ink border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -312,7 +312,7 @@ const SpecialistDashboard = () => {
     const rejectionReason = profile?.verificationRejectionReason;
 
     return (
-      <NewsPage max="reading">
+      <NewsPage >
         <div>
           <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -428,9 +428,9 @@ const SpecialistDashboard = () => {
 
             <div className="flex items-center gap-3 text-xs text-smoke-dim lowercase pt-3 border-t border-ink/8">
               <span>while you wait, explore the app:</span>
-              <Link to="/resources" className="text-oxblood hover:text-midnight-300 transition-colors">resources →</Link>
+              <Link to="/resources" className="text-oxblood hover:text-ink transition-colors">resources →</Link>
               <span>·</span>
-              <Link to="/community" className="text-oxblood hover:text-midnight-300 transition-colors">community →</Link>
+              <Link to="/community" className="text-oxblood hover:text-ink transition-colors">community →</Link>
             </div>
           </motion.div>
         </div>
@@ -461,7 +461,6 @@ const SpecialistDashboard = () => {
 
   return (
     <NewsPage>
-      <div className="max-w-5xl mx-auto">
 
         {/* ── Header ── */}
         <motion.div
@@ -574,7 +573,7 @@ const SpecialistDashboard = () => {
                       activeTab === tab.id
                         ? tab.id === 'open' && openReqs.some(r => r.urgency === 'emergency')
                           ? 'bg-crimson-500/30 text-oxblood'
-                          : 'bg-midnight-400/20 text-oxblood'
+                          : 'bg-ink/[0.08] text-oxblood'
                         : 'bg-paper-soft/80 text-smoke-dim'
                     }`}>
                       {tab.count}
@@ -642,7 +641,7 @@ const SpecialistDashboard = () => {
               {sp.bio ? (
                 <p className="text-sm text-smoke lowercase leading-relaxed mb-4">{sp.bio}</p>
               ) : (
-                <p className="text-sm text-gray-700 lowercase italic mb-4">no bio yet — add one in settings</p>
+                <p className="text-sm text-smoke lowercase italic mb-4">no bio yet — add one in settings</p>
               )}
 
               {/* Certifications */}
@@ -677,7 +676,7 @@ const SpecialistDashboard = () => {
                   <div className="flex items-center gap-1.5">
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map(s => (
-                        <Star key={s} className={`w-3 h-3 ${s <= Math.round(avgRating) ? 'text-brass fill-amber-400' : 'text-gray-700'}`} />
+                        <Star key={s} className={`w-3 h-3 ${s <= Math.round(avgRating) ? 'text-brass fill-amber-400' : 'text-smoke'}`} />
                       ))}
                     </div>
                     <span className="text-xs text-smoke">{avgRating.toFixed(1)}</span>
@@ -689,15 +688,15 @@ const SpecialistDashboard = () => {
                     <div key={req.id} className="border-b border-white/[0.04] last:border-0 pb-3 last:pb-0">
                       <div className="flex gap-0.5 mb-1.5">
                         {[1, 2, 3, 4, 5].map(s => (
-                          <Star key={s} className={`w-3 h-3 ${s <= req.feedback.rating ? 'text-brass fill-amber-400' : 'text-gray-700'}`} />
+                          <Star key={s} className={`w-3 h-3 ${s <= req.feedback.rating ? 'text-brass fill-amber-400' : 'text-smoke'}`} />
                         ))}
                       </div>
                       {req.feedback.comment ? (
                         <p className="text-xs text-smoke lowercase leading-relaxed">{req.feedback.comment}</p>
                       ) : (
-                        <p className="text-xs text-gray-700 lowercase italic">no comment</p>
+                        <p className="text-xs text-smoke lowercase italic">no comment</p>
                       )}
-                      <p className="text-[10px] text-gray-700 lowercase mt-1">
+                      <p className="text-[10px] text-smoke lowercase mt-1">
                         {CRISIS_LABELS[req.crisisType] || req.crisisType} · {new Date(req.feedback.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </p>
                     </div>
@@ -733,7 +732,6 @@ const SpecialistDashboard = () => {
           </motion.div>
         </div>
 
-      </div>
     </NewsPage>
   );
 };

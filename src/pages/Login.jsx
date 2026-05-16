@@ -1,11 +1,14 @@
 import { motion } from 'framer-motion';
-import { Shield, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Shield, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import {
+  NewsPage, NewsHeader, NewsField, NewsButton, NewsNotice,
+} from '../components/editorial/NewsPage';
 
 const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24">
+  <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
@@ -20,178 +23,114 @@ const Login = () => {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  useEffect(() => {
-    if (user) navigate('/dashboard');
-  }, [user, navigate]);
+  useEffect(() => { if (user) navigate('/'); }, [user, navigate]);
+
+  const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    clearAuthError();
-    setLoading(true);
+    setError(''); clearAuthError(); setLoading(true);
     try {
       await login(formData.email, formData.password);
     } catch (err) {
-      if (err.code === 'auth/invalid-email') {
-        setError('invalid email address.');
-      } else {
-        setError('incorrect email or password.');
-      }
+      setError(err.code === 'auth/invalid-email' ? 'invalid email address.' : 'incorrect email or password.');
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setError('');
-    clearAuthError();
-    setLoading(true);
+    setError(''); clearAuthError(); setLoading(true);
     try {
       await loginWithGoogle();
     } catch (err) {
-      const googleMessages = {
-        'auth/unauthorized-domain': 'google sign-in is blocked for this domain. add this domain in Firebase Authentication > Settings > Authorized domains.',
-        'auth/popup-blocked': 'the browser blocked the google sign-in popup. allow popups for this site and try again.',
-        'auth/popup-closed-by-user': '',
-        'auth/cancelled-popup-request': 'a previous google sign-in popup was interrupted. please try again.',
-        'auth/operation-not-allowed': 'google sign-in is not enabled in Firebase Authentication.',
+      const msgs = {
+        'auth/unauthorized-domain': 'google sign-in is blocked for this domain.',
+        'auth/popup-blocked': 'the browser blocked the google sign-in popup.',
+        'auth/cancelled-popup-request': 'a previous popup was interrupted — please try again.',
+        'auth/operation-not-allowed': 'google sign-in is not enabled.',
       };
       if (err.code !== 'auth/popup-closed-by-user') {
-        setError(googleMessages[err.code] ?? `google sign-in failed (${err.code || 'unknown error'}). please try again.`);
+        setError(msgs[err.code] ?? `google sign-in failed (${err.code ?? 'unknown error'}).`);
       }
       setLoading(false);
     }
   };
 
-  const handleChange = (e) =>
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-
   if (loading) {
     return (
-      <div className="surface-product-dark min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="w-12 h-12 text-midnight-400 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-400 lowercase">logging in…</p>
+      <NewsPage >
+        <div className="flex flex-col items-center justify-center py-32 gap-4">
+          <Shield className="w-10 h-10 text-oxblood animate-pulse" />
+          <p className="eyebrow sm text-smoke">signing in…</p>
         </div>
-      </div>
+      </NewsPage>
     );
   }
 
   return (
-    <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4 flex items-center justify-center">
-      <div className="max-w-md w-full">
+    <NewsPage >
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <NewsHeader
+          kicker="SafePress · Sign in"
+          title={<>Welcome <em className="italic-ox">back.</em></>}
+          lede="Log in to continue protecting your work and your sources."
+        />
 
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-10"
-        >
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-midnight-400/10 border border-midnight-400/20 mb-5">
-            <Shield className="w-7 h-7 text-midnight-400" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
-            welcome back
-          </h1>
-          <p className="text-gray-500 lowercase leading-relaxed">
-            log in to continue protecting your work
-          </p>
-          <p className="text-xs text-gray-600 lowercase mt-2">
-            email/password accounts may need email verification before sensitive actions unlock
-          </p>
-        </motion.div>
+        {(error || authError) && (
+          <NewsNotice tone="danger" icon={AlertCircle}>
+            <p className="text-sm text-ink-soft lowercase">{error || authError}</p>
+          </NewsNotice>
+        )}
 
-        {/* Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          className="glass-card p-8"
-        >
-          {(error || authError) && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-crimson-500/10 border border-crimson-500/20 rounded-lg flex items-start gap-3"
-            >
-              <AlertCircle className="w-4 h-4 text-crimson-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-crimson-400 lowercase">{error || authError}</p>
-            </motion.div>
-          )}
-
-          {/* Google */}
+        <div className="mt-6 space-y-8">
           <button
             type="button"
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-white text-sm font-medium transition-all lowercase"
+            className="btn ghost w-full justify-center gap-2.5 lowercase"
           >
             <GoogleIcon />
             continue with google
           </button>
 
-          {/* Divider */}
-          <div className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-xs text-gray-600 lowercase">or</span>
-            <div className="flex-1 h-px bg-white/10" />
+          <div className="flex items-center gap-4">
+            <div className="flex-1 border-t border-ink/[0.12]" />
+            <span className="eyebrow sm text-smoke">or sign in with email</span>
+            <div className="flex-1 border-t border-ink/[0.12]" />
           </div>
 
-          {/* Email / password form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5 lowercase">
-                email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  placeholder="your@email.com"
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 text-sm focus:outline-none focus:border-midnight-400/60 transition-colors"
-                />
-              </div>
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <NewsField no="01" label="Email address">
+              <input
+                type="email" name="email" value={formData.email}
+                onChange={handleChange} required placeholder="your@email.com"
+              />
+            </NewsField>
 
-            <div>
-              <label className="block text-xs text-gray-500 mb-1.5 lowercase">
-                password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 text-sm focus:outline-none focus:border-midnight-400/60 transition-colors"
-                />
-              </div>
-            </div>
+            <NewsField no="02" label="Password">
+              <input
+                type="password" name="password" value={formData.password}
+                onChange={handleChange} required placeholder="••••••••"
+              />
+            </NewsField>
 
-            <button
-              type="submit"
-              className="w-full py-3 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-sm font-semibold transition-all hover:scale-[1.01] lowercase"
-            >
-              log in
-            </button>
+            <NewsButton type="submit" className="w-full justify-center mt-8">
+              Log in
+            </NewsButton>
           </form>
 
-          <p className="text-xs text-gray-600 text-center mt-6 lowercase">
-            don't have an account?{' '}
-            <Link to="/signup" className="text-midnight-400 hover:underline">
-              sign up
+          <p className="eyebrow sm text-smoke text-center">
+            No account?{' '}
+            <Link to="/signup" className="text-oxblood hover:text-ink transition-colors">
+              Sign up
             </Link>
           </p>
-        </motion.div>
-
-      </div>
-    </div>
+        </div>
+      </motion.div>
+    </NewsPage>
   );
 };
 

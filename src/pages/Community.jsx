@@ -291,7 +291,7 @@ const Community = () => {
                     className="w-auto px-3 py-1.5 text-xs lowercase"
                   >
                     {categories.filter(c => c.id !== 'all').map(cat => (
-                      <option key={cat.id} value={cat.id} className="bg-dark-900">{cat.name}</option>
+                      <option key={cat.id} value={cat.id} className="bg-paper">{cat.name}</option>
                     ))}
                   </NewsSelect>
 

@@ -1,13 +1,16 @@
 import { motion } from 'framer-motion';
-import { Shield, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Shield, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getPasswordRequirementMessage, isStrongPassword } from '../config/security';
 import { logError } from '../utils/logger';
+import {
+  NewsPage, NewsHeader, NewsField, NewsButton, NewsNotice,
+} from '../components/editorial/NewsPage';
 
 const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24">
+  <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
@@ -19,409 +22,208 @@ const Signup = () => {
   const navigate = useNavigate();
   const { user, signup, loginWithGoogle } = useAuth();
   const [formData, setFormData] = useState({
-    realName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    accountType: 'journalist', // Default to journalist
-    // Specialist-specific fields
-    expertise: '',
-    credentials: '',
-    linkedinUrl: '',
-    organization: ''
+    realName: '', email: '', password: '', confirmPassword: '',
+    accountType: 'journalist',
+    expertise: '', credentials: '', linkedinUrl: '', organization: '',
   });
-  const [error, setError] = useState('');
+  const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
+  useEffect(() => { if (user) navigate('/'); }, [user, navigate]);
+
+  const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      return setError('passwords do not match');
-    }
-
-    if (!isStrongPassword(formData.password)) {
-      return setError(getPasswordRequirementMessage());
-    }
-
-    // Specialist-specific validation
+    e.preventDefault(); setError('');
+    if (formData.password !== formData.confirmPassword) return setError('passwords do not match.');
+    if (!isStrongPassword(formData.password)) return setError(getPasswordRequirementMessage());
     if (formData.accountType === 'specialist') {
-      if (!formData.expertise || !formData.credentials || !formData.organization) {
-        return setError('please fill in all required specialist fields');
-      }
+      if (!formData.expertise || !formData.credentials || !formData.organization)
+        return setError('please fill in all required specialist fields.');
     }
-
     setLoading(true);
-
     try {
       await signup(formData.email, formData.password, formData);
-    } catch (error) {
-      logError('Signup error:', error);
-      if (error.code === 'auth/invalid-email') {
-        setError('invalid email address');
-      } else {
-        setError('unable to create account. if you already signed up, try logging in.');
-      }
-      setLoading(false); // Only turn off loading on error
-    }
-  };
-
-  const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleGoogleSignup = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      await loginWithGoogle();
     } catch (err) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError('google sign-in failed. please try again.');
-      }
+      logError('Signup error:', err);
+      setError(err.code === 'auth/invalid-email'
+        ? 'invalid email address.'
+        : 'unable to create account. if you already signed up, try logging in.');
       setLoading(false);
     }
   };
 
-  // Show loading state while creating account
+  const handleGoogleSignup = async () => {
+    setError(''); setLoading(true);
+    try { await loginWithGoogle(); }
+    catch (err) {
+      if (err.code !== 'auth/popup-closed-by-user') setError('google sign-in failed. please try again.');
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4 flex items-center justify-center">
-        <div className="text-center">
-          <Shield className="w-12 h-12 text-midnight-400 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-400 lowercase">creating your account...</p>
+      <NewsPage >
+        <div className="flex flex-col items-center justify-center py-32 gap-4">
+          <Shield className="w-10 h-10 text-oxblood animate-pulse" />
+          <p className="eyebrow sm text-smoke">creating your account…</p>
         </div>
-      </div>
+      </NewsPage>
     );
   }
 
+  const isSpecialist = formData.accountType === 'specialist';
+
   return (
-    <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4 flex items-center justify-center">
-      <div className="max-w-md w-full">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-12"
-        >
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-midnight-400/10 border border-midnight-400/20 mb-5">
-            <Shield className="w-7 h-7 text-midnight-400" />
-          </div>
+    <NewsPage >
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <NewsHeader
+          kicker="SafePress · Create account"
+          title={isSpecialist
+            ? <><em className="italic-ox">Help</em> journalists stay safe.</>
+            : <>Join SafePress<em className="italic-ox">.</em></>
+          }
+          lede={isSpecialist
+            ? 'Apply to become a verified security specialist and guide journalists in the field.'
+            : 'Your identity stays anonymous. We assign a random username and avatar to protect you.'}
+        />
 
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 lowercase">
-            create account
-          </h1>
+        {error && (
+          <NewsNotice tone="danger" icon={AlertCircle}>
+            <p className="text-sm text-ink-soft lowercase">{error}</p>
+          </NewsNotice>
+        )}
 
-          <p className="text-lg text-gray-400 font-sans lowercase leading-relaxed">
-            {formData.accountType === 'specialist'
-              ? 'help journalists protect themselves'
-              : 'join thousands of journalists staying safe'}
-          </p>
-        </motion.div>
+        <form onSubmit={handleSubmit} className="mt-6 space-y-8">
 
-        {/* Form */}
-        <motion.form
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          onSubmit={handleSubmit}
-          className="glass-card p-8"
-        >
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-crimson-500/10 border border-crimson-500/20 rounded-lg flex items-start gap-3"
-            >
-              <AlertCircle className="w-5 h-5 text-crimson-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-crimson-400 lowercase">{error}</p>
-            </motion.div>
-          )}
-
-          {/* Account Type Selection — lifted above tagline-reactive content */}
-          <div className="mb-6">
-            <label className="block text-sm font-sans text-gray-400 mb-3 lowercase">
-              i'm signing up as <span className="text-crimson-500">*</span>
-            </label>
+          {/* Account type */}
+          <div>
+            <p className="eyebrow sm text-smoke mb-3">I'm signing up as</p>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { value: 'journalist', label: 'journalist', desc: 'seeking security guidance' },
-                { value: 'specialist', label: 'security specialist', desc: 'providing expertise' },
+                { value: 'journalist',  label: 'Journalist',          desc: 'seeking security guidance' },
+                { value: 'specialist',  label: 'Security specialist',  desc: 'providing expertise' },
               ].map((opt) => (
                 <label
                   key={opt.value}
-                  className={`flex flex-col gap-1 p-3 border rounded-lg cursor-pointer transition-colors ${
+                  className={`block p-4 border cursor-pointer transition-colors ${
                     formData.accountType === opt.value
-                      ? 'bg-midnight-400/10 border-midnight-400/40'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
+                      ? 'border-oxblood/50 bg-oxblood/[0.04]'
+                      : 'border-ink/[0.12] hover:bg-paper-dim'
                   }`}
                 >
                   <input
-                    type="radio"
-                    name="accountType"
-                    value={opt.value}
+                    type="radio" name="accountType" value={opt.value}
                     checked={formData.accountType === opt.value}
-                    onChange={handleChange}
-                    className="sr-only"
+                    onChange={handleChange} className="sr-only"
                   />
-                  <span className={`text-sm font-semibold lowercase ${
-                    formData.accountType === opt.value ? 'text-midnight-400' : 'text-white'
+                  <span className={`display-soft text-base block leading-tight ${
+                    formData.accountType === opt.value ? 'text-oxblood' : 'text-ink'
                   }`}>
                     {opt.label}
                   </span>
-                  <span className="text-xs text-gray-500 lowercase">{opt.desc}</span>
+                  <span className="eyebrow sm text-smoke mt-1 block normal-case">{opt.desc}</span>
                 </label>
               ))}
             </div>
           </div>
 
-          {/* Google — journalist quick signup (hidden for specialists since it skips credentials) */}
-          {formData.accountType === 'journalist' && (
-            <>
+          {/* Google (journalist only) */}
+          {!isSpecialist && (
+            <div>
               <button
-                type="button"
-                onClick={handleGoogleSignup}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-white text-sm font-medium transition-all lowercase"
+                type="button" onClick={handleGoogleSignup}
+                className="btn ghost w-full justify-center gap-2.5 lowercase"
               >
                 <GoogleIcon />
                 continue with google
               </button>
-              <p className="text-xs text-gray-600 text-center mt-2 mb-4 lowercase">
-                creates a journalist account instantly
-              </p>
+              <p className="eyebrow sm text-smoke text-center mt-2">creates a journalist account instantly</p>
 
-              {/* Divider */}
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-xs text-gray-600 lowercase">or sign up with email</span>
-                <div className="flex-1 h-px bg-white/10" />
+              <div className="flex items-center gap-4 mt-6">
+                <div className="flex-1 border-t border-ink/[0.12]" />
+                <span className="eyebrow sm text-smoke">or sign up with email</span>
+                <div className="flex-1 border-t border-ink/[0.12]" />
               </div>
-            </>
+            </div>
           )}
 
-          {/* Privacy Notice */}
-          <div className="mb-6 p-4 bg-olive-500/10 border border-olive-500/20 rounded-lg">
-            <div className="flex items-start gap-3">
-              <Shield className="w-5 h-5 text-olive-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm text-olive-400 font-semibold lowercase mb-1">
-                  anonymous by default
-                </p>
-                <p className="text-xs text-gray-400 lowercase leading-relaxed">
-                  you'll be assigned a random username (like "SecureReporter_4829") and avatar icon 🦊 to protect your identity. your real name stays private. email/password signups must verify their email before they can post in the community or request specialist support.
-                </p>
-              </div>
-            </div>
-          </div>
-
+          {/* Core fields */}
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                email <span className="text-crimson-500">*</span>
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors"
-                  placeholder="your@email.com"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                password <span className="text-crimson-500">*</span>
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors"
-                  placeholder="••••••••"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-2 lowercase">{getPasswordRequirementMessage()}</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                confirm password <span className="text-crimson-500">*</span>
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                  className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            {/* Specialist Verification Fields */}
-            {formData.accountType === 'specialist' && (
-              <div className="pt-6 border-t border-white/10 space-y-6">
-                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm text-amber-400 font-semibold lowercase mb-1">
-                        verification required
-                      </p>
-                      <p className="text-xs text-gray-400 lowercase leading-relaxed">
-                        your account will be reviewed by our team. once approved, you'll receive a verified badge and can provide guidance to journalists.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                    full name <span className="text-crimson-500">*</span>
-                    <span className="text-xs text-gray-500 ml-2">(admin-only, used during verification review)</span>
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                    <input
-                      type="text"
-                      name="realName"
-                      value={formData.realName}
-                      onChange={handleChange}
-                      required={formData.accountType === 'specialist'}
-                      className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors lowercase"
-                      placeholder="jane doe"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                    area of expertise <span className="text-crimson-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="expertise"
-                    value={formData.expertise}
-                    onChange={handleChange}
-                    required={formData.accountType === 'specialist'}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors lowercase"
-                    placeholder="e.g., digital security, encryption, opsec"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                    credentials <span className="text-crimson-500">*</span>
-                  </label>
-                  <textarea
-                    name="credentials"
-                    value={formData.credentials}
-                    onChange={handleChange}
-                    required={formData.accountType === 'specialist'}
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors lowercase resize-none"
-                    placeholder="certifications, degrees, relevant experience..."
-                  />
-                  <p className="text-xs text-gray-500 mt-2 lowercase">
-                    list your qualifications (e.g., CISSP, CEH, security researcher at...)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                    organization <span className="text-crimson-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="organization"
-                    value={formData.organization}
-                    onChange={handleChange}
-                    required={formData.accountType === 'specialist'}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors lowercase"
-                    placeholder="company, university, or independent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-sans text-gray-400 mb-2 lowercase">
-                    linkedin profile url
-                  </label>
-                  <input
-                    type="url"
-                    name="linkedinUrl"
-                    value={formData.linkedinUrl}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-midnight-400 transition-colors"
-                    placeholder="https://linkedin.com/in/yourprofile"
-                  />
-                  <p className="text-xs text-gray-500 mt-2 lowercase">
-                    optional but recommended for faster verification
-                  </p>
-                </div>
-              </div>
-            )}
+            <NewsField no="01" label="Email address">
+              <input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="your@email.com" />
+            </NewsField>
+            <NewsField no="02" label="Password">
+              <input type="password" name="password" value={formData.password} onChange={handleChange} required placeholder="••••••••" />
+              <p className="eyebrow sm text-smoke mt-2 normal-case">{getPasswordRequirementMessage()}</p>
+            </NewsField>
+            <NewsField no="03" label="Confirm password">
+              <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required placeholder="••••••••" />
+            </NewsField>
           </div>
 
-          {/* Security Features */}
-          <div className="mt-6 p-4 bg-white/5 rounded-lg border border-white/10">
-            <p className="text-xs text-gray-400 font-sans lowercase mb-3">
-              <span className="text-white font-semibold">your data is secure:</span>
-            </p>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <CheckCircle2 className="w-3 h-3 text-olive-500" />
-                <span className="lowercase">encrypted with firebase</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <CheckCircle2 className="w-3 h-3 text-olive-500" />
-                <span className="lowercase">no third-party tracking</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <CheckCircle2 className="w-3 h-3 text-olive-500" />
-                <span className="lowercase">journalist-focused privacy</span>
+          {/* Specialist fields */}
+          {isSpecialist && (
+            <div className="space-y-6 pt-6 border-t border-ink/[0.12]">
+              <NewsNotice tone="brass" icon={AlertCircle}>
+                <div>
+                  <p className="eyebrow sm text-brass mb-1">Verification required</p>
+                  <p className="text-sm text-ink-soft leading-relaxed">Your account will be reviewed before you can access the specialist dashboard and support queue.</p>
+                </div>
+              </NewsNotice>
+
+              <NewsField no="04" label="Full name (admin-only, used during verification)">
+                <input type="text" name="realName" value={formData.realName} onChange={handleChange} required={isSpecialist} placeholder="Jane Doe" />
+              </NewsField>
+              <NewsField no="05" label="Area of expertise">
+                <input type="text" name="expertise" value={formData.expertise} onChange={handleChange} required={isSpecialist} placeholder="e.g. digital security, encryption, OPSEC" />
+              </NewsField>
+              <NewsField no="06" label="Credentials">
+                <textarea name="credentials" value={formData.credentials} onChange={handleChange} required={isSpecialist} rows={3} placeholder="certifications, degrees, relevant experience…" />
+                <p className="eyebrow sm text-smoke mt-2 normal-case">List your qualifications — e.g. CISSP, CEH, security researcher at…</p>
+              </NewsField>
+              <NewsField no="07" label="Organization">
+                <input type="text" name="organization" value={formData.organization} onChange={handleChange} required={isSpecialist} placeholder="company, university, or independent" />
+              </NewsField>
+              <NewsField no="08" label="LinkedIn profile URL (optional)">
+                <input type="url" name="linkedinUrl" value={formData.linkedinUrl} onChange={handleChange} placeholder="https://linkedin.com/in/yourprofile" />
+                <p className="eyebrow sm text-smoke mt-2 normal-case">Recommended — speeds up verification.</p>
+              </NewsField>
+            </div>
+          )}
+
+          {/* Privacy notice */}
+          <div className="border border-ink/[0.12] bg-paper-soft p-4 flex gap-3">
+            <Shield className="w-4 h-4 text-ink flex-shrink-0 mt-0.5" />
+            <div className="space-y-1.5">
+              <p className="eyebrow sm text-ink">Anonymous by default</p>
+              <p className="text-sm text-smoke leading-relaxed">You'll receive a random username and avatar. Your real name stays private. Email accounts must verify before posting in the community or requesting specialist support.</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                {['Encrypted with Firebase', 'No third-party tracking', 'Journalist-focused privacy'].map(f => (
+                  <span key={f} className="inline-flex items-center gap-1.5 eyebrow sm text-smoke normal-case">
+                    <CheckCircle2 className="w-3 h-3 text-ink" /> {f}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-8 inline-flex items-center justify-center gap-2 px-8 py-4 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg font-semibold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed lowercase"
-          >
-            {loading ? 'creating account...' : 'create account'}
-          </button>
+          <NewsButton type="submit" className="w-full justify-center">
+            Create account
+          </NewsButton>
 
-          <p className="text-sm text-gray-500 font-sans text-center mt-6 lowercase">
-            already have an account?{' '}
-            <Link to="/login" className="text-midnight-400 hover:underline">
-              login
-            </Link>
+          <p className="eyebrow sm text-smoke text-center">
+            Already have an account?{' '}
+            <Link to="/login" className="text-oxblood hover:text-ink transition-colors">Log in</Link>
           </p>
-        </motion.form>
-      </div>
-    </div>
+        </form>
+      </motion.div>
+    </NewsPage>
   );
 };
 

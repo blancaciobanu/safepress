@@ -161,7 +161,7 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <NewsPage max="reading">
+      <NewsPage >
         <div className="flex items-center justify-center py-32">
           <div className="text-center">
             <Shield className="w-12 h-12 text-oxblood mx-auto mb-4 animate-pulse" />
@@ -174,7 +174,6 @@ const AdminDashboard = () => {
 
   return (
     <NewsPage>
-      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
@@ -260,7 +259,7 @@ const AdminDashboard = () => {
                 {tab.label}
                 {tab.count > 0 && (
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
-                    active ? 'bg-amber-500/25 text-brass' : 'bg-white/[0.06] text-smoke'
+                    active ? 'bg-amber-500/25 text-brass' : 'bg-paper-dim text-smoke'
                   }`}>
                     {tab.count}
                   </span>
@@ -331,14 +330,14 @@ const AdminDashboard = () => {
                     <div key={r.id} className="bg-paper-soft border border-ink/12 p-5">
                       <div className="flex items-start gap-4 mb-3 flex-wrap">
                         <div className={`w-10 h-10  flex items-center justify-center flex-shrink-0 ${
-                          r.status === 'open' ? 'bg-amber-500/15 border border-amber-500/25' : 'bg-white/[0.04] border border-ink/10'
+                          r.status === 'open' ? 'bg-amber-500/15 border border-amber-500/25' : 'bg-paper-dim border border-ink/10'
                         }`}>
                           <Flag className={`w-5 h-5 ${r.status === 'open' ? 'text-brass' : 'text-smoke'}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
-                              r.status === 'open' ? 'bg-amber-500/15 text-brass' : 'bg-white/[0.06] text-smoke'
+                              r.status === 'open' ? 'bg-amber-500/15 text-brass' : 'bg-paper-dim text-smoke'
                             }`}>
                               {r.status}
                             </span>
@@ -396,7 +395,7 @@ const AdminDashboard = () => {
                         )}
                         <button
                           onClick={() => deleteReport(r.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-ink/10 hover:bg-white/[0.08] text-smoke  text-xs transition-all lowercase ml-auto"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-paper-dim border border-ink/10 hover:bg-white/[0.08] text-smoke  text-xs transition-all lowercase ml-auto"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           discard report
@@ -513,7 +512,7 @@ const AdminDashboard = () => {
                           href={verification.verificationData.linkedinUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-oxblood hover:text-midnight-300 transition-colors lowercase"
+                          className="inline-flex items-center gap-2 text-sm text-oxblood hover:text-ink transition-colors lowercase"
                         >
                           view linkedin profile
                           <ExternalLink className="w-4 h-4" />
@@ -572,7 +571,7 @@ const AdminDashboard = () => {
                         <button
                           onClick={cancelReject}
                           disabled={processingId === verification.id}
-                          className="px-4 py-2 bg-white/[0.04] border border-ink/10 hover:bg-white/[0.08] text-ink-soft  text-sm transition-all disabled:opacity-50 lowercase"
+                          className="px-4 py-2 bg-paper-dim border border-ink/10 hover:bg-white/[0.08] text-ink-soft  text-sm transition-all disabled:opacity-50 lowercase"
                         >
                           cancel
                         </button>
@@ -645,7 +644,6 @@ const AdminDashboard = () => {
             )}
           </motion.div>
         )}
-      </div>
     </NewsPage>
   );
 };

@@ -441,7 +441,7 @@ const SourceProtection = () => {
   const active = TABS.find(t => t.id === activeTab);
 
   return (
-    <NewsPage max="reading">
+    <NewsPage >
       {/* Ink cover band — printed pocket guide masthead */}
       <motion.div
         initial={{ opacity: 0, y: 6 }}

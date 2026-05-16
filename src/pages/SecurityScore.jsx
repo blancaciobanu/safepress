@@ -180,7 +180,7 @@ const SecurityScore = () => {
     const last = user?.securityScores?.[user.securityScores.length - 1];
     const lastDate = last ? new Date(last.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
     return (
-      <NewsPage max="reading">
+      <NewsPage >
         <Motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
           <div className="flex items-baseline justify-between pb-3">
             <span className="eyebrow sm text-oxblood">Form SP-A — Security assessment</span>
@@ -241,7 +241,7 @@ const SecurityScore = () => {
     const answered = !!answers[q.id];
     const pct = Math.round((currentQuestion / total) * 100);
     return (
-      <NewsPage max="form">
+      <NewsPage >
         <Motion.div
           key={currentQuestion}
           initial={{ opacity: 0, x: 8 }}

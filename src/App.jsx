@@ -8,7 +8,6 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
 const SpecialistDashboard = lazy(() => import('./pages/SpecialistDashboard'));
 const SecurityScore = lazy(() => import('./pages/SecurityScore'));
 const SecureSetup = lazy(() => import('./pages/SecureSetup'));
@@ -19,6 +18,8 @@ const SourceProtection = lazy(() => import('./pages/SourceProtection'));
 const RequestSupport = lazy(() => import('./pages/RequestSupport'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AIAdvisor      = lazy(() => import('./pages/AIAdvisor'));
+const ThreatModel    = lazy(() => import('./pages/ThreatModel'));
 
 function withRouteSuspense(element) {
   return (
@@ -33,14 +34,6 @@ function App() {
     <Routes>
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Home />} />
-        <Route
-          path="dashboard"
-          element={
-            <ProtectedRoute>
-              {withRouteSuspense(<Dashboard />)}
-            </ProtectedRoute>
-          }
-        />
         <Route
           path="settings"
           element={
@@ -65,7 +58,8 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="crisis" element={<Navigate to="/dashboard" replace />} />
+        <Route path="crisis" element={<Navigate to="/" replace />} />
+        <Route path="dashboard" element={<Navigate to="/" replace />} />
         <Route path="security-score" element={withRouteSuspense(<SecurityScore />)} />
         <Route path="secure-setup" element={withRouteSuspense(<SecureSetup />)} />
         <Route path="resources" element={withRouteSuspense(<Resources />)} />
@@ -73,6 +67,22 @@ function App() {
         <Route path="community/:postId" element={withRouteSuspense(<CommunityPostDetail />)} />
         <Route path="source-protection" element={withRouteSuspense(<SourceProtection />)} />
         <Route path="request-support" element={withRouteSuspense(<RequestSupport />)} />
+        <Route
+          path="ai-advisor"
+          element={
+            <ProtectedRoute>
+              {withRouteSuspense(<AIAdvisor />)}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="threat-model"
+          element={
+            <ProtectedRoute>
+              {withRouteSuspense(<ThreatModel />)}
+            </ProtectedRoute>
+          }
+        />
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
       </Route>

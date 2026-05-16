@@ -8,22 +8,16 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCrisis } from '../../contexts/CrisisContext';
 import VerifiedBadge from '../VerifiedBadge';
-import { getDoc, getDocs, doc, query, where, collection, updateDoc } from 'firebase/firestore';
-import { db } from '../../firebase/config';
-import {
-  countNewCommunityComments,
-  listCommunityPostsByIds,
-} from '../../features/community/services/communityService';
-import { COLLECTIONS } from '../../config/firebaseCollections';
+import { useNotifications } from '../../features/notifications/hooks/useNotifications';
 import { logError } from '../../utils/logger';
-
-const NOTIF_COUNT_CACHE_PREFIX = 'notif-count:';
 
 /* Paths where the page below the header is on the editorial paper system.
    Add a path here when you migrate that page off the legacy dark surfaces.
    Remaining legacy pages: /dashboard and any route not listed below. */
 const PAPER_SURFACE_PATHS = new Set([
   '/',
+  '/login',
+  '/signup',
   '/resources',
   '/settings',
   '/request-support',
@@ -33,6 +27,8 @@ const PAPER_SURFACE_PATHS = new Set([
   '/community',
   '/specialist-dashboard',
   '/admin',
+  '/ai-advisor',
+  '/threat-model',
 ]);
 
 const notifTimeAgo = (iso) => {
@@ -52,16 +48,6 @@ const SCENARIO_LABELS = {
   phishing: "Phishing attempt",
 };
 
-const getNotifCacheKey = (uid) => `${NOTIF_COUNT_CACHE_PREFIX}${uid}`;
-
-const needsCommentRefresh = (post, lastSeen) => {
-  const latestCommentAt = post?.lastCommentAt || null;
-  if (!latestCommentAt) {
-    return (post?.comments || []).some((comment) => comment.createdAt > lastSeen);
-  }
-  return latestCommentAt > lastSeen;
-};
-
 const Header = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
@@ -71,157 +57,11 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen,   setUserMenuOpen]   = useState(false);
   const [notifOpen,      setNotifOpen]      = useState(false);
-  const [notifications,  setNotifications]  = useState([]);
-  const [notifCount,     setNotifCount]     = useState(0);
-  const [notifLoading,   setNotifLoading]   = useState(false);
+
+  const { notifications, notifCount, notifLoading, onOpen: openNotifications } = useNotifications();
 
   const userMenuRef = useRef(null);
   const notifRef    = useRef(null);
-
-  const persistNotifCount = (count) => {
-    if (!user?.uid || typeof window === 'undefined') return;
-    window.sessionStorage.setItem(getNotifCacheKey(user.uid), String(count));
-  };
-
-  const fetchNotificationCount = async () => {
-    if (!user) return 0;
-
-    const userSnap = await getDoc(doc(db, COLLECTIONS.USERS, user.uid));
-    const userData = userSnap.data() || {};
-    const lastSeen = userData.notifLastSeen || new Date(0).toISOString();
-    const followedPostIds = userData.followedPosts || [];
-
-    let count = 0;
-    const reqSnap = await getDocs(
-      query(collection(db, COLLECTIONS.SUPPORT_REQUESTS), where('requesterId', '==', user.uid))
-    );
-
-    reqSnap.docs.forEach((entry) => {
-      const req = entry.data();
-      if (req.status === 'claimed' && req.claimedBy) count++;
-      if (req.status === 'resolved') count++;
-    });
-
-    const followedPosts = await listCommunityPostsByIds(followedPostIds);
-    for (const post of followedPosts) {
-      if (!needsCommentRefresh(post, lastSeen)) continue;
-      const { count: replyCount } = await countNewCommunityComments({
-        postId: post.id,
-        lastSeen,
-        currentUserId: user.uid,
-        legacyComments: post.comments || [],
-      });
-      if (replyCount > 0) count++;
-    }
-
-    return count;
-  };
-
-  const fetchNotifications = async () => {
-    if (!user) return;
-    setNotifLoading(true);
-    try {
-      const userRef = doc(db, COLLECTIONS.USERS, user.uid);
-      const userSnap = await getDoc(userRef);
-      const userData = userSnap.data() || {};
-      const lastSeen = userData.notifLastSeen || new Date(0).toISOString();
-      const followedPostIds = userData.followedPosts || [];
-
-      const notifs = [];
-
-      const reqSnap = await getDocs(
-        query(collection(db, COLLECTIONS.SUPPORT_REQUESTS), where('requesterId', '==', user.uid))
-      );
-      reqSnap.docs.forEach(d => {
-        const req = d.data();
-        if (req.status === 'claimed' && req.claimedBy) {
-          notifs.push({ id: d.id + '-c', text: 'a specialist picked up your support request', time: null });
-        }
-        if (req.status === 'resolved') {
-          notifs.push({ id: d.id + '-r', text: 'your support request has been resolved', time: null });
-        }
-      });
-
-      const followedPosts = await listCommunityPostsByIds(followedPostIds);
-      for (const post of followedPosts) {
-        if (!needsCommentRefresh(post, lastSeen)) continue;
-        const { count, latestTime } = await countNewCommunityComments({
-          postId: post.id,
-          lastSeen,
-          currentUserId: user.uid,
-          legacyComments: post.comments || [],
-        });
-        if (count > 0) {
-          notifs.push({
-            id: post.id,
-            text: `${count} new ${count === 1 ? 'reply' : 'replies'} on "${post.title}"`,
-            time: latestTime,
-          });
-        }
-      }
-
-      notifs.sort((a, b) => {
-        if (!a.time && !b.time) return 0;
-        if (!a.time) return 1;
-        if (!b.time) return -1;
-        return new Date(b.time) - new Date(a.time);
-      });
-
-      setNotifications(notifs);
-      setNotifCount(0);
-      persistNotifCount(0);
-
-      await updateDoc(userRef, {
-        notifLastSeen: new Date().toISOString(),
-      });
-    } catch (err) {
-      logError('Error fetching notifications:', err);
-    }
-    setNotifLoading(false);
-  };
-
-  useEffect(() => {
-    if (!user) {
-      setNotifCount(0);
-      return;
-    }
-
-    let cancelled = false;
-    let timeoutId = null;
-    let idleId = null;
-
-    if (typeof window !== 'undefined') {
-      const cachedCount = window.sessionStorage.getItem(getNotifCacheKey(user.uid));
-      if (cachedCount !== null) {
-        setNotifCount(Number(cachedCount) || 0);
-      }
-    }
-
-    const loadCount = async () => {
-      try {
-        const count = await fetchNotificationCount();
-        if (cancelled) return;
-        setNotifCount(count);
-        persistNotifCount(count);
-      } catch {
-        // notifications never block navigation
-      }
-    };
-
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      idleId = window.requestIdleCallback(loadCount, { timeout: 2500 });
-    } else {
-      timeoutId = window.setTimeout(loadCount, 1200);
-    }
-
-    return () => {
-      cancelled = true;
-      if (timeoutId) window.clearTimeout(timeoutId);
-      if (idleId && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        window.cancelIdleCallback(idleId);
-      }
-    };
-  }, [user?.uid]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -243,14 +83,15 @@ const Header = () => {
 
   const isAdmin    = !!user?.isAdmin;
   const isVerified = user?.accountType === 'specialist' && user?.verificationStatus === 'approved';
-  const dashboardPath = isVerified ? '/specialist-dashboard' : '/dashboard';
 
   const navItems = [
-    { name: 'Dashboard',      path: dashboardPath },
+    ...(isVerified ? [{ name: 'Dashboard', path: '/specialist-dashboard' }] : []),
     { name: 'Security Score', path: '/security-score' },
     { name: 'Secure Setup',   path: '/secure-setup' },
     { name: 'Resources',      path: '/resources' },
     { name: 'Community',      path: '/community' },
+    ...(user ? [{ name: 'AI Advisor', path: '/ai-advisor' }] : []),
+    ...(user ? [{ name: 'Threat Model', path: '/threat-model' }] : []),
     ...(isAdmin ? [{ name: 'Admin', path: '/admin' }] : []),
   ];
 
@@ -311,9 +152,9 @@ const Header = () => {
         initial={{ y: -32, opacity: 0 }}
         animate={{ y: 0,    opacity: 1 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className={`${t.headerBg} border-b ${t.headerBorder}`}
+        className={`${t.headerBg} border-b ${t.headerBorder} px-6 md:px-10 lg:px-14`}
       >
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10 lg:px-14">
+        <div className="max-w-[1400px] mx-auto">
           <div className="flex items-center justify-between h-16">
 
             {/* ── Wordmark ───────────────────────────────────────────── */}
@@ -364,7 +205,7 @@ const Header = () => {
                           const opening = !notifOpen;
                           setNotifOpen(o => !o);
                           setUserMenuOpen(false);
-                          if (opening) fetchNotifications();
+                          if (opening) openNotifications();
                         }}
                         className={`relative w-9 h-9 flex items-center justify-center rounded-sm ${t.controlBg} border ${t.controlBorder} ${t.controlIcon} transition-all`}
                         aria-label="Notifications"
@@ -538,9 +379,9 @@ const Header = () => {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{    height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden bg-[color:var(--color-oxblood)] border-b border-[color:var(--color-oxblood-soft)]"
+            className="overflow-hidden bg-[color:var(--color-oxblood)] border-b border-[color:var(--color-oxblood-soft)] px-6 md:px-10 lg:px-14"
           >
-            <div className="max-w-[1400px] mx-auto px-6 md:px-10 lg:px-14 py-2.5 flex items-center justify-between gap-4">
+            <div className="max-w-[1400px] mx-auto py-2.5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <AlertCircle className="w-3.5 h-3.5 text-white flex-shrink-0 animate-pulse" />
                 <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white whitespace-nowrap">

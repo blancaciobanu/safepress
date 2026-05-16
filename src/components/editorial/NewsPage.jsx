@@ -11,7 +11,7 @@ export const NewsPage = ({ children, max = 'wide', className = '' }) => {
 
   return (
     <div className={cx('surface-newsroom -mt-20 min-h-screen pt-20 pb-16 md:pb-20', className)}>
-      <div className={cx(maxClass, 'mx-auto px-6 md:px-10 lg:px-14 pt-8 md:pt-12')}>
+      <div className={cx(maxClass, 'mx-auto pt-6 md:pt-10')}>
         {children}
       </div>
     </div>

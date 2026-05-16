@@ -20,7 +20,7 @@ const ProtectedAdminRoute = ({ children }) => {
   }
 
   if (!user.isAdmin) {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/" />;
   }
 
   return children;

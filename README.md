@@ -29,11 +29,13 @@ Visit the Vite URL shown in your terminal, usually `http://localhost:5173`.
 - **Smart Resource Filtering** — Risk-based tool recommendations (25+ security tools, personalized by quiz results)
 - **OS Security Guides** — Step-by-step hardening for Windows, macOS, Linux, iOS, Android
 - **AI Security Section** — Safe AI usage, deepfake detection, privacy-respecting tools
+- **AI Advisor** — Authenticated journalists can chat with Aegis for tailored security guidance; prompts are routed through Firebase Functions instead of the browser SDK
 - **Crisis Mode Overlay** — Fullscreen overlay triggered by a pill toggle in the header; 4 scenarios (hacked, source exposed, doxxed, phishing) with checklist, progress bar, and per-step "how?" guides; direct-call links to CPJ/RSF/EFF
 - **Dual-state Home** — Public visitors get editorial orientation with crisis-first hierarchy; signed-in users get a lighter front-page summary driven by existing auth/session state and read-only role-specific queries
 - **Community Hub** — Discussions, true anonymous stories, and Q&A with likes, comments, category filtering, always-on role labels (journalist / verified specialist / unverified specialist / anonymous), sort controls (newest / top / unanswered), accepted-answer on Q&A, self-service delete (hard-delete for posts, soft-delete `[deleted]` for comments), unified journalist/specialist profile modal, and user-reporting with 5 reasons
 - **Source Protection Playbook** — New `/source-protection` page: 5-tab investigative-journalism operational-security guide (compartmentalization, first contact, meeting & handoff, after publication, legal protections) with accordion content cards + 3 interactive decision-tree scenarios
 - **Support Request Workflow** — Journalists submit crisis requests, verified specialists claim and resolve them; request form shows live count and avatars of available verified specialists
+- **AI Support Drafting** — Verified users can turn rough crisis notes into a structured support request draft; obvious identifiers are redacted before the notes are sent to the model
 - **Specialist Dashboard** — Dedicated dashboard at `/specialist-dashboard` with tabbed request queue, stats (resolved/rating/active), profile sidebar, and feedback reviews
 - **Specialist Feedback & Rating** — Journalists rate specialists (1-5 stars + comment) after resolution
 - **Verification UX** — Dedicated pending/rejected banners with admin-written rejection reason and reapply CTA; verified specialists auto-redirected to specialist dashboard
@@ -143,6 +145,7 @@ safepress/
    ```
 5. Deploy security rules, indexes, and functions:
    ```bash
+   firebase functions:secrets:set ANTHROPIC_API_KEY
    cd functions && npm install && cd ..
    firebase deploy --only firestore:rules,firestore:indexes,functions
    ```
