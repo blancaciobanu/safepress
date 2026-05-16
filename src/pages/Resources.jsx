@@ -368,7 +368,7 @@ const Resources = () => {
               </div>
 
               <div className="news-ledger notebook-ledger">
-                {currentOS.steps.map((step, i) => {
+                {(() => { const StepIcon = currentOS.icon; return currentOS.steps.map((step, i) => {
                   const isExpanded = expandedStep === i;
                   return (
                     <div key={step.title}>
@@ -376,7 +376,8 @@ const Resources = () => {
                         type="button"
                         onClick={() => setExpandedStep(isExpanded ? null : i)}
                         aria-expanded={isExpanded}
-                        className="news-ledger-row w-full text-left transition-colors hover:bg-paper-dim/40"
+                        className="news-ledger-row w-full text-left transition-colors hover:bg-paper-dim/40 group"
+                        style={{ '--accent': currentOS.color }}
                       >
                         <span className="news-row-index" style={{ '--row-accent': currentOS.color }}>
                           {String(i + 1).padStart(2, '0')}
@@ -386,10 +387,21 @@ const Resources = () => {
                             <h3 className="news-card-title">{step.title}</h3>
                             <p className="news-card-copy mt-1">{step.details}</p>
                           </div>
-                          <ChevronDown
-                            className="w-3.5 h-3.5 text-smoke shrink-0 mt-0.5 transition-transform"
-                            style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                          />
+                          <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                            <motion.div
+                              animate={isExpanded ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+                              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                            >
+                              <StepIcon
+                                className="w-4 h-4 transition-colors text-smoke-dim group-hover:text-[color:var(--accent)]"
+                                style={isExpanded ? { color: currentOS.color } : {}}
+                              />
+                            </motion.div>
+                            <ChevronDown
+                              className="w-3.5 h-3.5 text-smoke transition-transform"
+                              style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                            />
+                          </div>
                         </div>
                       </button>
 
@@ -414,7 +426,7 @@ const Resources = () => {
                       </AnimatePresence>
                     </div>
                   );
-                })}
+                }); })()}
               </div>
             </motion.div>
           )}
