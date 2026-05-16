@@ -29,6 +29,11 @@ const PAPER_SURFACE_PATHS = new Set([
   '/settings',
   '/request-support',
   '/secure-setup',
+  '/source-protection',
+  '/security-score',
+  '/community',
+  '/specialist-dashboard',
+  '/admin',
 ]);
 
 const notifTimeAgo = (iso) => {

@@ -32,6 +32,7 @@ import {
 import { COLLECTIONS } from '../config/firebaseCollections';
 import { COMMUNITY_NEWS_FEEDS } from '../config/externalResources';
 import { logError } from '../utils/logger';
+import { NewsPage } from '../components/editorial/NewsPage';
 
 const categories = [
   { id: 'all', name: 'all' },
@@ -108,18 +109,18 @@ const AuthorLine = ({ item, size = 'xs', onOpenProfile, className = '' }) => {
   const clickable = a.clickable && onOpenProfile && !a.anonymous;
   const Inner = (
     <>
-      <span className="text-xs font-semibold text-gray-300 lowercase">{a.name}</span>
+      <span className="text-xs font-semibold text-ink-soft lowercase">{a.name}</span>
       {a.type === 'specialist' && a.verified && <VerifiedBadge size="xs" />}
       {a.type === 'specialist' && !a.verified && (
-        <span className="text-[9px] font-bold tracking-widest uppercase text-gray-500 bg-white/[0.04] border border-white/[0.08] px-1.5 py-0.5 rounded">
+        <span className="text-[9px] font-bold tracking-widest uppercase text-smoke bg-paper-soft/80 border border-ink/10 px-1.5 py-0.5 rounded">
           specialist · unverified
         </span>
       )}
       {a.type === 'journalist' && !a.anonymous && (
-        <span className="text-[9px] font-bold tracking-widest uppercase text-gray-600">journalist</span>
+        <span className="text-[9px] font-bold tracking-widest uppercase text-smoke-dim">journalist</span>
       )}
       {a.anonymous && (
-        <span className="text-[9px] font-bold tracking-widest uppercase text-gray-600">anonymous</span>
+        <span className="text-[9px] font-bold tracking-widest uppercase text-smoke-dim">anonymous</span>
       )}
     </>
   );
@@ -554,12 +555,12 @@ const Community = () => {
       transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
       className="lg:sticky lg:top-32"
     >
-      <div className="border border-white/[0.08] rounded-2xl p-5 bg-white/[0.02]">
+      <div className="border border-ink/10 rounded-2xl p-5 bg-paper-soft/40">
         <div className="flex items-center gap-2 mb-5">
-          <div className="w-7 h-7 rounded-lg bg-crimson-500/10 border border-crimson-500/20 flex items-center justify-center">
-            <Newspaper className="w-3.5 h-3.5 text-crimson-400" />
+          <div className="w-7 h-7 rounded-lg bg-crimson-500/10 border border-oxblood/20 flex items-center justify-center">
+            <Newspaper className="w-3.5 h-3.5 text-oxblood" />
           </div>
-          <h3 className="text-[10px] font-bold tracking-widest uppercase text-gray-500">
+          <h3 className="text-[10px] font-bold tracking-widest uppercase text-smoke">
             latest threats
           </h3>
         </div>
@@ -568,16 +569,16 @@ const Community = () => {
           <div className="space-y-4">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-3 bg-white/[0.05] rounded w-full mb-2" />
-                <div className="h-3 bg-white/[0.05] rounded w-3/4 mb-1.5" />
-                <div className="h-2 bg-white/[0.03] rounded w-1/3" />
+                <div className="h-3 bg-ink/8 rounded w-full mb-2" />
+                <div className="h-3 bg-ink/8 rounded w-3/4 mb-1.5" />
+                <div className="h-2 bg-ink/5 rounded w-1/3" />
               </div>
             ))}
           </div>
         ) : newsArticles.length === 0 ? (
           <div className="text-center py-6">
-            <AlertTriangle className="w-5 h-5 text-gray-700 mx-auto mb-2" />
-            <p className="text-xs text-gray-600 lowercase">couldn't load news feed</p>
+            <AlertTriangle className="w-5 h-5 text-smoke-dim mx-auto mb-2" />
+            <p className="text-xs text-smoke-dim lowercase">couldn't load news feed</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -589,22 +590,22 @@ const Community = () => {
                 rel="noopener noreferrer"
                 className="group block"
               >
-                <p className="text-[13px] text-gray-300 leading-snug lowercase group-hover:text-white transition-colors mb-1.5 line-clamp-2">
+                <p className="text-[13px] text-ink-soft leading-snug lowercase group-hover:text-ink transition-colors mb-1.5 line-clamp-2">
                   {article.title}
                 </p>
-                <div className="flex items-center gap-2 text-[10px] text-gray-600">
+                <div className="flex items-center gap-2 text-[10px] text-smoke-dim">
                   <span className="lowercase">{article.source}</span>
                   <span>·</span>
                   <span className="lowercase">{timeAgo(article.pubDate)}</span>
-                  <ExternalLink className="w-2.5 h-2.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-gray-500" />
+                  <ExternalLink className="w-2.5 h-2.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-smoke" />
                 </div>
               </a>
             ))}
           </div>
         )}
 
-        <div className="mt-5 pt-4 border-t border-white/[0.06]">
-          <p className="text-[10px] text-gray-700 lowercase leading-relaxed">
+        <div className="mt-5 pt-4 border-t border-ink/8">
+          <p className="text-[10px] text-smoke-dim lowercase leading-relaxed">
             powered by the hacker news & bleepingcomputer rss feeds
           </p>
         </div>
@@ -631,18 +632,18 @@ const Community = () => {
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              className="relative w-full max-w-sm glass-card rounded-2xl border border-crimson-500/20 p-6"
+              className="relative w-full max-w-sm bg-paper-soft border border-ink/12 rounded-2xl border border-oxblood/20 p-6"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-crimson-500/15 border border-crimson-500/25 flex items-center justify-center">
-                  <Trash2 className="w-5 h-5 text-crimson-400" />
+                  <Trash2 className="w-5 h-5 text-oxblood" />
                 </div>
-                <h3 className="text-base font-semibold text-white lowercase">
+                <h3 className="text-base font-semibold text-ink lowercase">
                   delete {deleteTarget.type === 'post' ? 'post' : 'comment'}?
                 </h3>
               </div>
-              <p className="text-sm text-gray-400 lowercase leading-relaxed mb-4">
+              <p className="text-sm text-smoke lowercase leading-relaxed mb-4">
                 {deleteTarget.type === 'post'
                   ? 'this will permanently remove your post and all replies.'
                   : 'the comment will be replaced with "[deleted]" so the thread stays readable.'}
@@ -650,7 +651,7 @@ const Community = () => {
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setDeleteTarget(null)}
-                  className="px-4 py-2 text-gray-400 hover:text-white text-xs font-semibold tracking-wide uppercase transition-colors"
+                  className="px-4 py-2 text-smoke hover:text-ink text-xs font-semibold tracking-wide uppercase transition-colors"
                 >
                   cancel
                 </button>
@@ -663,7 +664,7 @@ const Community = () => {
                     }
                     setDeleteTarget(null);
                   }}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-crimson-500 hover:bg-crimson-600 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-oxblood hover:bg-oxblood-soft text-ink rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   delete
@@ -690,35 +691,35 @@ const Community = () => {
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              className="relative w-full max-w-md glass-card rounded-2xl border border-white/[0.1] p-6"
+              className="relative w-full max-w-md bg-paper-soft border border-ink/12 rounded-2xl border border-ink/14 p-6"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center">
-                  <Flag className="w-5 h-5 text-amber-400" />
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-brass/30 flex items-center justify-center">
+                  <Flag className="w-5 h-5 text-brass" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-white lowercase">report {reportDialog.type}</h3>
-                  <p className="text-[11px] text-gray-500 lowercase">an admin will review your report</p>
+                  <h3 className="text-base font-semibold text-ink lowercase">report {reportDialog.type}</h3>
+                  <p className="text-[11px] text-smoke lowercase">an admin will review your report</p>
                 </div>
               </div>
 
               {reportSuccess ? (
                 <div className="py-6 text-center">
                   <CheckCircle2 className="w-10 h-10 text-olive-500 mx-auto mb-2" />
-                  <p className="text-sm text-white lowercase">report filed — thank you</p>
+                  <p className="text-sm text-ink lowercase">report filed — thank you</p>
                 </div>
               ) : (
                 <>
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">reason</p>
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-smoke mb-2">reason</p>
                   <div className="space-y-1.5 mb-4">
                     {REPORT_REASONS.map(r => (
                       <label
                         key={r.id}
                         className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
                           reportReason === r.id
-                            ? 'bg-amber-500/[0.06] border-amber-500/25'
-                            : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]'
+                            ? 'bg-amber-500/[0.06] border-brass/30'
+                            : 'bg-paper-soft/40 border-ink/8 hover:border-ink/16'
                         }`}
                       >
                         <input
@@ -738,20 +739,20 @@ const Community = () => {
                     onChange={e => setReportNote(e.target.value)}
                     rows="2"
                     placeholder="optional: add context..."
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/40 transition-colors resize-none lowercase mb-4"
+                    className="w-full px-3 py-2 bg-paper-soft border border-ink/12 rounded-lg text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-amber-500/40 transition-colors resize-none lowercase mb-4"
                   />
                   <div className="flex gap-2 justify-end">
                     <button
                       onClick={() => setReportDialog(null)}
                       disabled={reportSubmitting}
-                      className="px-4 py-2 text-gray-400 hover:text-white text-xs font-semibold tracking-wide uppercase transition-colors disabled:opacity-50"
+                      className="px-4 py-2 text-smoke hover:text-ink text-xs font-semibold tracking-wide uppercase transition-colors disabled:opacity-50"
                     >
                       cancel
                     </button>
                     <button
                       onClick={submitReport}
                       disabled={reportSubmitting}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-4 py-2 btn text-ink rounded-lg text-xs font-semibold uppercase tracking-wide transition-all disabled:opacity-50"
                     >
                       <Flag className="w-3.5 h-3.5" />
                       {reportSubmitting ? 'filing...' : 'file report'}
@@ -781,10 +782,10 @@ const Community = () => {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="relative w-full max-w-md glass-card rounded-2xl border border-white/[0.1] overflow-hidden max-h-[85vh] overflow-y-auto"
+              className="relative w-full max-w-md bg-paper-soft border border-ink/12 rounded-2xl border border-ink/14 overflow-hidden max-h-[85vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
-              <button onClick={() => setAuthorProfile(null)} className="absolute top-4 right-4 text-gray-600 hover:text-white transition-colors z-10">
+              <button onClick={() => setAuthorProfile(null)} className="absolute top-4 right-4 text-smoke-dim hover:text-ink transition-colors z-10">
                 <X className="w-4 h-4" />
               </button>
 
@@ -794,15 +795,15 @@ const Community = () => {
                 </div>
               ) : (
                 <>
-                  <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
+                  <div className="px-6 pt-6 pb-4 border-b border-ink/8">
                     <div className="flex items-center gap-3 mb-4">
                       <UserAvatar name={authorProfile.username} accountType={authorProfile.type} size="lg" />
                       <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-base font-semibold text-white lowercase">{authorProfile.username}</span>
-                          {authorProfile.type === 'specialist' && authorProfile.verified && <BadgeCheck className="w-4 h-4 text-midnight-400" />}
+                          <span className="text-base font-semibold text-ink lowercase">{authorProfile.username}</span>
+                          {authorProfile.type === 'specialist' && authorProfile.verified && <BadgeCheck className="w-4 h-4 text-oxblood" />}
                         </div>
-                        <p className="text-[11px] text-gray-500 lowercase mt-0.5">
+                        <p className="text-[11px] text-smoke lowercase mt-0.5">
                           {authorProfile.type === 'specialist'
                             ? (authorProfile.verified ? 'verified security specialist' : 'specialist (unverified)')
                             : 'journalist'}
@@ -811,45 +812,45 @@ const Community = () => {
                     </div>
                     <div className="flex items-center gap-6 flex-wrap">
                       <div>
-                        <p className="text-xl font-bold text-white">{authorProfile.postCount}</p>
-                        <p className="text-[10px] text-gray-600 lowercase">community posts</p>
+                        <p className="text-xl font-bold text-ink">{authorProfile.postCount}</p>
+                        <p className="text-[10px] text-smoke-dim lowercase">community posts</p>
                       </div>
                       {authorProfile.type === 'specialist' && authorProfile.supportStatsVisible && (
                         <>
                           <div>
-                            <p className="text-xl font-bold text-white">{authorProfile.resolvedCount}</p>
-                            <p className="text-[10px] text-gray-600 lowercase">cases resolved</p>
+                            <p className="text-xl font-bold text-ink">{authorProfile.resolvedCount}</p>
+                            <p className="text-[10px] text-smoke-dim lowercase">cases resolved</p>
                           </div>
                           {authorProfile.avgRating && (
                             <div>
-                              <p className="text-xl font-bold text-white flex items-center gap-1">
+                              <p className="text-xl font-bold text-ink flex items-center gap-1">
                                 {authorProfile.avgRating}
-                                <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
+                                <Star className="w-3.5 h-3.5 text-brass fill-current" />
                               </p>
-                              <p className="text-[10px] text-gray-600 lowercase">avg rating</p>
+                              <p className="text-[10px] text-smoke-dim lowercase">avg rating</p>
                             </div>
                           )}
                         </>
                       )}
                       {authorProfile.createdAt && (
                         <div>
-                          <p className="text-sm font-semibold text-gray-300">{new Date(authorProfile.createdAt).toLocaleDateString()}</p>
-                          <p className="text-[10px] text-gray-600 lowercase">joined</p>
+                          <p className="text-sm font-semibold text-ink-soft">{new Date(authorProfile.createdAt).toLocaleDateString()}</p>
+                          <p className="text-[10px] text-smoke-dim lowercase">joined</p>
                         </div>
                       )}
                     </div>
                   </div>
 
                   {authorProfile.bio && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">about</p>
-                      <p className="text-sm text-gray-400 lowercase leading-relaxed">{authorProfile.bio}</p>
+                    <div className="px-6 py-4 border-b border-ink/8">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mb-2">about</p>
+                      <p className="text-sm text-smoke lowercase leading-relaxed">{authorProfile.bio}</p>
                     </div>
                   )}
 
                   {authorProfile.specializations?.length > 0 && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">specializations</p>
+                    <div className="px-6 py-4 border-b border-ink/8">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mb-2">specializations</p>
                       <div className="flex flex-wrap gap-1.5">
                         {authorProfile.specializations.map((s, i) => (
                           <span key={i} className="px-2 py-1 rounded-md bg-midnight-400/10 border border-midnight-400/20 text-[11px] text-midnight-300 lowercase">{s}</span>
@@ -859,21 +860,21 @@ const Community = () => {
                   )}
 
                   {authorProfile.recentPosts?.length > 0 && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-2">recent posts</p>
+                    <div className="px-6 py-4 border-b border-ink/8">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mb-2">recent posts</p>
                       <div className="space-y-2">
                         {authorProfile.recentPosts.map(p => (
                           <button
                             key={p.id}
                             onClick={() => { setAuthorProfile(null); setSelectedPost(p); }}
-                            className="w-full text-left flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors"
+                            className="w-full text-left flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-paper-soft/80 transition-colors"
                           >
-                            <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mt-1 flex-shrink-0">
+                            <span className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mt-1 flex-shrink-0">
                               {p.type === 'question' ? 'q' : 'd'}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-gray-300 lowercase line-clamp-1">{p.title}</p>
-                              <p className="text-[10px] text-gray-600 lowercase">{timeAgo(p.createdAt)}</p>
+                              <p className="text-xs text-ink-soft lowercase line-clamp-1">{p.title}</p>
+                              <p className="text-[10px] text-smoke-dim lowercase">{timeAgo(p.createdAt)}</p>
                             </div>
                           </button>
                         ))}
@@ -882,17 +883,17 @@ const Community = () => {
                   )}
 
                   {authorProfile.type === 'specialist' && authorProfile.recentFeedback?.length > 0 && (
-                    <div className="px-6 py-4 border-b border-white/[0.06]">
-                      <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3">recent feedback</p>
+                    <div className="px-6 py-4 border-b border-ink/8">
+                      <p className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mb-3">recent feedback</p>
                       <div className="space-y-3">
                         {authorProfile.recentFeedback.map((r, i) => (
                           <div key={i}>
                             <div className="flex items-center gap-0.5 mb-1">
                               {[1,2,3,4,5].map(s => (
-                                <Star key={s} className={`w-3 h-3 ${s <= r.feedback.rating ? 'text-amber-400 fill-current' : 'text-gray-700'}`} />
+                                <Star key={s} className={`w-3 h-3 ${s <= r.feedback.rating ? 'text-brass fill-current' : 'text-smoke-dim'}`} />
                               ))}
                             </div>
-                            <p className="text-xs text-gray-400 lowercase italic">"{r.feedback.comment}"</p>
+                            <p className="text-xs text-smoke lowercase italic">"{r.feedback.comment}"</p>
                           </div>
                         ))}
                       </div>
@@ -904,7 +905,7 @@ const Community = () => {
                       <Link
                         to="/request-support"
                         onClick={() => setAuthorProfile(null)}
-                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 bg-ink hover:bg-ink-soft text-paper rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
                       >
                         request support from this specialist
                       </Link>
@@ -937,8 +938,8 @@ const Community = () => {
 
     return (
       <>
-      <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
-        <div className="max-w-7xl mx-auto">
+      <NewsPage>
+        <div>
           <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
           <div className="min-w-0">
 
@@ -949,37 +950,37 @@ const Community = () => {
           >
             <button
               onClick={() => { setSelectedPost(null); setError(''); }}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-white transition-colors text-xs lowercase flex-shrink-0"
+              className="flex items-center gap-1.5 text-smoke hover:text-ink transition-colors text-xs lowercase flex-shrink-0"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               back
             </button>
-            <span className="text-gray-700 text-xs">·</span>
+            <span className="text-smoke-dim text-xs">·</span>
             {isQuestion && (
               <>
                 <span className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
-                  selectedPost.resolved ? 'bg-olive-500/15 text-olive-400' : 'bg-amber-500/10 text-amber-500'
+                  selectedPost.resolved ? 'bg-brass/12 text-brass' : 'bg-oxblood/8 text-oxblood'
                 }`}>
                   {selectedPost.resolved ? 'resolved' : 'open'}
                 </span>
-                <span className="text-gray-700 text-xs">·</span>
+                <span className="text-smoke-dim text-xs">·</span>
               </>
             )}
-            <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600">
+            <span className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim">
               {categories.find(c => c.id === selectedPost.category)?.name || selectedPost.category}
             </span>
-            <span className="text-gray-700 text-xs">·</span>
-            <span className="text-[10px] text-gray-600 lowercase">{timeAgo(selectedPost.createdAt)}</span>
+            <span className="text-smoke-dim text-xs">·</span>
+            <span className="text-[10px] text-smoke-dim lowercase">{timeAgo(selectedPost.createdAt)}</span>
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className={`glass-card p-5 mb-4 border-l-4 ${
+            className={`bg-paper-soft border border-ink/12 p-5 mb-4 border-l-4 ${
               isQuestion
-                ? selectedPost.resolved ? 'border-l-olive-500/50' : 'border-l-amber-500/40'
-                : 'border-l-purple-500/30'
+                ? selectedPost.resolved ? 'border-l-brass/50' : 'border-l-oxblood/30'
+                : 'border-l-ink/20'
             }`}
           >
             {/* Author row */}
@@ -992,7 +993,7 @@ const Community = () => {
               />
               <div className="flex-1 min-w-0">
                 <AuthorLine item={selectedPost} onOpenProfile={openProfile} />
-                <p className="text-[11px] text-gray-600 lowercase mt-0.5">
+                <p className="text-[11px] text-smoke-dim lowercase mt-0.5">
                   {selectedPost.isAnonymous
                     ? 'posted anonymously'
                     : (selectedPost.authorType === 'specialist' ? 'security specialist' : 'journalist')}
@@ -1006,14 +1007,14 @@ const Community = () => {
                         if (editMode) setEditMode(false);
                         else { setEditMode(true); setEditForm({ title: selectedPost.title, content: selectedPost.content }); }
                       }}
-                      className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-white transition-colors lowercase"
+                      className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-ink transition-colors lowercase"
                     >
                       {editMode ? <X className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
                       {editMode ? 'cancel' : 'edit'}
                     </button>
                     <button
                       onClick={() => setDeleteTarget({ type: 'post', id: selectedPost.id })}
-                      className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-crimson-400 transition-colors lowercase"
+                      className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors lowercase"
                     >
                       <Trash2 className="w-3 h-3" />
                       delete
@@ -1023,7 +1024,7 @@ const Community = () => {
                 {!isAuthor && user && (
                   <button
                     onClick={() => { setReportDialog({ type: 'post', postId: selectedPost.id }); setReportReason('spam'); setReportNote(''); }}
-                    className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-amber-400 transition-colors lowercase"
+                    className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors lowercase"
                   >
                     <Flag className="w-3 h-3" />
                     report
@@ -1037,17 +1038,17 @@ const Community = () => {
                 <input
                   value={editForm.title}
                   onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
-                  className="w-full px-0 py-2 bg-transparent border-b border-white/[0.08] text-white text-xl font-display font-bold placeholder-gray-700 focus:outline-none focus:border-midnight-400/50 transition-colors mb-3"
+                  className="w-full px-0 py-2 bg-transparent border-b border-ink/10 text-ink text-xl font-display font-bold placeholder-smoke focus:outline-none focus:border-ink/40 transition-colors mb-3"
                 />
                 <textarea
                   value={editForm.content}
                   onChange={e => setEditForm(p => ({ ...p, content: e.target.value }))}
                   rows="4"
-                  className="w-full px-0 py-2 bg-transparent text-sm text-gray-300 placeholder-gray-700 focus:outline-none transition-colors resize-none leading-relaxed mb-3"
+                  className="w-full px-0 py-2 bg-transparent text-sm text-ink-soft placeholder-smoke focus:outline-none transition-colors resize-none leading-relaxed mb-3"
                 />
                 <div className="flex items-start gap-2 px-3 py-2.5 mb-4 rounded-lg bg-amber-500/[0.08] border border-amber-500/20">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-amber-400/80 lowercase leading-relaxed">
+                  <p className="text-[11px] text-brass/80 lowercase leading-relaxed">
                     once saved, an "edited" label will be visible to all community members.
                   </p>
                 </div>
@@ -1055,48 +1056,48 @@ const Community = () => {
                   <button
                     onClick={handleEditPost}
                     disabled={submitting || !editForm.title.trim() || !editForm.content.trim()}
-                    className="px-4 py-1.5 bg-midnight-400 hover:bg-midnight-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                    className="px-4 py-1.5 btn disabled:opacity-40 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
                   >
                     {submitting ? 'saving...' : 'save'}
                   </button>
-                  <button onClick={() => setEditMode(false)} className="px-4 py-1.5 text-gray-500 hover:text-white text-xs font-semibold uppercase tracking-wide transition-colors">
+                  <button onClick={() => setEditMode(false)} className="px-4 py-1.5 text-smoke hover:text-ink text-xs font-semibold uppercase tracking-wide transition-colors">
                     cancel
                   </button>
                 </div>
-                {error && <p className="text-xs text-crimson-400 mt-2 lowercase">{error}</p>}
+                {error && <p className="text-xs text-oxblood mt-2 lowercase">{error}</p>}
               </>
             ) : (
               <>
-                <h1 className="text-xl font-display font-bold mb-3 leading-snug text-white">
+                <h1 className="text-xl font-display font-bold mb-3 leading-snug text-ink">
                   {selectedPost.title}
                   {selectedPost.edited && (
-                    <span className="ml-2 text-[10px] font-normal text-gray-600 lowercase align-middle">(edited)</span>
+                    <span className="ml-2 text-[10px] font-normal text-smoke-dim lowercase align-middle">(edited)</span>
                   )}
                 </h1>
-                <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap mb-4">
+                <p className="text-sm text-ink-soft leading-relaxed whitespace-pre-wrap mb-4">
                   {selectedPost.content}
                 </p>
               </>
             )}
 
-            <div className="flex items-center gap-4 pt-3 border-t border-white/[0.06]">
+            <div className="flex items-center gap-4 pt-3 border-t border-ink/8">
               <button
                 onClick={(e) => handleLike(e, selectedPost.id)}
                 className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${
-                  liked ? 'text-crimson-400' : 'text-gray-500 hover:text-crimson-400'
+                  liked ? 'text-oxblood' : 'text-smoke hover:text-oxblood'
                 }`}
               >
                 <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
                 {selectedPost.likes || 0}
               </button>
-              <span className="flex items-center gap-1.5 text-xs text-gray-500 lowercase">
+              <span className="flex items-center gap-1.5 text-xs text-smoke lowercase">
                 <MessageSquare className="w-3.5 h-3.5" />
                 {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
               </span>
               <button
                 onClick={(e) => toggleFollow(e, selectedPost.id)}
                 className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${
-                  followedPosts.has(selectedPost.id) ? 'text-amber-400' : 'text-gray-500 hover:text-amber-400'
+                  followedPosts.has(selectedPost.id) ? 'text-brass' : 'text-smoke hover:text-brass'
                 }`}
               >
                 {followedPosts.has(selectedPost.id)
@@ -1109,7 +1110,7 @@ const Community = () => {
                 <button
                   onClick={() => handleResolve(selectedPost.id)}
                   className={`flex items-center gap-1.5 text-xs transition-colors lowercase ml-auto ${
-                    selectedPost.resolved ? 'text-olive-400' : 'text-gray-500 hover:text-olive-400'
+                    selectedPost.resolved ? 'text-olive-400' : 'text-smoke hover:text-olive-400'
                   }`}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1121,7 +1122,7 @@ const Community = () => {
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
             {user ? (
-              <div className="glass-card p-4 mb-4">
+              <div className="bg-paper-soft border border-ink/12 p-4 mb-4">
                 <div className="flex gap-3 items-start">
                   <UserAvatar name={user.username || ''} accountType={user.accountType} size="sm" />
                   <div className="flex-1 min-w-0">
@@ -1130,13 +1131,13 @@ const Community = () => {
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder={isQuestion ? 'write your answer...' : 'add a reply...'}
                       rows="2"
-                      className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-midnight-400/40 transition-colors resize-none leading-relaxed"
+                      className="w-full px-3 py-2 bg-paper-soft/80 border border-ink/10 rounded-lg text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood/60 transition-colors resize-none leading-relaxed"
                     />
                     <div className="flex justify-end mt-2">
                       <button
                         onClick={handleAddComment}
                         disabled={!newComment.trim() || submitting}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-midnight-400 hover:bg-midnight-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                        className="flex items-center gap-1.5 px-3 py-1.5 btn disabled:opacity-40 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
                       >
                         <Send className="w-3 h-3" />
                         {submitting ? '...' : isQuestion ? 'answer' : 'reply'}
@@ -1144,14 +1145,14 @@ const Community = () => {
                     </div>
                   </div>
                 </div>
-                {error && <p className="text-xs text-crimson-400 mt-2 lowercase">{error}</p>}
+                {error && <p className="text-xs text-oxblood mt-2 lowercase">{error}</p>}
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-4 px-5 py-3.5 mb-4 border border-white/[0.06] rounded-xl bg-white/[0.02]">
-                <p className="text-xs text-gray-500 lowercase">log in to join the conversation</p>
+              <div className="flex items-center justify-between gap-4 px-5 py-3.5 mb-4 border border-ink/8 rounded-xl bg-paper-soft/40">
+                <p className="text-xs text-smoke lowercase">log in to join the conversation</p>
                 <button
                   onClick={() => navigate('/login')}
-                  className="px-4 py-1.5 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
+                  className="px-4 py-1.5 bg-ink hover:bg-ink-soft text-paper rounded-lg text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
                 >
                   log in
                 </button>
@@ -1159,7 +1160,7 @@ const Community = () => {
             )}
 
             {commentCount > 0 && (
-              <p className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mb-3 px-1">
+              <p className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mb-3 px-1">
                 {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
               </p>
             )}
@@ -1178,7 +1179,7 @@ const Community = () => {
                 return (
                   <div
                     key={comment.id ?? index}
-                    className={`glass-card px-4 py-3 border-l-4 ${
+                    className={`bg-paper-soft border border-ink/12 px-4 py-3 border-l-4 ${
                       isAccepted ? 'border-l-olive-500' : 'border-l-white/[0.06]'
                     }`}
                   >
@@ -1200,13 +1201,13 @@ const Community = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                           {comment.deleted ? (
-                            <span className="text-xs font-semibold text-gray-600 lowercase italic">deleted</span>
+                            <span className="text-xs font-semibold text-smoke-dim lowercase italic">deleted</span>
                           ) : (
                             <AuthorLine item={comment} onOpenProfile={openProfile} />
                           )}
-                          <span className="text-[10px] text-gray-600 lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
+                          <span className="text-[10px] text-smoke-dim lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
                         </div>
-                        <p className={`text-sm leading-relaxed ${comment.deleted ? 'text-gray-600 italic' : 'text-gray-400'}`}>
+                        <p className={`text-sm leading-relaxed ${comment.deleted ? 'text-smoke-dim italic' : 'text-smoke'}`}>
                           {comment.content}
                         </p>
                         {(canAccept || canDelete || canReport) && (
@@ -1215,7 +1216,7 @@ const Community = () => {
                               <button
                                 onClick={() => handleAcceptAnswer(comment.id)}
                                 className={`flex items-center gap-1 text-[11px] transition-colors lowercase ${
-                                  isAccepted ? 'text-olive-400' : 'text-gray-600 hover:text-olive-400'
+                                  isAccepted ? 'text-olive-400' : 'text-smoke-dim hover:text-olive-400'
                                 }`}
                               >
                                 <CheckCircle2 className="w-3 h-3" />
@@ -1225,7 +1226,7 @@ const Community = () => {
                             {canDelete && (
                               <button
                                 onClick={() => setDeleteTarget({ type: 'comment', id: selectedPost.id, commentId: comment.id })}
-                                className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-crimson-400 transition-colors lowercase"
+                                className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors lowercase"
                               >
                                 <Trash2 className="w-3 h-3" />
                                 delete
@@ -1234,7 +1235,7 @@ const Community = () => {
                             {canReport && (
                               <button
                                 onClick={() => { setReportDialog({ type: 'comment', postId: selectedPost.id, commentId: comment.id }); setReportReason('spam'); setReportNote(''); }}
-                                className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-amber-400 transition-colors lowercase"
+                                className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors lowercase"
                               >
                                 <Flag className="w-3 h-3" />
                                 report
@@ -1249,7 +1250,7 @@ const Community = () => {
               })}
 
               {commentCount === 0 && (
-                <p className="text-center text-gray-600 text-xs lowercase py-6">
+                <p className="text-center text-smoke-dim text-xs lowercase py-6">
                   no {isQuestion ? 'answers' : 'replies'} yet — be the first
                 </p>
               )}
@@ -1268,13 +1269,13 @@ const Community = () => {
                 }}
               >
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-smoke-dim pointer-events-none" />
                   <input
                     type="text"
                     value={sidebarSearch}
                     onChange={e => setSidebarSearch(e.target.value)}
                     placeholder="search discussions..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white/[0.03] border border-white/[0.08] rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-midnight-400/40 transition-colors lowercase"
+                    className="w-full pl-9 pr-4 py-2.5 bg-paper-soft/60 border border-ink/10 rounded-xl text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood/60 transition-colors lowercase"
                   />
                 </div>
               </form>
@@ -1289,7 +1290,7 @@ const Community = () => {
           </div>
 
         </div>
-      </div>
+      </NewsPage>
 
       <Modals />
       </>
@@ -1298,67 +1299,51 @@ const Community = () => {
 
   // ── Main Feed View ────────────────────────────────────────────────
   return (
-    <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
-      <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-6"
-        >
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 mb-5">
-            <Users className="w-7 h-7 text-purple-400" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
-            community
-          </h1>
-          <p className="text-base text-gray-500 lowercase max-w-md mx-auto leading-relaxed"
-            style={{ letterSpacing: '0.03em' }}
-          >
-            security discussions and expert answers for journalists
-          </p>
-        </motion.div>
-
-        {/* Tab Switcher */}
-        <motion.div
+    <NewsPage>
+      <div>
+        <motion.header
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="flex justify-center mb-4"
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="flex gap-1 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1">
+          <div className="flex items-baseline justify-between pb-3">
+            <span className="eyebrow sm text-oxblood">The newsroom board</span>
+            <span className="eyebrow sm">{!loading && `${posts.length} posts`}</span>
+          </div>
+          <div className="border-t-[3px] border-t-ink border-b border-b-ink/22">
+            <hr className="border-t border-ink mt-[3px]" />
+          </div>
+          <div className="mt-8 max-w-prose">
+            <h1 className="display text-4xl md:text-6xl leading-none">
+              Letters to <em className="italic-ox">the editor.</em>
+            </h1>
+            <p className="mt-4 text-base md:text-lg text-ink-soft leading-relaxed">
+              Security discussions and expert answers for journalists.
+            </p>
+          </div>
+
+          {/* Editorial tab strip */}
+          <div className="flex border-b border-ink/14 mt-8 mb-0">
             {[
-              { id: 'discussions', label: 'discussions', icon: MessageSquare, color: '#A78BFA', type: 'discussion' },
-              { id: 'qa',          label: 'q&a',         icon: HelpCircle,    color: '#FBBF24', type: 'question'  },
-            ].map(tab => {
-              const Icon = tab.icon;
+              { id: 'discussions', label: 'Discussions', type: 'discussion' },
+              { id: 'qa',          label: 'Q&A',          type: 'question'  },
+            ].map((tab, i) => {
               const active = activeTab === tab.id;
               const count = posts.filter(p => p.type === tab.type).length;
               return (
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); setShowNewPost(false); setSearchQuery(''); setSortMode('newest'); }}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all lowercase"
-                  style={active ? { backgroundColor: `${tab.color}18`, color: 'white' } : { color: '#6b7280' }}
+                  className={`relative px-4 py-3 font-mono uppercase text-[11px] tracking-[0.16em] transition-colors mr-1 ${i === 0 ? 'pl-0' : ''} ${active ? 'text-ink' : 'text-smoke hover:text-ink-soft'}`}
                 >
-                  <Icon className="w-4 h-4" style={{ color: active ? tab.color : undefined }} />
                   {tab.label}
-                  {!loading && count > 0 && (
-                    <span
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none"
-                      style={{
-                        backgroundColor: active ? `${tab.color}25` : 'rgba(255,255,255,0.06)',
-                        color: active ? tab.color : '#6b7280',
-                      }}
-                    >
-                      {count}
-                    </span>
-                  )}
+                  {!loading && count > 0 && <span className="ml-1.5 eyebrow text-[9px] normal-case">{count}</span>}
+                  {active && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />}
                 </button>
               );
             })}
           </div>
-        </motion.div>
+        </motion.header>
 
         {/* Search + new post + category pills */}
         <motion.div
@@ -1369,13 +1354,13 @@ const Community = () => {
         >
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-smoke-dim pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={`search ${isQA ? 'questions' : 'discussions'}...`}
-                className="w-full pl-9 pr-4 py-2 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white placeholder-gray-600 focus:outline-none focus:border-midnight-400/40 transition-colors lowercase"
+                className="w-full pl-9 pr-4 py-2 bg-paper-soft/60 border border-ink/10 rounded-lg text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood/60 transition-colors lowercase"
               />
             </div>
             <button
@@ -1383,7 +1368,7 @@ const Community = () => {
                 if (!user) { navigate('/login'); return; }
                 setShowNewPost(true);
               }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
+              className="flex items-center gap-1.5 px-4 py-2 bg-ink hover:bg-ink-soft text-paper rounded-lg text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               {isQA ? 'ask' : 'post'}
@@ -1400,8 +1385,8 @@ const Community = () => {
                   onClick={() => setActiveCategory(cat.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all lowercase border ${
                     active
-                      ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
-                      : 'border-transparent text-gray-600 hover:text-gray-300 hover:bg-white/[0.04]'
+                      ? 'bg-ink/8 border-ink/20 text-ink'
+                      : 'border-transparent text-smoke-dim hover:text-ink-soft hover:bg-paper-soft/80'
                   }`}
                 >
                   {CatIcon && <CatIcon className="w-3 h-3" />}
@@ -1413,7 +1398,7 @@ const Community = () => {
 
           {/* Sort controls */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600 mr-1">sort</span>
+            <span className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mr-1">sort</span>
             {[
               { id: 'newest', label: 'newest', icon: Clock },
               { id: 'top', label: 'top', icon: ArrowUp },
@@ -1427,8 +1412,8 @@ const Community = () => {
                   onClick={() => setSortMode(opt.id)}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all lowercase border ${
                     active
-                      ? 'bg-white/[0.06] border-white/[0.15] text-white'
-                      : 'border-transparent text-gray-600 hover:text-gray-300 hover:bg-white/[0.03]'
+                      ? 'bg-paper-soft border-ink/20 text-ink'
+                      : 'border-transparent text-smoke-dim hover:text-ink-soft hover:bg-paper-soft/60'
                   }`}
                 >
                   <OptIcon className="w-3 h-3" />
@@ -1449,13 +1434,13 @@ const Community = () => {
               transition={{ duration: 0.3 }}
               className="mb-8"
             >
-              <form onSubmit={handleCreatePost} className="border border-white/[0.08] rounded-2xl p-6 bg-white/[0.02]">
+              <form onSubmit={handleCreatePost} className="border border-ink/10 p-6 bg-paper-soft border border-ink/10">
                 <div className="flex items-center justify-between mb-5">
-                  <h3 className="text-[10px] font-bold tracking-widest uppercase text-gray-500">
+                  <h3 className="text-[10px] font-bold tracking-widest uppercase text-smoke">
                     {isQA ? 'ask a question' : 'new discussion'}
                   </h3>
                   <button type="button" onClick={() => { setShowNewPost(false); setError(''); }}
-                    className="text-gray-600 hover:text-white transition-colors">
+                    className="text-smoke-dim hover:text-ink transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -1466,7 +1451,7 @@ const Community = () => {
                   onChange={(e) => setNewPost(prev => ({ ...prev, title: e.target.value }))}
                   placeholder={isQA ? 'your question...' : 'title...'}
                   required
-                  className="w-full px-0 py-3 bg-transparent border-b border-white/[0.08] text-white text-lg font-display font-bold placeholder-gray-700 focus:outline-none focus:border-midnight-400/50 transition-colors mb-4"
+                  className="w-full px-0 py-3 bg-transparent border-b border-ink/10 text-ink text-lg font-display font-bold placeholder-smoke focus:outline-none focus:border-ink/40 transition-colors mb-4"
                 />
 
                 <textarea
@@ -1475,16 +1460,16 @@ const Community = () => {
                   placeholder={isQA ? 'add context to your question...' : 'share your experience or thoughts...'}
                   required
                   rows="4"
-                  className="w-full px-0 py-2 bg-transparent text-white text-sm placeholder-gray-700 focus:outline-none transition-colors resize-none leading-relaxed"
+                  className="w-full px-0 py-2 bg-transparent text-ink text-sm placeholder-smoke focus:outline-none transition-colors resize-none leading-relaxed"
                 />
 
-                {error && <p className="text-xs text-crimson-400 mb-3 lowercase">{error}</p>}
+                {error && <p className="text-xs text-oxblood mb-3 lowercase">{error}</p>}
 
-                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-white/[0.06] flex-wrap">
+                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-ink/8 flex-wrap">
                   <select
                     value={newPost.category}
                     onChange={(e) => setNewPost(prev => ({ ...prev, category: e.target.value }))}
-                    className="px-3 py-1.5 bg-white/[0.05] border border-white/[0.1] rounded-lg text-white text-xs focus:outline-none focus:border-midnight-400/50 transition-colors lowercase"
+                    className="px-3 py-1.5 bg-white/[0.05] border border-ink/14 rounded-lg text-ink text-xs focus:outline-none focus:border-ink/40 transition-colors lowercase"
                   >
                     {categories.filter(c => c.id !== 'all').map(cat => (
                       <option key={cat.id} value={cat.id} className="bg-dark-900">{cat.name}</option>
@@ -1492,12 +1477,12 @@ const Community = () => {
                   </select>
 
                   {!isQA && (
-                    <label className="flex items-center gap-2 text-xs text-gray-400 lowercase cursor-pointer">
+                    <label className="flex items-center gap-2 text-xs text-smoke lowercase cursor-pointer">
                       <input
                         type="checkbox"
                         checked={!!newPost.isAnonymous}
                         onChange={(e) => setNewPost(prev => ({ ...prev, isAnonymous: e.target.checked }))}
-                        className="accent-purple-400"
+                        className="accent-ink"
                       />
                       <EyeOff className="w-3.5 h-3.5" />
                       post anonymously
@@ -1506,19 +1491,19 @@ const Community = () => {
 
                   <div className="flex-1" />
                   <button type="button" onClick={() => { setShowNewPost(false); setError(''); }}
-                    className="px-4 py-2 text-gray-500 hover:text-white text-xs font-semibold tracking-wide uppercase transition-colors">
+                    className="px-4 py-2 text-smoke hover:text-ink text-xs font-semibold tracking-wide uppercase transition-colors">
                     cancel
                   </button>
                   <button type="submit" disabled={submitting || !newPost.title.trim() || !newPost.content.trim()}
-                    className="flex items-center gap-2 px-5 py-2 bg-midnight-400 hover:bg-midnight-500 disabled:opacity-40 text-white rounded-lg text-xs font-semibold tracking-wide uppercase transition-all">
+                    className="flex items-center gap-2 px-5 py-2 btn disabled:opacity-40 rounded-lg text-xs font-semibold tracking-wide uppercase transition-all">
                     <Send className="w-3.5 h-3.5" />
                     {submitting ? 'posting...' : isQA ? 'ask' : 'post'}
                   </button>
                 </div>
 
                 {!isQA && newPost.isAnonymous && (
-                  <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-purple-500/[0.06] border border-purple-500/20">
-                    <EyeOff className="w-3.5 h-3.5 text-purple-400 flex-shrink-0 mt-0.5" />
+                  <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-purple-500/[0.06] border border-ink/20">
+                    <EyeOff className="w-3.5 h-3.5 text-oxblood flex-shrink-0 mt-0.5" />
                     <p className="text-[11px] text-purple-300/80 lowercase leading-relaxed">
                       your username and avatar will be hidden from the community. you can still delete this post later.
                     </p>
@@ -1535,21 +1520,21 @@ const Community = () => {
           {loading ? (
             <div className="text-center py-20">
               <div className="w-6 h-6 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-gray-600 text-[10px] tracking-widest uppercase">loading</p>
+              <p className="text-smoke-dim text-[10px] tracking-widest uppercase">loading</p>
             </div>
           ) : filteredPosts.length === 0 ? (
             <div className="text-center py-16">
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
-                {searchQuery.trim() ? <Search className="w-5 h-5 text-gray-600" /> : isQA ? <HelpCircle className="w-5 h-5 text-gray-600" /> : <MessageSquare className="w-5 h-5 text-gray-600" />}
+              <div className="w-12 h-12 rounded-2xl bg-paper-soft/60 border border-ink/8 flex items-center justify-center mx-auto mb-4">
+                {searchQuery.trim() ? <Search className="w-5 h-5 text-smoke-dim" /> : isQA ? <HelpCircle className="w-5 h-5 text-smoke-dim" /> : <MessageSquare className="w-5 h-5 text-smoke-dim" />}
               </div>
-              <p className="text-gray-500 text-sm lowercase mb-1">
+              <p className="text-smoke text-sm lowercase mb-1">
                 {sortMode === 'unanswered'
                   ? 'no unanswered questions'
                   : searchQuery.trim()
                     ? `no results for "${searchQuery.trim()}"`
                     : activeCategory !== 'all' ? 'nothing here yet' : `no ${isQA ? 'questions' : 'discussions'} yet`}
               </p>
-              <p className="text-gray-600 text-xs lowercase">
+              <p className="text-smoke-dim text-xs lowercase">
                 {searchQuery.trim()
                   ? 'try different keywords or clear the search'
                   : `be the first to ${isQA ? 'ask something' : 'start a conversation'}`}
@@ -1566,36 +1551,36 @@ const Community = () => {
                     <div
                       key={post.id}
                       onClick={() => setSelectedPost(post)}
-                      className={`group relative border border-l-4 rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] ${
+                      className={`group relative border border-l-4 rounded-xl p-5 cursor-pointer transition-all hover:bg-paper-soft/60 ${
                         post.resolved
-                          ? 'border-olive-500/20 border-l-olive-500/50 bg-olive-500/[0.02]'
-                          : 'border-white/[0.08] border-l-amber-500/40'
+                          ? 'border-olive-500/20 border-l-brass/50 bg-olive-500/[0.02]'
+                          : 'border-ink/10 border-l-oxblood/30'
                       }`}
                     >
                       <div className="flex gap-4">
                         <div className="flex flex-col items-center gap-1 pt-0.5 min-w-[48px]">
                           <span className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
                             post.resolved
-                              ? 'bg-olive-500/15 text-olive-400'
-                              : 'bg-amber-500/10 text-amber-500'
+                              ? 'bg-brass/12 text-brass'
+                              : 'bg-oxblood/8 text-oxblood'
                           }`}>
                             {post.resolved ? '✓' : '?'}
                           </span>
-                          <span className="text-sm text-gray-400 mt-1 font-semibold">{getPostCommentCount(post)}</span>
-                          <span className="text-[10px] text-gray-600 lowercase">
+                          <span className="text-sm text-smoke mt-1 font-semibold">{getPostCommentCount(post)}</span>
+                          <span className="text-[10px] text-smoke-dim lowercase">
                             {getPostCommentCount(post) === 1 ? 'answer' : 'answers'}
                           </span>
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-semibold text-white mb-1.5 group-hover:text-midnight-400 transition-colors leading-snug">
+                          <h3 className="text-base font-semibold text-ink mb-1.5 group-hover:text-oxblood transition-colors leading-snug">
                             {post.title}
-                            {post.edited && <span className="ml-2 text-[10px] font-normal text-gray-600 align-middle">(edited)</span>}
+                            {post.edited && <span className="ml-2 text-[10px] font-normal text-smoke-dim align-middle">(edited)</span>}
                           </h3>
-                          <p className="text-sm text-gray-500 line-clamp-2 mb-4 leading-relaxed">
+                          <p className="text-sm text-smoke line-clamp-2 mb-4 leading-relaxed">
                             {post.content}
                           </p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500 lowercase flex-wrap">
+                          <div className="flex items-center gap-4 text-xs text-smoke lowercase flex-wrap">
                             <div className="flex items-center gap-1.5">
                               <UserAvatar name={post.authorName} accountType={post.authorType} anonymous={post.isAnonymous} size="xs" />
                               <AuthorLine item={post} onOpenProfile={openProfile} />
@@ -1603,14 +1588,14 @@ const Community = () => {
                             <span>{timeAgo(post.createdAt)}</span>
                             <span>{categoryName}</span>
                             <button onClick={(e) => handleLike(e, post.id)}
-                              className={`flex items-center gap-1.5 ml-auto transition-colors ${liked ? 'text-crimson-400' : 'hover:text-crimson-400'}`}>
+                              className={`flex items-center gap-1.5 ml-auto transition-colors ${liked ? 'text-oxblood' : 'hover:text-oxblood'}`}>
                               <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
                               {post.likes || 0}
                             </button>
                             <button
                               onClick={(e) => toggleFollow(e, post.id)}
                               className={`flex items-center gap-1.5 transition-colors ${
-                                followedPosts.has(post.id) ? 'text-amber-400' : 'hover:text-amber-400'
+                                followedPosts.has(post.id) ? 'text-brass' : 'hover:text-brass'
                               }`}
                             >
                               {followedPosts.has(post.id)
@@ -1629,40 +1614,40 @@ const Community = () => {
                   <div
                     key={post.id}
                     onClick={() => setSelectedPost(post)}
-                    className="group border border-l-4 border-white/[0.08] border-l-purple-500/30 rounded-xl p-5 cursor-pointer transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
+                    className="group border border-l-4 border-ink/10 border-l-ink/20 rounded-xl p-5 cursor-pointer transition-all hover:bg-paper-soft/60 hover:border-ink/16"
                   >
                     <div className="flex items-start gap-3.5">
                       <UserAvatar name={post.authorName} accountType={post.authorType} anonymous={post.isAnonymous} size="sm" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                           <AuthorLine item={post} onOpenProfile={openProfile} />
-                          <span className="text-[10px] text-gray-700">·</span>
-                          <span className="text-xs text-gray-600 lowercase">{timeAgo(post.createdAt)}</span>
-                          <span className="text-[10px] font-bold tracking-widest uppercase text-gray-600 ml-auto">
+                          <span className="text-[10px] text-smoke-dim">·</span>
+                          <span className="text-xs text-smoke-dim lowercase">{timeAgo(post.createdAt)}</span>
+                          <span className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim ml-auto">
                             {categoryName}
                           </span>
                         </div>
-                        <h3 className="text-base font-semibold text-white mb-1.5 group-hover:text-purple-400 transition-colors leading-snug">
+                        <h3 className="text-base font-semibold text-ink mb-1.5 group-hover:text-oxblood transition-colors leading-snug">
                           {post.title}
-                          {post.edited && <span className="ml-2 text-[10px] font-normal text-gray-600 align-middle">(edited)</span>}
+                          {post.edited && <span className="ml-2 text-[10px] font-normal text-smoke-dim align-middle">(edited)</span>}
                         </h3>
-                        <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed mb-4">
+                        <p className="text-sm text-smoke line-clamp-2 leading-relaxed mb-4">
                           {post.content}
                         </p>
-                        <div className="flex items-center gap-4 pt-3 border-t border-white/[0.05]">
+                        <div className="flex items-center gap-4 pt-3 border-t border-ink/8">
                           <button onClick={(e) => handleLike(e, post.id)}
-                            className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${liked ? 'text-crimson-400' : 'text-gray-500 hover:text-crimson-400'}`}>
+                            className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${liked ? 'text-oxblood' : 'text-smoke hover:text-oxblood'}`}>
                             <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
                             {post.likes || 0}
                           </button>
-                          <span className="flex items-center gap-1.5 text-xs text-gray-500 lowercase">
+                          <span className="flex items-center gap-1.5 text-xs text-smoke lowercase">
                             <MessageSquare className="w-3.5 h-3.5" />
                             {getPostCommentCount(post)}
                           </span>
                           <button
                             onClick={(e) => toggleFollow(e, post.id)}
                             className={`flex items-center gap-1.5 text-xs transition-colors lowercase ml-auto ${
-                              followedPosts.has(post.id) ? 'text-amber-400' : 'text-gray-500 hover:text-amber-400'
+                              followedPosts.has(post.id) ? 'text-brass' : 'text-smoke hover:text-brass'
                             }`}
                           >
                             {followedPosts.has(post.id)
@@ -1683,15 +1668,15 @@ const Community = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="mt-16 pt-8 border-t border-white/[0.05]"
+            className="mt-16 pt-8 border-t border-ink/8"
           >
             <div className="flex items-start gap-3">
-              <Shield className="w-4 h-4 text-gray-700 flex-shrink-0 mt-0.5" />
+              <Shield className="w-4 h-4 text-smoke-dim flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600 mb-2">
+                <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim mb-2">
                   community guidelines
                 </p>
-                <p className="text-xs text-gray-600 lowercase leading-relaxed">
+                <p className="text-xs text-smoke-dim lowercase leading-relaxed">
                   never share identifying details of sources · keep discussions focused on security · be respectful · report suspicious activity
                 </p>
               </div>
@@ -1710,7 +1695,7 @@ const Community = () => {
       </div>
 
       <Modals />
-    </div>
+    </NewsPage>
   );
 };
 

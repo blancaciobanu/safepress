@@ -2,276 +2,235 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Eye, MessageSquare, MapPin, BookOpen, Scale,
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, X,
-  ExternalLink, ArrowRight, Users, Lock
+  ArrowRight, Lock
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { NewsPage } from '../components/editorial/NewsPage';
+
+/* Field manual — Source Protection.
+   Ink cover band → chapter tabs → accordion protocols → decision-tree scenarios. */
 
 const TABS = [
   {
     id: 'compartmentalization',
-    label: 'compartmentalize',
+    n: 'I',
+    label: 'Compartmentalize',
     icon: Eye,
-    color: '#A78BFA',
-    summary: 'keep your work life and source life in two separate worlds — different devices, accounts, browsers, even physical locations.',
+    brief: 'Keep your work life and source life in two separate worlds — different devices, accounts, browsers, even physical locations.',
     cards: [
       {
-        title: 'why compartmentalization is non-negotiable',
-        body: `a single shared login, a single shared device, or a single shared identity is all it takes to burn a source. compartmentalization is not paranoia — it's the default hygiene of investigative work.
+        title: 'Why compartmentalization is non-negotiable',
+        body: `A single shared login, a single shared device, or a single shared identity is all it takes to burn a source. Compartmentalization is not paranoia — it's the default hygiene of investigative work.
 
-what it buys you:
-- if one identity is compromised, the others survive
-- your source cannot be identified by correlation of mundane data (browsing history, login times, contacts list)
-- you can credibly claim in a hostile jurisdiction that you had no knowledge of a channel's contents from another device`,
+What it buys you:
+- If one identity is compromised, the others survive
+- Your source cannot be identified by correlation of mundane data (browsing history, login times, contacts list)
+- You can credibly claim in a hostile jurisdiction that you had no knowledge of a channel's contents from another device`,
       },
       {
-        title: 'device compartmentalization',
-        body: `keep a dedicated "source device" — a second phone and, ideally, a second laptop used only for sensitive work.
+        title: 'Device compartmentalization',
+        body: `Keep a dedicated "source device" — a second phone and, ideally, a second laptop used only for sensitive work.
 
-minimum setup:
-- separate phone (prepaid, anonymous sim where legal)
-- separate laptop with full-disk encryption (filevault / luks / bitlocker)
-- different physical location for storage when not in use
-- no personal apps, no work email, no social media logged in
-- never use the source device on your home wifi without a vpn or tor`,
+Minimum setup:
+- Separate phone (prepaid, anonymous SIM where legal)
+- Separate laptop with full-disk encryption (FileVault / LUKS / BitLocker)
+- Different physical location for storage when not in use
+- No personal apps, no work email, no social media logged in
+- Never use the source device on your home wifi without a VPN or Tor`,
       },
       {
-        title: 'identity compartmentalization',
-        body: `each "life" gets its own identity stack.
+        title: 'Identity compartmentalization',
+        body: `Each "life" gets its own identity stack.
 
-per identity you control:
-- unique email address (protonmail or similar, created from a clean network)
-- unique username — do not re-use handles from other platforms; adversaries correlate names across services
-- unique password and a dedicated password-manager vault (or entirely separate pm instance)
-- unique signal number (a second number via a burner sim or a privacy-respecting voip)
-- ideally: different writing style — cadence and vocabulary are identifiable`,
+Per identity you control:
+- Unique email address (ProtonMail or similar, created from a clean network)
+- Unique username — do not re-use handles from other platforms; adversaries correlate names across services
+- Unique password and a dedicated password-manager vault (or entirely separate PM instance)
+- Unique Signal number (a second number via a burner SIM or a privacy-respecting VoIP)
+- Ideally: different writing style — cadence and vocabulary are identifiable`,
       },
       {
-        title: 'browser and account compartmentalization',
-        body: `at minimum, use separate browsers or browser profiles for work and for source contact. better: use the tor browser for anything sensitive.
+        title: 'Browser and account compartmentalization',
+        body: `At minimum, use separate browsers or browser profiles for work and for source contact. Better: use the Tor Browser for anything sensitive.
 
-rules:
-- no shared cookies, no shared extensions, no shared bookmarks
-- do not log in to a personal account from the source browser, ever
-- do not log in to a work account from the personal browser
-- clear state aggressively; "private mode" is not enough`,
+Rules:
+- No shared cookies, no shared extensions, no shared bookmarks
+- Do not log in to a personal account from the source browser, ever
+- Do not log in to a work account from the personal browser
+- Clear state aggressively; "private mode" is not enough`,
       },
     ],
   },
   {
     id: 'first-contact',
-    label: 'first contact',
+    n: 'II',
+    label: 'First contact',
     icon: MessageSquare,
-    color: '#2DD4BF',
-    summary: 'the first message sets the entire security posture. once an insecure channel is used, metadata is already leaked.',
+    brief: 'The first message establishes whether you can be trusted — and whether the channel can.',
     cards: [
       {
-        title: 'secure inbound channels',
-        body: `the best channels are ones you publish and they reach you through.
+        title: 'Choose the channel before you choose the person',
+        body: `The first rule of source contact: the channel has to be secure before you verify the person's identity. If the channel is compromised, identity verification exposes the source.
 
-options ranked by strength:
-1. securedrop — gold standard if your newsroom runs one. anonymous, tor-based, file-capable.
-2. signal with your published username — journalist-only contact number, never tied to your personal phone.
-3. protonmail address published on your author page — encrypted at rest, relatively anonymous.
-4. a dedicated tip line voicemail (prepaid, never answered live) for sources who can't use apps.
-
-never rely on: work email, direct twitter/linkedin DMs, sms, facebook messenger.`,
+Hierarchy (most to least preferred):
+1. SecureDrop (anonymous, no metadata, no phone number)
+2. Signal (with safety number verification on first contact)
+3. SimpleX Chat (no phone number, bidirectional verification code)
+4. Encrypted email (PGP — acceptable for low-risk initial contact only)
+5. Anything else — do not use for sensitive source work`,
       },
       {
-        title: 'what to never send in first contact',
-        body: `the first few messages are the highest-risk moments. a single mistake here can deanonymize a source forever.
+        title: 'Signal safety numbers',
+        body: `Signal's safety number is a cryptographic fingerprint of your channel. Verify it out-of-band (in person, or via a second independent channel) before exchanging anything sensitive.
 
-do not send:
-- your real name or the real name of anyone involved
-- specific document titles, file names, or dates
-- links to unpublished or forthcoming articles
-- screenshots that contain identifying metadata (exif, file paths, other windows)
-- "hey, got your message" in cleartext email — that alone confirms the channel exists to anyone watching
+How:
+- Open the conversation in Signal → tap the name → "View Safety Number"
+- Compare every digit/word with the source by phone, in person, or via a different trusted channel
+- If numbers don't match: the channel has been tampered with. Do not continue.
 
-do send:
-- a neutral acknowledgment ("received — let's move to signal at +1…")
-- a request to move to a more secure channel
-- a verification phrase if you've pre-arranged one`,
+Set a verification reminder: re-check safety numbers every 30–90 days or any time the source gets a new device.`,
       },
       {
-        title: 'verification rituals',
-        body: `before trusting that the person on the other end is who they claim, verify.
+        title: 'Retention windows — agree on day one',
+        body: `Agree a message-retention window at first contact, before anything sensitive is shared.
 
-techniques:
-- an in-person verification phrase agreed before the digital contact
-- a detail only the real source would know (something non-public, non-obvious)
-- a safety-word system ("i'll say X if i'm under duress")
-- on signal, verify safety numbers out-of-band before sharing anything sensitive
-- beware: adversaries may impersonate journalists to draw out sources — verify yourself to the source too`,
-      },
-      {
-        title: 'dead drops and air-gapped handoffs',
-        body: `when digital contact is too risky, physical handoffs still have a place.
+Standard:
+- 1 week disappearing messages — adequate for most low-risk sources
+- 24 hours — for sources in high-surveillance environments
+- Message-per-message deletion — in active hostile situations
 
-basics:
-- choose a neutral public location with no cameras (verify on foot, at the same time of day)
-- neither party knows exactly who the other is
-- paper documents > usb sticks; if usb, use a fresh one and a dedicated "burner" reader laptop
-- never take the drop device home on your normal commute route`,
+Document the agreed retention window in your case notes (offline), not in the channel itself.`,
       },
     ],
   },
   {
     id: 'meeting',
-    label: 'meeting & handoff',
+    n: 'III',
+    label: 'Meeting & handoff',
     icon: MapPin,
-    color: '#F59E0B',
-    summary: 'in-person is often safer than digital — but only with planning. surveillance, metadata, and logistics all matter.',
+    brief: 'Physical meetings are the hardest to monitor — but only if you plan them right.',
     cards: [
       {
-        title: 'picking a meeting location',
-        body: `the ideal meeting spot is one chosen by you, unannounced in advance, and away from both your and your source's usual patterns.
+        title: 'Location selection',
+        body: `Criteria for a meeting location:
+- Busy but not so loud you can't speak
+- Multiple entrances and exits
+- No CCTV or low-density CCTV (cafés, parks, libraries)
+- Not near either person's home, workplace, or commute route
+- Not a place either person has been seen before
 
-criteria:
-- no known cctv or obvious fixed cameras inside or at the entrance
-- neutral — neither of your neighborhoods, not a usual haunt
-- busy enough that you're not conspicuous, quiet enough to talk
-- multiple exits
-- somewhere you've been before and can navigate without your phone
-
-decide the *final* location only within a few hours of the meeting. do not pin a location in a chat — verbal or hand-written only.`,
+Pre-agree backup locations: if one person doesn't appear within 10 minutes, the other leaves.`,
       },
       {
-        title: 'counter-surveillance basics',
-        body: `you are not a spy, but simple habits matter.
+        title: 'Phones and devices at meetings',
+        body: `Phones are tracking devices. There are three options for a sensitive meeting:
 
-- leave your normal phone at home (or in a faraday bag). a phone in your pocket is a gps tracker.
-- travel a non-obvious route. take at least one unnecessary turn; stop, look, and continue.
-- wear plain, logo-free clothing; no distinctive shoes or bags
-- do not arrive and leave together
-- if you think you're being followed, abort — do not lead anyone to the source`,
+1. Leave all devices at home (strongest)
+2. Use a Faraday bag for your phone during the meeting
+3. Power down completely before approaching the meeting area (not airplane mode — fully off)
+
+If you leave your phone at home: don't tell anyone where you're "really" going — your normal location data should show you at a plausible alternative location.`,
       },
       {
-        title: 'document & file handoff',
-        body: `physical handoff is simpler when there are no devices. when there must be files:
+        title: 'Document handoff',
+        body: `Physical document exchange:
+- Never photograph documents at the meeting location itself
+- Use a clean device to photograph — not your personal phone
+- Strip all EXIF data before any digital transmission (Exiftool, Signal's "Remove" feature, or mat2)
+- Physical originals: decide in advance whether you're keeping them, returning them, or destroying them
 
-- use a fresh usb stick. never use one from your personal desk.
-- transfer to an air-gapped computer first (a laptop that has never touched the internet)
-- strip metadata (exif, doc author fields, revision history) before anything goes on an internet-connected machine
-- verify hashes (sha256) so you know the file wasn't swapped in transit
-- if the source hands you paper, photograph it on the air-gapped device, then destroy your photos' exif data before sharing`,
-      },
-      {
-        title: 'burner phones done right',
-        body: `a burner is useless if you carry it next to your personal phone.
-
-rules:
-- buy with cash, ideally not near your home or workplace
-- activate on a different network than your carrier
-- never turn it on in the same location as your main phone (towers log co-location)
-- don't call or text your personal contacts from it — ever
-- discard by factory reset + physical destruction of the sim, at a location far from both your routine and the source's`,
+For digital documents: SecureDrop is the gold standard. For anything else, use a one-time-use ProtonMail address and PGP.`,
       },
     ],
   },
   {
     id: 'after',
-    label: 'after publication',
-    icon: BookOpen,
-    color: '#84CC16',
-    summary: 'the story being out does not end the source protection work. sometimes that\'s when it starts.',
+    n: 'IV',
+    label: 'After publication',
+    icon: Shield,
+    brief: 'The story is out. The work of protecting your source has just begun.',
     cards: [
       {
-        title: 'source aftercare checklist',
-        body: `within 24 hours of publication:
-- verify the source is safe and has not been identified
-- re-confirm their "duress phrase" is still active
-- review whether their identity could be reconstructed from the article (dates, quotes, locations, writing style)
-- offer, if they want it, a pre-prepared legal / safety contact
+        title: 'The publication window',
+        body: `In the 48–72 hours after publication, the attack surface is highest. Adversaries looking for the source will be:
+- Correlating timing: who had access to this information, and when?
+- Searching for digital footprints: shared documents, metadata, access logs
+- Social-engineering your newsroom: asking who "the reporter close to the story" talked to
 
-within 2 weeks:
-- check in again — public attention often takes days to reach certain communities
-- be alert to sudden pattern changes in their digital presence (accounts going dark, last-seen dropping off signal)
-- if they need to relocate, have resources ready (cpj, rsf, local unions)`,
+Minimum protocol: after publication, go silent on any channel that was used for source contact for at least 30 days.`,
       },
       {
-        title: 'your own legal exposure',
-        body: `publication can expose *you* too.
+        title: 'Source removal',
+        body: `Source removal is the practice of systematically deleting all traces of a source after a story has been published.
 
-steps:
-- secure your notes, recordings, and drafts in an encrypted, off-site backup before you publish
-- delete working copies of source-identifying materials from your laptop (secure deletion, not trash)
-- know who your newsroom's lawyer is and how to reach them on a weekend
-- if you travel internationally after publication, leave sensitive material behind; carry a clean laptop`,
+What to remove:
+- Message threads (confirm deletion from both devices)
+- Contact entries
+- Saved documents or photos that could identify them
+- Browser history related to source research
+- Cloud backups that captured any of the above
+
+Keep: your own case journal (offline, encrypted), your legal notes, and any records required by your newsroom's document-retention policy.`,
       },
       {
-        title: 'metadata & draft scrub',
-        body: `drafts and old messages are a rich target.
+        title: 'Legal hold',
+        body: `If a subpoena, court order, or law-enforcement request is anticipated:
 
-- strip metadata from every file before you or the newsroom archives them
-- export signal chats only if essential; if exported, encrypt and store offline
-- purge your cloud drafts, bin, and versions in google docs / onedrive / notion — the "revision history" holds your working text
-- do not keep your source's real name in any file on an internet-connected machine after publication`,
-      },
-      {
-        title: 'retention vs. secure deletion',
-        body: `deciding what to keep is a balance: some evidence may be legally necessary (to defend the story), but every retained artifact is a future leak.
+1. Call your newsroom's legal counsel before doing anything
+2. Pause all document deletion until counsel advises
+3. Note the date/time you became aware of the legal risk
+4. Do not discuss specifics on any digital channel
 
-framework:
-- ask your lawyer what the minimum legal retention period is
-- store anything you must keep in a single, air-gapped, encrypted volume with a strong passphrase
-- log every access — know who looked at it and when
-- for everything else: use a tool that overwrites, not just deletes (srm / shred / disk-level secure erase)`,
+Shield laws vary significantly by jurisdiction. Your counsel will know the applicable protections and exceptions in your territory.`,
       },
     ],
   },
   {
     id: 'legal',
-    label: 'legal protections',
+    n: 'V',
+    label: 'Legal protections',
     icon: Scale,
-    color: '#EF4444',
-    summary: 'you are not your own lawyer. but you do need to know when to call one and what rights you have.',
+    brief: 'Know what the law protects before you need the protection.',
     cards: [
       {
-        title: 'shield laws — the basics',
-        body: `shield laws protect journalists from being forced to identify sources or hand over unpublished material. they vary wildly by jurisdiction.
+        title: 'Shield laws: what they are and what they are not',
+        body: `A shield law gives a journalist the right to refuse to identify a source in legal proceedings. Coverage and strength vary dramatically:
 
-key things to know about your own jurisdiction:
-- does a shield law exist at all? (many countries have none)
-- who counts as a "journalist" under it? freelancers? bloggers? you?
-- what materials are covered — just identities, or also notes, drafts, recordings?
-- are there "national security" carve-outs?
+- US: No federal shield law; state laws differ widely in scope and exceptions
+- UK: s.10 Contempt of Court Act — significant, but qualified
+- EU: ECHR Article 10 provides the strongest baseline across member states
+- Many jurisdictions: no shield law at all
 
-if you don't know the answer to these, that's the first call to make — before you take a sensitive story, not after.`,
+What no shield law protects:
+- Your digital records — metadata from telecoms can be obtained without your knowledge
+- Your source if they voluntarily identify themselves
+- Evidence of criminal conduct (in most jurisdictions)`,
       },
       {
-        title: 'when to call a lawyer',
-        body: `earlier than feels comfortable. specifically:
+        title: 'Digital surveillance and the law',
+        body: `In most jurisdictions, law enforcement can obtain:
+- Cell-site location records (often without a warrant)
+- Email metadata (sender, recipient, subject, timestamps)
+- Cloud storage (via legal process served to the provider)
+- Call records
 
-- before you publish anything where a source could be subpoenaed
-- the moment you're contacted by law enforcement, no matter how informal
-- if you're served with a subpoena, search warrant, or national security letter — do not answer questions alone
-- if the target of your story makes legal threats, even informal ones
-- if you're traveling to a jurisdiction with weaker press protections
+They typically cannot (or face higher bar to obtain):
+- Content of encrypted messages (if implemented correctly)
+- Content on devices with strong full-disk encryption and a strong passphrase
+- Communications that never touched a server (e.g. local Signal messages on an offline device)
 
-your newsroom usually has a standing lawyer. freelancers: know the press-freedom organizations in your region (cpj, rsf, eff, ipi) — many offer free first-contact legal advice.`,
+The practical implication: use end-to-end encryption for everything. Assume metadata is always available to a motivated adversary.`,
       },
       {
-        title: 'subpoenas and search warrants',
-        body: `if something lands in your inbox or at your door:
+        title: 'When to call a lawyer',
+        body: `Call legal counsel before:
+- Publishing material that could expose a source
+- Any meeting or call with law enforcement about your reporting
+- Responding to any legal demand, subpoena, or preservation letter
+- Crossing an international border with sensitive material on your device
 
-- do not destroy anything. spoliation is a separate crime.
-- do not consent to a search. require a warrant and read it carefully.
-- call your lawyer immediately. do not answer questions, even "background" ones, without counsel.
-- notify your source-protection contact (newsroom ethics officer, press-freedom org) — you may not be alone.
-
-if you travel: your devices can be searched at many borders without a warrant. plan: travel clean, or use a device you're prepared to lose.`,
-      },
-      {
-        title: 'press-freedom organizations',
-        body: `organizations that support journalists under legal or physical threat. not hotlines to memorize — contacts to save now.
-
-- committee to protect journalists (cpj) — global, emergency support, legal referrals
-- reporters without borders (rsf) — advocacy and emergency grants
-- electronic frontier foundation (eff) — u.s.-focused digital-rights legal help
-- international press institute (ipi) — press-freedom advocacy
-- freedom of the press foundation (fpf) — securedrop, training, emergency fund
-- your local journalists' union or association — often has the fastest local response`,
+Journalists should have a relationship with media-law counsel before a crisis arises — not during one. CPJ and RSF both provide emergency legal referrals.`,
       },
     ],
   },
@@ -281,114 +240,68 @@ const SCENARIOS = [
   {
     id: 'followed',
     icon: AlertTriangle,
-    accent: '#EF4444',
-    title: "your source texts: 'i think i'm being followed'",
-    context: "they've messaged you on signal. they don't know where they're going next. what do you advise?",
+    title: "Your source texts: 'I think I'm being followed'",
+    context: "They've messaged you on Signal. They don't know where they're going next. What do you advise?",
     options: [
-      {
-        label: 'meet in person at the pre-arranged location asap',
-        correct: false,
-        consequence: "if they're being followed, you've just handed the surveiller the meeting point. the source burns and so does your next meeting spot.",
-      },
-      {
-        label: "stop digital contact, use the pre-arranged 'go-dark' protocol",
-        correct: true,
-        consequence: "this is why you agreed on one in the first contact. shared silence until the next scheduled, unmonitored contact window.",
-        followup: "if you don't have a go-dark protocol yet, it's the single most valuable addendum to your first-contact hygiene.",
-      },
-      {
-        label: 'call them to figure out what they saw',
-        correct: false,
-        consequence: "a phone call is the worst of all worlds: cell-tower metadata, content interception, and a live voice that makes them identifiable on the other end.",
-      },
+      { label: 'Meet in person at the pre-arranged location asap', correct: false, consequence: "If they're being followed, you've just handed the surveiller the meeting point. The source burns and so does your next meeting spot." },
+      { label: "Stop digital contact, use the pre-arranged 'go-dark' protocol", correct: true, consequence: "This is why you agreed on one in the first contact. Shared silence until the next scheduled, unmonitored contact window.", followup: "If you don't have a go-dark protocol yet, it's the single most valuable addendum to your first-contact hygiene." },
+      { label: 'Call them to figure out what they saw', correct: false, consequence: "A phone call is the worst of all worlds: cell-tower metadata, content interception, and a live voice that makes them identifiable on the other end." },
     ],
-    link: { to: '/resources', label: 'review encrypted comms tools in resources' },
+    link: { to: '/resources', label: 'Review encrypted comms tools in Resources' },
   },
   {
     id: 'shared-doc',
     icon: Lock,
-    accent: '#F59E0B',
-    title: 'an editor asks you to name your source in a shared doc',
-    context: 'they want a quick cross-check. the doc is in the newsroom google workspace. what do you do?',
+    title: 'An editor asks you to name your source in a shared doc',
+    context: 'They want a quick cross-check. The doc is in the newsroom Google Workspace. What do you do?',
     options: [
-      {
-        label: "add the source's real name with a note 'please delete once verified'",
-        correct: false,
-        consequence: "google docs keeps revision history. 'delete' doesn't delete. the name is now in the newsroom's audit logs forever.",
-      },
-      {
-        label: 'use a codename you agreed with the editor in person',
-        correct: true,
-        consequence: 'pre-arranged codenames are standard operating procedure in investigative rooms. the real name never touches a networked system.',
-      },
-      {
-        label: 'email the real name to the editor privately',
-        correct: false,
-        consequence: "email is the most subpoenaed medium in journalism. work email is owned by your employer — not you. it's discoverable.",
-      },
+      { label: "Add the source's real name with a note 'please delete once verified'", correct: false, consequence: "Google Docs keeps revision history. 'Delete' doesn't delete. The name is now in the newsroom's audit logs forever." },
+      { label: 'Use a codename you agreed with the editor in person', correct: true, consequence: 'Pre-arranged codenames are standard operating procedure in investigative rooms. The real name never touches a networked system.' },
+      { label: 'Email the real name to the editor privately', correct: false, consequence: "Email is the most subpoenaed medium in journalism. Work email is owned by your employer — not you. It's discoverable." },
     ],
-    link: { to: '/secure-setup', label: 'check your data-protection setup tasks' },
+    link: { to: '/secure-setup', label: 'Check your data-protection setup tasks' },
   },
   {
     id: 'phishing-reveal',
     icon: AlertTriangle,
-    accent: '#A78BFA',
-    title: 'a phishing email references an unpublished detail only your source would know',
-    context: "the email looks like a calendar invite. it mentions a specific location where you met your source. what does this tell you?",
+    title: 'A phishing email references an unpublished detail only your source would know',
+    context: "The email looks like a calendar invite. It mentions a specific location where you met your source. What does this tell you?",
     options: [
-      {
-        label: "ignore it — it's probably coincidence",
-        correct: false,
-        consequence: "it is almost never coincidence. unpublished, specific detail = someone has access to a channel you thought was private.",
-      },
-      {
-        label: 'click the link to see where it leads',
-        correct: false,
-        consequence: "you\u2019ve just given the attacker a device fingerprint, ip, and possibly executed a payload. assume full device compromise.",
-      },
-      {
-        label: 'assume the source-contact channel is compromised — move to a clean device & notify the source',
-        correct: true,
-        consequence: "correct. the phishing email is confirming a real access. new clean device, new clean channel, and a call to your lawyer + newsroom security lead.",
-      },
+      { label: "Ignore it — it's probably coincidence", correct: false, consequence: "It is almost never coincidence. Unpublished, specific detail = someone has access to a channel you thought was private." },
+      { label: 'Click the link to see where it leads', correct: false, consequence: "You've just given the attacker a device fingerprint, IP, and possibly executed a payload. Assume full device compromise." },
+      { label: 'Assume the source-contact channel is compromised — move to a clean device & notify the source', correct: true, consequence: "Correct. The phishing email is confirming a real access. New clean device, new clean channel, and a call to your lawyer + newsroom security lead." },
     ],
-    link: { to: '/secure-setup', label: 'harden your device setup' },
+    link: { to: '/secure-setup', label: 'Harden your device setup' },
   },
 ];
 
-const Accordion = ({ cards, accentColor }) => {
+/* ─── Accordion — editorial restyle ─────────────────────────────────── */
+const Accordion = ({ cards }) => {
   const [open, setOpen] = useState(new Set([0]));
-  const toggle = (i) => {
-    setOpen(prev => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i); else next.add(i);
-      return next;
-    });
-  };
+  const toggle = (i) => setOpen(prev => {
+    const next = new Set(prev);
+    next.has(i) ? next.delete(i) : next.add(i);
+    return next;
+  });
+
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col">
       {cards.map((card, i) => {
         const isOpen = open.has(i);
         return (
-          <div
-            key={i}
-            className="border rounded-2xl overflow-hidden transition-colors"
-            style={{
-              borderColor: isOpen ? `${accentColor}33` : 'rgba(255,255,255,0.08)',
-              backgroundColor: isOpen ? `${accentColor}08` : 'rgba(255,255,255,0.02)',
-            }}
-          >
+          <div key={i} className="border-b border-ink/12 last:border-b-0">
             <button
               onClick={() => toggle(i)}
-              className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.02]"
+              className="w-full flex items-baseline justify-between gap-4 py-4 text-left"
             >
-              <span className="text-sm font-semibold text-white lowercase">{card.title}</span>
+              <span className="flex items-baseline gap-3">
+                <span className="eyebrow sm text-smoke shrink-0">
+                  {String(i + 1).padStart(2, '0')}.
+                </span>
+                <span className="text-sm font-medium text-ink">{card.title}</span>
+              </span>
               <ChevronDown
-                className="w-4 h-4 flex-shrink-0 transition-transform"
-                style={{
-                  color: accentColor,
-                  transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}
+                className={`w-3.5 h-3.5 text-smoke shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
               />
             </button>
             <AnimatePresence initial={false}>
@@ -397,13 +310,11 @@ const Accordion = ({ cards, accentColor }) => {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                   className="overflow-hidden"
                 >
-                  <div className="px-5 pb-5 pt-0">
-                    <div className="text-sm text-gray-300 lowercase leading-relaxed whitespace-pre-wrap">
-                      {card.body}
-                    </div>
+                  <div className="pb-5 pl-9">
+                    <p className="text-sm text-ink-soft leading-relaxed whitespace-pre-wrap">{card.body}</p>
                   </div>
                 </motion.div>
               )}
@@ -415,9 +326,9 @@ const Accordion = ({ cards, accentColor }) => {
   );
 };
 
+/* ─── Scenario modal — paper aesthetic ──────────────────────────────── */
 const ScenarioModal = ({ scenario, onClose }) => {
   const [selected, setSelected] = useState(null);
-
   if (!scenario) return null;
   const Icon = scenario.icon;
   const chosen = selected !== null ? scenario.options[selected] : null;
@@ -428,70 +339,59 @@ const ScenarioModal = ({ scenario, onClose }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="fixed inset-0 z-[80] flex items-center justify-center p-4"
+        className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-ink/50"
         onClick={onClose}
       >
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
+          initial={{ opacity: 0, scale: 0.97, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 12 }}
-          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-xl glass-card rounded-2xl border border-white/[0.1] overflow-hidden max-h-[85vh] overflow-y-auto"
+          exit={{ opacity: 0, scale: 0.97, y: 8 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full max-w-xl bg-paper-soft border border-ink/16 max-h-[85vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-600 hover:text-white transition-colors z-10">
+          <button onClick={onClose} className="absolute top-4 right-4 text-smoke hover:text-ink transition-colors z-10">
             <X className="w-4 h-4" />
           </button>
 
-          <div className="px-6 pt-6 pb-5 border-b border-white/[0.06]">
-            <div className="flex items-start gap-3 mb-3">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: `${scenario.accent}15`, border: `1px solid ${scenario.accent}30` }}
-              >
-                <Icon className="w-5 h-5" style={{ color: scenario.accent }} />
-              </div>
+          <div className="px-6 pt-6 pb-5 border-b border-ink/12">
+            <p className="eyebrow sm text-oxblood mb-2">Scenario · Decision tree</p>
+            <div className="flex items-start gap-3">
+              <Icon className="w-4 h-4 text-oxblood shrink-0 mt-0.5" />
               <div>
-                <p className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-1">scenario</p>
-                <h3 className="text-lg font-semibold text-white lowercase leading-snug">{scenario.title}</h3>
+                <h3 className="display-soft text-xl leading-tight">{scenario.title}</h3>
+                <p className="text-sm text-ink-soft mt-2 leading-relaxed">{scenario.context}</p>
               </div>
             </div>
-            <p className="text-sm text-gray-400 lowercase leading-relaxed">{scenario.context}</p>
           </div>
 
           <div className="px-6 py-5">
-            <p className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-3">what do you do?</p>
-            <div className="space-y-2">
+            <p className="eyebrow sm mb-3">What do you do?</p>
+            <div className="flex flex-col gap-2">
               {scenario.options.map((opt, i) => {
                 const isSelected = selected === i;
-                const wrongSelected = isSelected && !opt.correct;
-                const rightSelected = isSelected && opt.correct;
+                const wrong = isSelected && !opt.correct;
+                const right = isSelected && opt.correct;
+                const revealRight = selected !== null && opt.correct && !isSelected;
                 return (
                   <button
                     key={i}
-                    onClick={() => setSelected(i)}
+                    onClick={() => !selected && setSelected(i)}
                     disabled={selected !== null}
-                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
-                      wrongSelected
-                        ? 'border-crimson-500/40 bg-crimson-500/[0.08]'
-                        : rightSelected
-                          ? 'border-olive-500/40 bg-olive-500/[0.08]'
-                          : selected !== null && opt.correct
-                            ? 'border-olive-500/20 bg-olive-500/[0.04]'
-                            : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.15] hover:bg-white/[0.04]'
-                    } ${selected !== null && 'cursor-default'}`}
+                    className={`w-full text-left px-4 py-3 border transition-colors flex items-start gap-3 ${
+                      wrong ? 'border-oxblood/40 bg-oxblood/[0.06]'
+                      : right ? 'border-brass/40 bg-brass/[0.06]'
+                      : revealRight ? 'border-brass/25 bg-brass/[0.04]'
+                      : 'border-ink/10 hover:border-ink/25 hover:bg-paper'
+                    } ${selected !== null ? 'cursor-default' : ''}`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex-shrink-0">
-                        {isSelected && opt.correct && <CheckCircle2 className="w-4 h-4 text-olive-500" />}
-                        {isSelected && !opt.correct && <X className="w-4 h-4 text-crimson-500" />}
-                        {!isSelected && selected !== null && opt.correct && <CheckCircle2 className="w-4 h-4 text-olive-500/60" />}
-                        {selected === null && <ChevronRight className="w-4 h-4 text-gray-600" />}
-                      </div>
-                      <p className="text-sm text-gray-200 lowercase">{opt.label}</p>
-                    </div>
+                    <span className="mt-0.5 shrink-0">
+                      {right && <CheckCircle2 className="w-4 h-4 text-brass" />}
+                      {wrong && <X className="w-4 h-4 text-oxblood" />}
+                      {!isSelected && selected !== null && opt.correct && <CheckCircle2 className="w-4 h-4 text-brass/60" />}
+                      {selected === null && <ChevronRight className="w-4 h-4 text-smoke" />}
+                    </span>
+                    <p className="text-sm text-ink-soft">{opt.label}</p>
                   </button>
                 );
               })}
@@ -499,41 +399,30 @@ const ScenarioModal = ({ scenario, onClose }) => {
 
             {chosen && (
               <motion.div
-                initial={{ opacity: 0, y: 6 }}
+                initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`mt-5 p-4 rounded-xl border ${
-                  chosen.correct
-                    ? 'border-olive-500/25 bg-olive-500/[0.06]'
-                    : 'border-crimson-500/25 bg-crimson-500/[0.06]'
-                }`}
+                className={`mt-5 p-4 border-l-2 ${chosen.correct ? 'border-l-brass bg-brass/[0.05]' : 'border-l-oxblood bg-oxblood/[0.05]'} border border-ink/10`}
               >
-                <p className={`text-[10px] font-bold tracking-widest uppercase mb-1 ${
-                  chosen.correct ? 'text-olive-400' : 'text-crimson-400'
-                }`}>
-                  {chosen.correct ? 'well done' : 'what this costs you'}
+                <p className={`eyebrow sm mb-2 ${chosen.correct ? 'text-brass' : 'text-oxblood'}`}>
+                  {chosen.correct ? 'Well done' : 'What this costs you'}
                 </p>
-                <p className="text-sm text-gray-300 lowercase leading-relaxed">{chosen.consequence}</p>
-                {chosen.followup && (
-                  <p className="text-xs text-gray-400 lowercase leading-relaxed mt-2 italic">{chosen.followup}</p>
-                )}
+                <p className="text-sm text-ink-soft leading-relaxed">{chosen.consequence}</p>
+                {chosen.followup && <p className="text-xs text-smoke leading-relaxed mt-2 italic">{chosen.followup}</p>}
               </motion.div>
             )}
 
             {selected !== null && (
-              <div className="flex items-center gap-3 mt-5 pt-5 border-t border-white/[0.06] flex-wrap">
+              <div className="flex items-center gap-4 mt-5 pt-4 border-t border-ink/12 flex-wrap">
                 <Link
                   to={scenario.link.to}
                   onClick={onClose}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-midnight-400 hover:bg-midnight-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                  className="inline-flex items-center gap-1.5 btn"
                 >
                   {scenario.link.label}
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
-                <button
-                  onClick={() => setSelected(null)}
-                  className="text-xs text-gray-400 hover:text-white lowercase transition-colors"
-                >
-                  try another answer
+                <button onClick={() => setSelected(null)} className="text-sm text-smoke hover:text-ink transition-colors">
+                  Try another answer
                 </button>
               </div>
             )}
@@ -544,196 +433,131 @@ const ScenarioModal = ({ scenario, onClose }) => {
   );
 };
 
+/* ─── Main ────────────────────────────────────────────────────────────── */
 const SourceProtection = () => {
   const [activeTab, setActiveTab] = useState('compartmentalization');
   const [scenario, setScenario] = useState(null);
-
   const active = TABS.find(t => t.id === activeTab);
 
   return (
-    <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-6"
-        >
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 mb-5">
-            <Shield className="w-7 h-7 text-teal-400" />
+    <NewsPage max="reading">
+      {/* Ink cover band — printed pocket guide masthead */}
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="-mx-6 md:-mx-10 lg:-mx-14 -mt-8 md:-mt-12 bg-ink text-paper px-6 md:px-10 lg:px-14 py-6"
+      >
+        <div className="max-w-[920px] mx-auto flex items-baseline justify-between gap-4 flex-wrap">
+          <div>
+            <p className="eyebrow sm text-brass-soft">Field Manual · Pocket Ed.</p>
+            <h1 className="display text-3xl md:text-5xl mt-2 leading-none text-paper">
+              Source protection<span style={{ color: 'var(--color-oxblood-soft)' }}><em className="italic">.</em></span>
+            </h1>
           </div>
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
-            source protection playbook
-          </h1>
-          <p className="text-base text-gray-500 lowercase max-w-xl mx-auto leading-relaxed"
-            style={{ letterSpacing: '0.03em' }}
-          >
-            practical operational security for investigative journalists — compartmentalization, first contact, meetings, and legal fallbacks
-          </p>
-        </motion.div>
-
-        {/* Tab switcher */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="flex justify-center mb-8"
-        >
-          <div className="flex gap-1 bg-white/[0.03] border border-white/[0.07] rounded-xl p-1 flex-wrap justify-center">
-            {TABS.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all lowercase"
-                  style={isActive ? {
-                    backgroundColor: `${tab.color}18`,
-                    color: 'white',
-                  } : {
-                    color: '#6b7280',
-                  }}
-                >
-                  <Icon className="w-4 h-4" style={{ color: isActive ? tab.color : undefined }} />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Active tab content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div
-              className="rounded-2xl p-5 mb-6 border"
-              style={{
-                borderColor: `${active.color}25`,
-                backgroundColor: `${active.color}08`,
-              }}
-            >
-              <p className="text-sm text-gray-300 lowercase leading-relaxed">
-                {active.summary}
-              </p>
-            </div>
-
-            <Accordion cards={active.cards} accentColor={active.color} />
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Scenarios */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-16 pt-10 border-t border-white/[0.06]"
-        >
-          <div className="text-center mb-8">
-            <p className="text-[10px] font-bold tracking-widest uppercase text-gray-500 mb-2">practice</p>
-            <h2 className="text-2xl md:text-3xl font-display font-bold lowercase mb-2">what would you actually do?</h2>
-            <p className="text-sm text-gray-500 lowercase max-w-md mx-auto leading-relaxed">
-              three realistic situations from investigative work. pick a response and see the consequence.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {SCENARIOS.map(s => {
-              const SIcon = s.icon;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setScenario(s)}
-                  className="group text-left rounded-2xl border p-5 transition-all hover:scale-[1.02]"
-                  style={{
-                    borderColor: `${s.accent}25`,
-                    backgroundColor: `${s.accent}06`,
-                  }}
-                >
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-                    style={{ backgroundColor: `${s.accent}15`, border: `1px solid ${s.accent}30` }}
-                  >
-                    <SIcon className="w-5 h-5" style={{ color: s.accent }} />
-                  </div>
-                  <h3 className="text-sm font-semibold text-white lowercase leading-snug mb-2">{s.title}</h3>
-                  <p className="text-xs text-gray-500 lowercase leading-relaxed">{s.context}</p>
-                  <div className="flex items-center gap-1.5 mt-4 text-[10px] font-bold tracking-widest uppercase" style={{ color: s.accent }}>
-                    try scenario
-                    <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-1" />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Related resources */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-3"
-        >
-          <Link
-            to="/resources"
-            className="group border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] rounded-2xl p-5 transition-all"
-          >
-            <div className="w-9 h-9 rounded-xl bg-midnight-400/10 border border-midnight-400/20 flex items-center justify-center mb-3">
-              <BookOpen className="w-4 h-4 text-midnight-400" />
-            </div>
-            <p className="text-sm font-semibold text-white lowercase mb-1">encrypted tools</p>
-            <p className="text-xs text-gray-500 lowercase">vetted signal, protonmail, tor, veracrypt, keepassxc</p>
-          </Link>
-          <Link
-            to="/secure-setup"
-            className="group border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] rounded-2xl p-5 transition-all"
-          >
-            <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-3">
-              <CheckCircle2 className="w-4 h-4 text-teal-400" />
-            </div>
-            <p className="text-sm font-semibold text-white lowercase mb-1">secure setup</p>
-            <p className="text-xs text-gray-500 lowercase">31 actionable tasks — the backbone of your op-sec</p>
-          </Link>
-          <Link
-            to="/community"
-            className="group border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] rounded-2xl p-5 transition-all"
-          >
-            <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-3">
-              <Users className="w-4 h-4 text-purple-400" />
-            </div>
-            <p className="text-sm font-semibold text-white lowercase mb-1">ask the community</p>
-            <p className="text-xs text-gray-500 lowercase">q&a with verified security specialists</p>
-          </Link>
-        </motion.div>
-
-        {/* Citations footer */}
-        <div className="mt-16 pt-8 border-t border-white/[0.05]">
-          <div className="flex items-start gap-3">
-            <ExternalLink className="w-4 h-4 text-gray-700 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] tracking-widest uppercase font-bold text-gray-600 mb-2">
-                sources & further reading
-              </p>
-              <p className="text-xs text-gray-600 lowercase leading-relaxed">
-                guidance synthesized from committee to protect journalists (cpj), freedom of the press foundation (fpf),
-                electronic frontier foundation (eff), and reporters without borders (rsf).
-                this playbook is educational — consult a lawyer and your newsroom's security team for high-stakes work.
-              </p>
-            </div>
-          </div>
+          <p className="eyebrow sm opacity-60">Issue III · Rev. 2026</p>
         </div>
+
+        {/* Chapter tabs — hanging from the cover band */}
+        <div className="-mx-6 md:-mx-10 lg:-mx-14 mt-4 flex gap-0.5 px-6 md:px-10 lg:px-14">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`px-4 pt-2.5 pb-3 font-mono uppercase text-[10px] tracking-[0.18em] transition-colors ${
+                activeTab === t.id
+                  ? 'bg-paper text-ink'
+                  : 'bg-paper/10 text-paper/60 hover:bg-paper/20 hover:text-paper'
+              }`}
+            >
+              <em className={`font-[var(--font-display)] not-italic italic mr-2 text-sm ${activeTab === t.id ? 'text-oxblood' : 'text-brass-soft'}`}>
+                {t.n}.
+              </em>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Chapter content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-10"
+        >
+          <p className="eyebrow sm text-oxblood">Chapter {active.n}</p>
+          <h2 className="display text-3xl md:text-4xl mt-3 leading-none max-w-[24ch]">
+            {active.label}<span className="italic-ox">.</span>
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-ink-soft max-w-prose">
+            {active.brief}
+          </p>
+
+          <hr className="border-t border-ink/22 mt-8 mb-0" />
+
+          <p className="eyebrow sm mt-5 mb-2">Numbered protocols — read in order</p>
+          <Accordion cards={active.cards} />
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Footer navigation */}
+      <div className="mt-8 pt-4 border-t border-ink/22 flex items-baseline justify-between">
+        <span className="eyebrow sm">
+          Pocket field manual · § {active.n} of V
+        </span>
+        {TABS.findIndex(t => t.id === activeTab) < TABS.length - 1 && (
+          <button
+            onClick={() => {
+              const i = TABS.findIndex(t => t.id === activeTab);
+              setActiveTab(TABS[i + 1].id);
+            }}
+            className="inline-flex items-center gap-1.5 btn ghost"
+          >
+            Next chapter <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
+      {/* Decision tree scenarios */}
+      <section className="mt-16 pt-8 border-t border-ink/22">
+        <p className="eyebrow sm text-oxblood">Scenario · Decision tree</p>
+        <h2 className="display text-3xl md:text-4xl mt-3 leading-none max-w-[22ch]">
+          Test your field judgement<span className="italic-ox">.</span>
+        </h2>
+        <p className="mt-4 text-base text-ink-soft max-w-prose leading-relaxed">
+          Three scenarios drawn from real reporting situations. Each has one right answer — and knowing why the wrong answers are wrong is as important as the right one.
+        </p>
+
+        <div className="mt-8 flex flex-col gap-0 border-t border-ink/22">
+          {SCENARIOS.map((sc, i) => {
+            const Icon = sc.icon;
+            return (
+              <div
+                key={sc.id}
+                className="flex items-baseline gap-5 py-5 border-b border-ink/12 cursor-pointer hover:bg-paper-soft/50 transition-colors px-1 -mx-1"
+                onClick={() => setScenario(sc)}
+              >
+                <span className="eyebrow sm text-smoke shrink-0">{String(i + 1).padStart(2, '0')}.</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <Icon className="w-3.5 h-3.5 text-oxblood shrink-0 mt-0.5" />
+                    <p className="display-soft text-lg leading-snug">{sc.title}</p>
+                  </div>
+                  <p className="text-sm text-smoke mt-1 leading-relaxed">{sc.context}</p>
+                </div>
+                <span className="eyebrow sm text-oxblood shrink-0">Open →</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <ScenarioModal scenario={scenario} onClose={() => setScenario(null)} />
-    </div>
+    </NewsPage>
   );
 };
 
