@@ -348,11 +348,11 @@ const CrisisOverlay = () => {
           exit={{ clipPath: 'circle(0% at calc(100% - 56px) calc(100% - 36px))' }}
           transition={{ duration: 1.2, ease: [0.4, 0, 0.15, 1] }}
           className="fixed inset-0 z-[100] overflow-y-auto"
-          style={{ backgroundColor: '#FAF8F5', filter: 'drop-shadow(0 0 30px rgba(250,248,245,0.5))' }}
+          style={{ backgroundColor: 'var(--color-paper)', filter: 'drop-shadow(0 0 30px rgba(244,239,230,0.5))' }}
         >
           {/* ── Toggle pill — bottom-right, matches header crisis toggle position ── */}
           <div className="fixed bottom-4 right-4 flex items-center gap-2" style={{ zIndex: 3 }}>
-            <span className="hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] text-[#8A8680]">
+            <span className="hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] text-[var(--color-smoke)]">
               Crisis
             </span>
             <button
@@ -360,13 +360,31 @@ const CrisisOverlay = () => {
               role="switch"
               aria-checked={true}
               className="relative flex-shrink-0 w-20 h-10 rounded-full focus:outline-none"
-              style={{ backgroundColor: '#e53e3e' }}
+              style={{ backgroundColor: 'var(--color-oxblood)' }}
             >
               <span
                 className="absolute top-[4px] w-8 h-8 rounded-full bg-white"
                 style={{ left: 4, transform: 'translateX(40px)', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}
               />
             </button>
+          </div>
+
+          {/* EXTRA edition masthead — oxblood top rule, dateline strip */}
+          <div
+            className="sticky top-0 z-10 px-6 py-3"
+            style={{ background: 'var(--color-paper)', borderBottom: '1px solid rgba(21,17,12,0.10)' }}
+          >
+            <div style={{ borderTop: '4px solid var(--color-oxblood)', paddingTop: 8 }}>
+              <div className="flex items-baseline justify-between max-w-5xl mx-auto">
+                <span className="eyebrow sm text-oxblood">SafePress · Extra</span>
+                <button
+                  onClick={closeOverlay}
+                  className="eyebrow text-[10px] normal-case text-smoke hover:text-ink transition-colors"
+                >
+                  Close (keep crisis active)
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Content — fades in as the circle expands */}
@@ -390,7 +408,7 @@ const CrisisOverlay = () => {
                 {/* Breathing glow */}
                 <motion.div
                   className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full"
-                  style={{ background: 'radial-gradient(circle, rgba(61,168,144,0.08) 0%, transparent 60%)' }}
+                  style={{ background: 'radial-gradient(circle, rgba(107,31,31,0.05) 0%, transparent 60%)' }}
                   animate={{ scale: [1, 1.14, 1] }}
                   transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
                 />
@@ -403,15 +421,15 @@ const CrisisOverlay = () => {
                 >
                   <div className="inline-flex items-center gap-2 mb-5">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-red-600">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-oxblood">
                       Crisis Mode
                     </span>
                   </div>
-                  <h1 className="text-5xl md:text-6xl font-display font-bold text-[#1A1714] mb-4 tracking-tight lowercase leading-none">
+                  <h1 className="text-5xl md:text-6xl font-display font-bold text-[var(--color-ink)] mb-4 tracking-tight lowercase leading-none">
                     you're going to be{' '}
-                    <span style={{ color: '#3DA890' }}>okay.</span>
+                    <span style={{ color: 'var(--color-oxblood)' }}>okay.</span>
                   </h1>
-                  <p className="text-[#8A8680] max-w-xs mx-auto leading-relaxed text-sm lowercase">
+                  <p className="text-[var(--color-smoke)] max-w-xs mx-auto leading-relaxed text-sm lowercase">
                     what's happening right now?
                   </p>
                 </motion.div>
@@ -428,17 +446,17 @@ const CrisisOverlay = () => {
                         whileHover={{ y: -3, boxShadow: '0 16px 40px rgba(0,0,0,0.1)', transition: { duration: 0.18 } }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => handleSelect(s.id)}
-                        className="bg-white rounded-2xl border border-[#E8E4DC] p-8 text-left group"
-                        style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}
+                        className="bg-paper-soft border border-ink/12 p-8 text-left group"
+                        style={{ boxShadow: 'var(--shadow-card)' }}
                       >
                         <div className="flex items-start justify-between mb-7">
-                          <Icon className="w-8 h-8 text-[#A8A49E] group-hover:text-red-500 transition-colors duration-200" />
-                          <ArrowRight className="w-4 h-4 text-[#C8C4BE] group-hover:text-red-400 group-hover:translate-x-0.5 transition-all duration-200" />
+                          <Icon className="w-8 h-8 text-[var(--color-smoke-dim)] group-hover:text-oxblood transition-colors duration-200" />
+                          <ArrowRight className="w-4 h-4 text-[rgba(21,17,12,0.25)] group-hover:text-oxblood group-hover:translate-x-0.5 transition-all duration-200" />
                         </div>
-                        <h3 className="text-[1.6rem] font-display font-bold text-[#1A1714] mb-2 tracking-tight leading-tight">
+                        <h3 className="text-[1.6rem] font-display font-bold text-[var(--color-ink)] mb-2 tracking-tight leading-tight">
                           {s.title}
                         </h3>
-                        <p className="text-sm text-[#8A8680] leading-relaxed">
+                        <p className="text-sm text-[var(--color-smoke)] leading-relaxed">
                           {s.subtitle}
                         </p>
                       </motion.button>
@@ -461,7 +479,7 @@ const CrisisOverlay = () => {
                 {/* Breathing glow */}
                 <motion.div
                   className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full"
-                  style={{ background: 'radial-gradient(circle, rgba(61,168,144,0.05) 0%, transparent 60%)' }}
+                  style={{ background: 'radial-gradient(circle, rgba(107,31,31,0.04) 0%, transparent 60%)' }}
                   animate={{ scale: [1, 1.1, 1] }}
                   transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
                 />
@@ -482,20 +500,20 @@ const CrisisOverlay = () => {
                           const Icon = currentScenario.icon;
                           return (
                             <div className="flex items-start gap-5 mb-4">
-                              <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
-                                <Icon className="w-7 h-7 text-red-500" />
+                              <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-oxblood/8 border border-oxblood/20 flex items-center justify-center">
+                                <Icon className="w-7 h-7 text-oxblood" />
                               </div>
                               <div>
                                 <div className="flex items-center gap-2 mb-2">
                                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-red-500">
+                                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-oxblood">
                                     Crisis Mode Active
                                   </span>
                                 </div>
-                                <h2 className="text-3xl md:text-4xl font-display font-bold text-[#1A1714] tracking-tight leading-tight mb-1.5">
+                                <h2 className="text-3xl md:text-4xl font-display font-bold text-[var(--color-ink)] tracking-tight leading-tight mb-1.5">
                                   {currentScenario.title}
                                 </h2>
-                                <p className="text-sm font-medium" style={{ color: '#3DA890' }}>
+                                <p className="text-sm font-medium" style={{ color: 'var(--color-oxblood)' }}>
                                   {currentScenario.urgency}
                                 </p>
                               </div>
@@ -505,22 +523,22 @@ const CrisisOverlay = () => {
 
                         {/* Progress */}
                         <div className="flex items-center gap-3 mb-7">
-                          <div className="flex-1 h-1 bg-[#E8E4DC] rounded-full overflow-hidden">
+                          <div className="flex-1 h-1 bg-ink/10 rounded-full overflow-hidden">
                             <motion.div
                               className="h-full rounded-full"
-                              style={{ backgroundColor: '#3DA890' }}
+                              style={{ backgroundColor: 'var(--color-oxblood)' }}
                               initial={{ width: 0 }}
                               animate={{ width: `${(completedSteps.length / currentScenario.actions.length) * 100}%` }}
                               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                             />
                           </div>
-                          <span className="text-xs font-medium text-[#8A8680] flex-shrink-0">
+                          <span className="text-xs font-medium text-[var(--color-smoke)] flex-shrink-0">
                             {completedSteps.length}/{currentScenario.actions.length} done
                           </span>
                         </div>
 
                         {/* Checklist */}
-                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8A49E] mb-4">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-smoke-dim)] mb-4">
                           Immediate Actions — Complete In Order
                         </p>
                         <div className="space-y-2 mb-6">
@@ -531,7 +549,7 @@ const CrisisOverlay = () => {
                               <div
                                 key={action.id}
                                 className={`w-full rounded-xl border transition-all duration-150 ${
-                                  done ? 'bg-[#F0EDE8] border-transparent' : 'bg-white border-[#E8E4DC]'
+                                  done ? 'bg-paper-dim/60 border-transparent' : 'bg-paper-soft border-ink/10'
                                 }`}
                               >
                                 <div className="flex items-start gap-4 p-4">
@@ -539,7 +557,7 @@ const CrisisOverlay = () => {
                                   <button
                                     onClick={() => toggleStep(action.id)}
                                     className={`flex-shrink-0 mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                                      done ? 'bg-[#3DA890] border-[#3DA890]' : 'border-[#C8C4BE] hover:border-[#3DA890]'
+                                      done ? 'bg-[var(--color-oxblood)] border-[var(--color-oxblood)]' : 'border-[rgba(21,17,12,0.25)] hover:border-[var(--color-oxblood)]'
                                     }`}
                                   >
                                     {done && (
@@ -548,7 +566,7 @@ const CrisisOverlay = () => {
                                         animate={{ scale: 1 }}
                                         transition={{ type: 'spring', stiffness: 500, damping: 28 }}
                                       >
-                                        <Check className="w-3.5 h-3.5 text-white" />
+                                        <Check className="w-3.5 h-3.5 text-paper" />
                                       </motion.div>
                                     )}
                                   </button>
@@ -558,11 +576,11 @@ const CrisisOverlay = () => {
                                     <div className="flex items-start justify-between gap-3">
                                       <p
                                         className={`text-sm font-medium leading-snug cursor-pointer ${
-                                          done ? 'text-[#9E9A94] line-through' : 'text-[#2D2B27]'
+                                          done ? 'text-[var(--color-smoke)] line-through' : 'text-[var(--color-ink)]'
                                         }`}
                                         onClick={() => toggleStep(action.id)}
                                       >
-                                        <span className={`font-bold mr-1.5 ${done ? 'text-[#9E9A94]' : 'text-red-500'}`}>
+                                        <span className={`font-bold mr-1.5 ${done ? 'text-[var(--color-smoke)]' : 'text-oxblood'}`}>
                                           {index + 1}.
                                         </span>
                                         {action.text}
@@ -570,7 +588,7 @@ const CrisisOverlay = () => {
                                       {action.guide && (
                                         <button
                                           onClick={() => toggleGuide(action.id)}
-                                          className="flex-shrink-0 flex items-center gap-0.5 text-[10px] font-semibold text-[#3DA890] hover:text-[#2A8C7A] transition-colors mt-0.5"
+                                          className="flex-shrink-0 flex items-center gap-0.5 text-[10px] font-semibold text-[var(--color-oxblood)] hover:text-[var(--color-oxblood)] transition-colors mt-0.5"
                                         >
                                           how?
                                           <ChevronDown
@@ -589,11 +607,11 @@ const CrisisOverlay = () => {
                                           exit={{ opacity: 0, height: 0, marginTop: 0 }}
                                           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                                           className="space-y-2 overflow-hidden"
-                                          style={{ borderLeft: '2px solid #3DA890', paddingLeft: 10 }}
+                                          style={{ borderLeft: '2px solid var(--color-oxblood)', paddingLeft: 10 }}
                                         >
                                           {action.guide.map((point, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-xs text-[#6A6660] leading-relaxed">
-                                              <span className="w-1 h-1 rounded-full bg-[#3DA890] flex-shrink-0 mt-[5px]" />
+                                            <li key={i} className="flex items-start gap-2 text-xs text-[var(--color-smoke)] leading-relaxed">
+                                              <span className="w-1 h-1 rounded-full bg-[var(--color-oxblood)] flex-shrink-0 mt-[5px]" />
                                               {point}
                                             </li>
                                           ))}
@@ -614,14 +632,14 @@ const CrisisOverlay = () => {
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0 }}
                               className="p-4 rounded-xl flex items-center gap-3"
-                              style={{ backgroundColor: 'rgba(61,168,144,0.08)', border: '1px solid rgba(61,168,144,0.3)' }}
+                              style={{ backgroundColor: 'rgba(107,31,31,0.05)', border: '1px solid rgba(107,31,31,0.25)' }}
                             >
-                              <ShieldCheck className="w-5 h-5 flex-shrink-0" style={{ color: '#3DA890' }} />
+                              <ShieldCheck className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--color-oxblood)' }} />
                               <div>
-                                <p className="text-sm font-semibold" style={{ color: '#2A8C7A' }}>
+                                <p className="text-sm font-semibold" style={{ color: 'var(--color-oxblood)' }}>
                                   All steps completed.
                                 </p>
-                                <p className="text-xs mt-0.5 text-[#8A8680]">
+                                <p className="text-xs mt-0.5 text-[var(--color-smoke)]">
                                   When you're safe, click "I'm Safe" on the right.
                                 </p>
                               </div>
@@ -635,7 +653,7 @@ const CrisisOverlay = () => {
                     <div className="space-y-5 lg:sticky lg:top-14">
 
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8A49E] mb-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-smoke-dim)] mb-3">
                           Other Scenarios
                         </p>
                         <div className="space-y-2">
@@ -645,16 +663,16 @@ const CrisisOverlay = () => {
                               <button
                                 key={s.id}
                                 onClick={() => handleSelect(s.id)}
-                                className="w-full bg-white rounded-xl border border-[#E8E4DC] p-3.5 flex items-center gap-3 text-left group hover:border-red-200 hover:bg-red-50/40 transition-all"
-                                style={{ boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}
+                                className="w-full bg-paper-soft border border-ink/12 p-3.5 flex items-center gap-3 text-left group hover:border-ink/25 hover:bg-paper transition-all"
+                                style={{ boxShadow: 'var(--shadow-lift)' }}
                               >
-                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#F5F3EF] border border-[#E0DDD7] flex items-center justify-center group-hover:bg-red-50 group-hover:border-red-200 transition-all">
-                                  <Icon className="w-4 h-4 text-[#8A8680] group-hover:text-red-500 transition-colors" />
+                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-paper-dim border border-ink/15 flex items-center justify-center group-hover:bg-red-50 group-hover:border-red-200 transition-all">
+                                  <Icon className="w-4 h-4 text-[var(--color-smoke)] group-hover:text-oxblood transition-colors" />
                                 </div>
-                                <span className="flex-1 text-sm font-semibold text-[#2D2B27] truncate">
+                                <span className="flex-1 text-sm font-semibold text-[var(--color-ink)] truncate">
                                   {s.title}
                                 </span>
-                                <ArrowRight className="w-3.5 h-3.5 text-[#C8C4BE] group-hover:text-red-400 flex-shrink-0 transition-colors" />
+                                <ArrowRight className="w-3.5 h-3.5 text-[rgba(21,17,12,0.25)] group-hover:text-oxblood flex-shrink-0 transition-colors" />
                               </button>
                             );
                           })}
@@ -662,14 +680,14 @@ const CrisisOverlay = () => {
                       </div>
 
                       {/* Get help now */}
-                      <div className="rounded-2xl p-5" style={{ backgroundColor: '#2A7A6E' }}>
+                      <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--color-ink)' }}>
                         <div className="flex items-center gap-2 mb-3">
-                          <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center">
+                          <div className="w-7 h-7 rounded-lg bg-paper/15 flex items-center justify-center">
                             <Phone className="w-3.5 h-3.5 text-white" />
                           </div>
-                          <p className="text-white font-semibold text-sm">Get help now</p>
+                          <p className="text-paper font-semibold text-sm">Get help now</p>
                         </div>
-                        <p className="text-white/60 text-xs mb-4 leading-relaxed">
+                        <p className="text-paper/60 text-xs mb-4 leading-relaxed">
                           Call a press freedom organization directly — no forms, no waiting.
                         </p>
                         <div className="space-y-2 mb-4">
@@ -677,15 +695,15 @@ const CrisisOverlay = () => {
                             <a
                               key={h.tel}
                               href={`tel:${h.tel}`}
-                              className="flex items-center justify-between w-full bg-white/10 hover:bg-white/20 rounded-xl px-3.5 py-2.5 transition-all group"
+                              className="flex items-center justify-between w-full bg-paper/10 hover:bg-paper/20 rounded-xl px-3.5 py-2.5 transition-all group"
                             >
                               <div>
-                                <p className="text-white text-xs font-bold">{h.short}</p>
-                                <p className="text-white/50 text-[10px]">{h.note}</p>
+                                <p className="text-paper text-xs font-bold">{h.short}</p>
+                                <p className="text-paper/50 text-[10px]">{h.note}</p>
                               </div>
                               <div className="text-right">
                                 <p className="text-white text-xs font-mono">{h.display}</p>
-                                <p className="text-white/60 text-[10px] group-hover:text-white/90 transition-colors">tap to call →</p>
+                                <p className="text-paper/60 text-[10px] group-hover:text-paper/90 transition-colors">tap to call →</p>
                               </div>
                             </a>
                           ))}
@@ -693,7 +711,7 @@ const CrisisOverlay = () => {
                         <Link
                           to="/request-support"
                           onClick={closeOverlay}
-                          className="flex items-center justify-center gap-1.5 w-full py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-medium transition-all"
+                          className="flex items-center justify-center gap-1.5 w-full py-2 bg-paper/10 hover:bg-paper/20 text-paper text-xs font-medium transition-all"
                         >
                           Request a specialist <ArrowRight className="w-3 h-3" />
                         </Link>
@@ -702,7 +720,7 @@ const CrisisOverlay = () => {
                       {/* I'm Safe */}
                       <button
                         onClick={handleSafe}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-white border-2 border-[#1A1714] text-[#1A1714] rounded-2xl text-sm font-bold transition-all hover:bg-[#1A1714] hover:text-white"
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-paper border-2 border-ink text-[var(--color-ink)] rounded-2xl text-sm font-bold transition-all hover:bg-ink hover:text-paper"
                       >
                         <ShieldCheck className="w-4 h-4" />
                         I'm Safe Now
