@@ -67,7 +67,7 @@ const DispatchCard = ({ post, categories: cats, onNavigate }) => {
       </div>
       {/* Body */}
       <div
-        className="py-5 border-b border-ink/12 cursor-pointer group"
+        className="py-4 border-b border-ink/12 cursor-pointer group"
         onClick={() => onNavigate(post.id)}
       >
         {cat && <p className="eyebrow sm text-smoke-dim mb-3">{cat}</p>}
@@ -166,6 +166,12 @@ const Community = () => {
   /* Hide the dispatch post from the main feed to avoid duplication */
   const feedPosts = filteredPosts.filter((p) => p.id !== dispatchPost?.id);
 
+  /* Count posts per category for the sidebar */
+  const catCount = (catId) =>
+    catId === 'all'
+      ? posts.filter((p) => p.type === currentTabType).length
+      : posts.filter((p) => p.type === currentTabType && p.category === catId).length;
+
   const handleLike = async (e, postId) => {
     e.stopPropagation();
     if (!user) { navigate('/login'); return; }
@@ -242,74 +248,52 @@ const Community = () => {
           </div>
         </motion.header>
 
-        {/* ── Section index + toolbar ─────────────────────────────── */}
+        {/* ── Toolbar ─────────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-6"
+          className="flex items-center gap-3 mt-5 mb-5"
         >
-          {/* Category section index — newspaper tab style */}
-          <div className="flex items-center gap-0 flex-wrap border-b border-ink/12 mt-5">
-            {categories.map((cat, i) => {
-              const active = activeCategory === cat.id;
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-smoke-dim pointer-events-none" />
+            <NewsInput
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`search ${isQA ? 'questions' : 'discussions'}...`}
+              className="pl-8 pr-3 py-1.5 text-xs lowercase"
+            />
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="eyebrow sm text-smoke-dim">sort</span>
+            {[
+              { id: 'newest', label: 'newest' },
+              { id: 'top',    label: 'top'    },
+              ...(isQA ? [{ id: 'unanswered', label: 'unanswered' }] : []),
+            ].map((opt, i, arr) => {
+              const active = sortMode === opt.id;
               return (
-                <button key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`relative py-2 font-mono text-[10px] tracking-widest uppercase transition-colors ${
-                    i === 0 ? 'pr-4 pl-0' : 'px-4'
-                  } ${active ? 'text-ink' : 'text-smoke-dim hover:text-ink-soft'}`}
-                >
-                  {cat.name}
-                  {active && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />}
-                </button>
+                <span key={opt.id} className="flex items-center gap-2">
+                  <button onClick={() => setSortMode(opt.id)}
+                    className={`font-mono text-[10px] tracking-widest uppercase transition-colors ${
+                      active ? 'text-ink' : 'text-smoke-dim hover:text-ink-soft'
+                    }`}>
+                    {opt.label}
+                  </button>
+                  {i < arr.length - 1 && <span className="text-smoke-dim/40">·</span>}
+                </span>
               );
             })}
           </div>
 
-          {/* Toolbar: search + sort + post button */}
-          <div className="flex items-center gap-3 mt-4 flex-wrap">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-smoke-dim pointer-events-none" />
-              <NewsInput
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={`search ${isQA ? 'questions' : 'discussions'}...`}
-                className="pl-9 pr-4 py-2 lowercase"
-              />
-            </div>
-
-            {/* Sort controls — flat mono text */}
-            <div className="flex items-center gap-0">
-              <span className="eyebrow sm text-smoke-dim mr-2">sort</span>
-              {[
-                { id: 'newest',    label: 'newest' },
-                { id: 'top',       label: 'top'    },
-                ...(isQA ? [{ id: 'unanswered', label: 'unanswered' }] : []),
-              ].map((opt, i, arr) => {
-                const active = sortMode === opt.id;
-                return (
-                  <span key={opt.id} className="flex items-center">
-                    <button onClick={() => setSortMode(opt.id)}
-                      className={`font-mono text-[10px] tracking-widest uppercase transition-colors px-2 py-1 ${
-                        active ? 'text-ink font-bold' : 'text-smoke-dim hover:text-ink-soft'
-                      }`}>
-                      {opt.label}
-                    </button>
-                    {i < arr.length - 1 && <span className="text-smoke-dim text-[10px]">·</span>}
-                  </span>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={() => { if (!user) { navigate('/login'); return; } openNewPost(); }}
-              className="btn flex-shrink-0 text-xs uppercase tracking-widest flex items-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {isQA ? 'ask' : 'post'}
-            </button>
-          </div>
+          <button
+            onClick={() => { if (!user) { navigate('/login'); return; } openNewPost(); }}
+            className="flex-shrink-0 flex items-center gap-1.5 font-mono text-[10px] tracking-widest uppercase px-3 py-1.5 border border-ink/25 text-ink-soft hover:border-ink hover:text-ink transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            {isQA ? 'ask' : 'post'}
+          </button>
         </motion.div>
 
         {/* ── New post form ───────────────────────────────────────── */}
@@ -396,11 +380,56 @@ const Community = () => {
           )}
         </AnimatePresence>
 
-        {/* ── Two-column layout ───────────────────────────────────── */}
-        <div className="lg:grid lg:grid-cols-[1fr_300px] lg:gap-10">
+        {/* ── Three-column layout ─────────────────────────────────── */}
+        <div className="lg:grid lg:grid-cols-[176px_1fr_256px] lg:gap-8 lg:items-start">
+
+          {/* ── Category sidebar (desktop) ───────────────────────── */}
+          <aside className="hidden lg:block lg:sticky lg:top-28 pt-1">
+            <p className="eyebrow sm text-smoke-dim mb-3 border-t border-ink/15 pt-4">Filter</p>
+            {categories.map((cat) => {
+              const active  = activeCategory === cat.id;
+              const count   = catCount(cat.id);
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`w-full flex items-center justify-between py-1.5 pl-3 border-l-2 text-left transition-colors ${
+                    active
+                      ? 'border-ink text-ink'
+                      : 'border-transparent text-smoke-dim hover:text-ink-soft hover:border-ink/25'
+                  }`}
+                >
+                  <span className="font-mono text-[10px] tracking-widest uppercase">{cat.name}</span>
+                  {count > 0 && (
+                    <span className={`font-mono text-[9px] tabular-nums transition-colors ${active ? 'text-smoke' : 'text-smoke-dim'}`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </aside>
 
           {/* ── Main column ──────────────────────────────────────── */}
           <div className="min-w-0">
+
+            {/* Mobile category strip */}
+            <div className="lg:hidden flex items-center overflow-x-auto border-b border-ink/10 mb-4 gap-0 -mx-1 px-1">
+              {categories.map((cat, i) => {
+                const active = activeCategory === cat.id;
+                return (
+                  <button key={cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`relative flex-shrink-0 py-2 font-mono text-[10px] tracking-widest uppercase transition-colors ${
+                      i === 0 ? 'pr-3 pl-0' : 'px-3'
+                    } ${active ? 'text-ink' : 'text-smoke-dim'}`}
+                  >
+                    {cat.name}
+                    {active && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />}
+                  </button>
+                );
+              })}
+            </div>
 
             {loading ? (
               <div className="text-center py-20">
@@ -445,7 +474,7 @@ const Community = () => {
                       return (
                         <article key={post.id}
                           onClick={() => navigate(`/community/${post.id}`)}
-                          className="group border-t border-ink/10 py-5 cursor-pointer hover:bg-paper-soft/25 transition-colors"
+                          className="group border-t border-ink/10 py-4 cursor-pointer hover:bg-paper-soft/25 transition-colors"
                         >
                           <div className="flex gap-5">
                             {/* Answer count column */}
@@ -470,7 +499,7 @@ const Community = () => {
                                 {post.edited && <span className="eyebrow sm text-smoke-dim">(edited)</span>}
                               </div>
                               {/* Title */}
-                              <h3 className="display-soft text-lg md:text-xl text-ink mb-2 group-hover:text-oxblood transition-colors leading-snug">
+                              <h3 className="display-soft text-base md:text-lg text-ink mb-1.5 group-hover:text-oxblood transition-colors leading-snug">
                                 {post.title}
                               </h3>
                               <p className="text-sm text-smoke line-clamp-2 mb-4 leading-relaxed">{post.content}</p>
@@ -499,7 +528,7 @@ const Community = () => {
                     return (
                       <article key={post.id}
                         onClick={() => navigate(`/community/${post.id}`)}
-                        className="group border-t border-ink/10 py-5 cursor-pointer hover:bg-paper-soft/25 transition-colors"
+                        className="group border-t border-ink/10 py-4 cursor-pointer hover:bg-paper-soft/25 transition-colors"
                       >
                         {/* Dateline */}
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -514,7 +543,7 @@ const Community = () => {
                         </div>
 
                         {/* Title in Fraunces */}
-                        <h3 className="display-soft text-lg md:text-xl text-ink mb-2 group-hover:text-oxblood transition-colors leading-snug">
+                        <h3 className="display-soft text-base md:text-lg text-ink mb-1.5 group-hover:text-oxblood transition-colors leading-snug">
                           {post.title}
                         </h3>
                         <p className="text-sm text-smoke line-clamp-2 leading-relaxed mb-4">
@@ -564,7 +593,7 @@ const Community = () => {
           </div>
 
           {/* ── Right sidebar ─────────────────────────────────────── */}
-          <div className="hidden lg:block">
+          <div className="hidden lg:block lg:sticky lg:top-28">
             <TipCard />
             <NewsSidebar />
           </div>
