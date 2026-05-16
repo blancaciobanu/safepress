@@ -9,7 +9,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   addCommunityComment,
-  createCommunityReport,
   deleteCommunityPostWithComments,
   getCommunityPost,
   getPostCommentCount,
@@ -20,6 +19,7 @@ import {
 import { useFollowedPosts } from '../features/community/hooks/useFollowedPosts';
 import { useAuthorProfile } from '../features/community/hooks/useAuthorProfile';
 import { usePostComments } from '../features/community/hooks/usePostComments';
+import { useReportDialog } from '../features/community/hooks/useReportDialog';
 import { logError } from '../utils/logger';
 import { timeAgo } from '../utils/time';
 import { NewsSidebar } from '../features/news/NewsSidebar';
@@ -55,13 +55,13 @@ const CommunityPostDetail = () => {
   const { followedPosts, toggleFollow: toggleFollowPost } = useFollowedPosts(user);
   const { authorProfile, setAuthorProfile, openProfile } = useAuthorProfile();
   const { comments, setComments, commentsLoading } = usePostComments(post);
+  const { reportDialog, setReportDialog, submitReport } = useReportDialog(user);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', content: '' });
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [reportDialog, setReportDialog] = useState(null);
   const [sidebarSearch, setSidebarSearch] = useState('');
 
   useEffect(() => {
@@ -196,28 +196,6 @@ const CommunityPostDetail = () => {
       ));
     } catch (err) {
       logError('Error deleting comment:', err);
-    }
-  };
-
-  const submitReport = async ({ reason, note }) => {
-    if (!user || !reportDialog) return;
-    if (!user.emailVerified) {
-      setError('verify your email before filing community reports.');
-      throw new Error('email not verified');
-    }
-    try {
-      await createCommunityReport({
-        postId: reportDialog.postId,
-        commentId: reportDialog.commentId ?? null,
-        reportedBy: user.uid,
-        reason,
-        note,
-        status: 'open',
-        createdAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      logError('Error filing report:', err);
-      throw err;
     }
   };
 

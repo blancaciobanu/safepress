@@ -11,8 +11,6 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
-  createCommunityPost,
-  createCommunityReport,
   deleteCommunityPostWithComments,
   getPostCommentCount,
   updateCommunityPostLike,
@@ -20,6 +18,8 @@ import {
 import { useCommunityPosts } from '../features/community/hooks/useCommunityPosts';
 import { useFollowedPosts } from '../features/community/hooks/useFollowedPosts';
 import { useAuthorProfile } from '../features/community/hooks/useAuthorProfile';
+import { useNewPost } from '../features/community/hooks/useNewPost';
+import { useReportDialog } from '../features/community/hooks/useReportDialog';
 import { logError } from '../utils/logger';
 import { timeAgo } from '../utils/time';
 import { NewsSidebar } from '../features/news/NewsSidebar';
@@ -54,22 +54,21 @@ const Community = () => {
   const { posts, setPosts, loading } = useCommunityPosts();
   const { followedPosts, toggleFollow } = useFollowedPosts(user);
   const { authorProfile, setAuthorProfile, openProfile } = useAuthorProfile();
+  const { reportDialog, setReportDialog, submitReport } = useReportDialog(user);
   const [activeTab, setActiveTab] = useState('discussions');
   const [activeCategory, setActiveCategory] = useState('all');
-  const [showNewPost, setShowNewPost] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
-  const [questionForm, setQuestionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState('newest');
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [reportDialog, setReportDialog] = useState(null);
 
   const isQA = activeTab === 'qa';
   const currentTabType = isQA ? 'question' : 'discussion';
-  const newPost = isQA ? questionForm : discussionForm;
-  const setNewPost = isQA ? setQuestionForm : setDiscussionForm;
+  const {
+    newPost, setNewPost,
+    showNewPost, openNewPost, closeNewPost,
+    submitting, error,
+    handleCreatePost,
+  } = useNewPost(user, currentTabType, setPosts);
 
   const filteredPosts = (() => {
     const base = posts.filter(post => {
@@ -90,48 +89,6 @@ const Community = () => {
     }
     return base;
   })();
-
-  const handleCreatePost = async (e) => {
-    e.preventDefault();
-    if (!user || !newPost.title.trim() || !newPost.content.trim()) return;
-    if (!user.emailVerified) {
-      setError('verify your email before posting in the community.');
-      return;
-    }
-    setSubmitting(true);
-    setError('');
-    try {
-      const anon = newPost.isAnonymous && !isQA;
-      const authorVerificationStatus = user.accountType === 'specialist'
-        ? (user.verificationStatus || 'pending')
-        : null;
-      const postData = {
-        type: currentTabType,
-        title: newPost.title.trim(),
-        content: newPost.content.trim(),
-        authorId: user.uid,
-        authorName: anon ? 'anonymous' : (user.username || 'anonymous'),
-        authorIcon: anon ? '🕶️' : (user.avatarIcon || '🔒'),
-        authorType: user.accountType || 'journalist',
-        isVerified: user.verificationStatus === 'approved',
-        authorVerificationStatus,
-        isAnonymous: anon,
-        category: newPost.category,
-        createdAt: new Date().toISOString(),
-        likes: 0,
-        likedBy: [],
-        resolved: false,
-      };
-      const createdPost = await createCommunityPost(postData);
-      setPosts(prev => [createdPost, ...prev]);
-      setNewPost({ title: '', content: '', category: 'general', isAnonymous: false });
-      setShowNewPost(false);
-    } catch (err) {
-      logError('Error creating post:', err);
-      setError('failed to create post.');
-    }
-    setSubmitting(false);
-  };
 
   const handleLike = async (e, postId) => {
     e.stopPropagation();
@@ -158,29 +115,6 @@ const Community = () => {
       setPosts(prev => prev.filter(p => p.id !== postId));
     } catch (err) {
       logError('Error deleting post:', err);
-      setError('failed to delete — check your permissions.');
-    }
-  };
-
-  const submitReport = async ({ reason, note }) => {
-    if (!user || !reportDialog) return;
-    if (!user.emailVerified) {
-      setError('verify your email before filing community reports.');
-      throw new Error('email not verified');
-    }
-    try {
-      await createCommunityReport({
-        postId: reportDialog.postId,
-        commentId: reportDialog.commentId ?? null,
-        reportedBy: user.uid,
-        reason,
-        note,
-        status: 'open',
-        createdAt: new Date().toISOString(),
-      });
-    } catch (err) {
-      logError('Error filing report:', err);
-      throw err;
     }
   };
 
@@ -218,7 +152,7 @@ const Community = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); setShowNewPost(false); setSearchQuery(''); setSortMode('newest'); }}
+                  onClick={() => { setActiveTab(tab.id); setActiveCategory('all'); closeNewPost(); setSearchQuery(''); setSortMode('newest'); }}
                   className={`relative px-4 py-3 font-mono uppercase text-[11px] tracking-[0.16em] transition-colors mr-1 ${i === 0 ? 'pl-0' : ''} ${active ? 'text-ink' : 'text-smoke hover:text-ink-soft'}`}
                 >
                   {tab.label}
@@ -251,7 +185,7 @@ const Community = () => {
             <button
               onClick={() => {
                 if (!user) { navigate('/login'); return; }
-                setShowNewPost(true);
+                openNewPost();
               }}
               className="flex items-center gap-1.5 px-4 py-2 bg-ink hover:bg-ink-soft text-paper rounded-lg text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
             >
@@ -324,7 +258,7 @@ const Community = () => {
                   <h3 className="text-[10px] font-bold tracking-widest uppercase text-smoke">
                     {isQA ? 'ask a question' : 'new discussion'}
                   </h3>
-                  <button type="button" onClick={() => { setShowNewPost(false); setError(''); }}
+                  <button type="button" onClick={closeNewPost}
                     className="text-smoke-dim hover:text-ink transition-colors">
                     <X className="w-4 h-4" />
                   </button>
@@ -375,7 +309,7 @@ const Community = () => {
                   )}
 
                   <div className="flex-1" />
-                  <button type="button" onClick={() => { setShowNewPost(false); setError(''); }}
+                  <button type="button" onClick={closeNewPost}
                     className="px-4 py-2 text-smoke hover:text-ink text-xs font-semibold tracking-wide uppercase transition-colors">
                     cancel
                   </button>
