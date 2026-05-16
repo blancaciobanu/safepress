@@ -7,22 +7,19 @@ import {
   Trash2, Flag, Users,
   Clock, ArrowUp, EyeOff,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import { getPublicProfile } from '../features/users/services/userService';
 import {
   createCommunityPost,
   createCommunityReport,
   deleteCommunityPostWithComments,
-  getAuthorProfile,
   getPostCommentCount,
-  listCommunityPosts,
   updateCommunityPostLike,
 } from '../features/community/services/communityService';
-import { COLLECTIONS } from '../config/firebaseCollections';
+import { useCommunityPosts } from '../features/community/hooks/useCommunityPosts';
+import { useFollowedPosts } from '../features/community/hooks/useFollowedPosts';
+import { useAuthorProfile } from '../features/community/hooks/useAuthorProfile';
 import { logError } from '../utils/logger';
 import { timeAgo } from '../utils/time';
 import { NewsSidebar } from '../features/news/NewsSidebar';
@@ -54,44 +51,25 @@ const categories = [
 const Community = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { posts, setPosts, loading } = useCommunityPosts();
+  const { followedPosts, toggleFollow } = useFollowedPosts(user);
+  const { authorProfile, setAuthorProfile, openProfile } = useAuthorProfile();
   const [activeTab, setActiveTab] = useState('discussions');
   const [activeCategory, setActiveCategory] = useState('all');
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showNewPost, setShowNewPost] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
   const [questionForm, setQuestionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
   const [searchQuery, setSearchQuery] = useState('');
-  const [followedPosts, setFollowedPosts] = useState(new Set());
-  const [authorProfile, setAuthorProfile] = useState(null);
   const [sortMode, setSortMode] = useState('newest');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [reportDialog, setReportDialog] = useState(null);
-
-  useEffect(() => {
-    setFollowedPosts(new Set(user?.followedPosts || []));
-  }, [user?.followedPosts, user?.uid]);
 
   const isQA = activeTab === 'qa';
   const currentTabType = isQA ? 'question' : 'discussion';
   const newPost = isQA ? questionForm : discussionForm;
   const setNewPost = isQA ? setQuestionForm : setDiscussionForm;
-
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      try {
-        const fetchedPosts = await listCommunityPosts();
-        setPosts(fetchedPosts);
-      } catch (err) {
-        logError('Error fetching posts:', err);
-      }
-      setLoading(false);
-    };
-    fetchPosts();
-  }, []);
 
   const filteredPosts = (() => {
     const base = posts.filter(post => {
@@ -174,29 +152,6 @@ const Community = () => {
     }
   };
 
-  const toggleFollow = async (e, postId) => {
-    e.stopPropagation();
-    if (!user) { navigate('/login'); return; }
-    const isFollowing = followedPosts.has(postId);
-    setFollowedPosts(prev => {
-      const next = new Set(prev);
-      if (isFollowing) next.delete(postId); else next.add(postId);
-      return next;
-    });
-    try {
-      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), {
-        followedPosts: isFollowing ? arrayRemove(postId) : arrayUnion(postId),
-      });
-    } catch (err) {
-      logError('Error toggling follow:', err);
-      setFollowedPosts(prev => {
-        const next = new Set(prev);
-        if (isFollowing) next.add(postId); else next.delete(postId);
-        return next;
-      });
-    }
-  };
-
   const handleDeletePost = async (postId) => {
     try {
       await deleteCommunityPostWithComments(postId);
@@ -226,18 +181,6 @@ const Community = () => {
     } catch (err) {
       logError('Error filing report:', err);
       throw err;
-    }
-  };
-
-  const openProfile = async (uid, type = 'journalist') => {
-    if (!uid) return;
-    setAuthorProfile({ uid, loading: true, type });
-    try {
-      const profile = await getAuthorProfile(uid, getPublicProfile, type);
-      setAuthorProfile(profile ? { ...profile, loading: false } : null);
-    } catch (err) {
-      logError('Error loading profile:', err);
-      setAuthorProfile(null);
     }
   };
 

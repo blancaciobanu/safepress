@@ -6,23 +6,20 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
-import { getPublicProfile } from '../features/users/services/userService';
 import {
   addCommunityComment,
   createCommunityReport,
   deleteCommunityPostWithComments,
-  getAuthorProfile,
   getCommunityPost,
   getPostCommentCount,
-  listCommunityComments,
   softDeleteCommunityComment,
   updateCommunityPost,
   updateCommunityPostLike,
 } from '../features/community/services/communityService';
-import { COLLECTIONS } from '../config/firebaseCollections';
+import { useFollowedPosts } from '../features/community/hooks/useFollowedPosts';
+import { useAuthorProfile } from '../features/community/hooks/useAuthorProfile';
+import { usePostComments } from '../features/community/hooks/usePostComments';
 import { logError } from '../utils/logger';
 import { timeAgo } from '../utils/time';
 import { NewsSidebar } from '../features/news/NewsSidebar';
@@ -55,22 +52,17 @@ const CommunityPostDetail = () => {
 
   const [post, setPost] = useState(null);
   const [pageLoading, setPageLoading] = useState(true);
-  const [comments, setComments] = useState([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
+  const { followedPosts, toggleFollow: toggleFollowPost } = useFollowedPosts(user);
+  const { authorProfile, setAuthorProfile, openProfile } = useAuthorProfile();
+  const { comments, setComments, commentsLoading } = usePostComments(post);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', content: '' });
-  const [followedPosts, setFollowedPosts] = useState(new Set());
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [reportDialog, setReportDialog] = useState(null);
-  const [authorProfile, setAuthorProfile] = useState(null);
   const [sidebarSearch, setSidebarSearch] = useState('');
-
-  useEffect(() => {
-    setFollowedPosts(new Set(user?.followedPosts || []));
-  }, [user?.followedPosts, user?.uid]);
 
   useEffect(() => {
     if (!postId) return;
@@ -88,23 +80,6 @@ const CommunityPostDetail = () => {
     fetchPost();
   }, [postId]);
 
-  useEffect(() => {
-    if (!post?.id) { setComments([]); return; }
-    const fetchComments = async () => {
-      setCommentsLoading(true);
-      try {
-        const fetched = await listCommunityComments(post.id, post.comments || []);
-        setComments(fetched);
-      } catch (err) {
-        logError('Error fetching comments:', err);
-        setComments(post.comments || []);
-      } finally {
-        setCommentsLoading(false);
-      }
-    };
-    fetchComments();
-  }, [post?.id, post?.comments]);
-
   const handleLike = async (e) => {
     e.stopPropagation();
     if (!user) { navigate('/login'); return; }
@@ -118,29 +93,6 @@ const CommunityPostDetail = () => {
       await updateCommunityPostLike({ postId: post.id, alreadyLiked, userId: user.uid });
     } catch (err) {
       logError('Error liking post:', err);
-    }
-  };
-
-  const toggleFollow = async (e) => {
-    e.stopPropagation();
-    if (!user) { navigate('/login'); return; }
-    const isFollowing = followedPosts.has(post.id);
-    setFollowedPosts((prev) => {
-      const next = new Set(prev);
-      if (isFollowing) next.delete(post.id); else next.add(post.id);
-      return next;
-    });
-    try {
-      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), {
-        followedPosts: isFollowing ? arrayRemove(post.id) : arrayUnion(post.id),
-      });
-    } catch (err) {
-      logError('Error toggling follow:', err);
-      setFollowedPosts((prev) => {
-        const next = new Set(prev);
-        if (isFollowing) next.add(post.id); else next.delete(post.id);
-        return next;
-      });
     }
   };
 
@@ -266,18 +218,6 @@ const CommunityPostDetail = () => {
     } catch (err) {
       logError('Error filing report:', err);
       throw err;
-    }
-  };
-
-  const openProfile = async (uid, type = 'journalist') => {
-    if (!uid) return;
-    setAuthorProfile({ uid, loading: true, type });
-    try {
-      const profile = await getAuthorProfile(uid, getPublicProfile, type);
-      setAuthorProfile(profile ? { ...profile, loading: false } : null);
-    } catch (err) {
-      logError('Error loading profile:', err);
-      setAuthorProfile(null);
     }
   };
 
@@ -482,7 +422,7 @@ const CommunityPostDetail = () => {
                     {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
                   </span>
                   <button
-                    onClick={toggleFollow}
+                    onClick={(e) => toggleFollowPost(e, post.id)}
                     className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${
                       followedPosts.has(post.id) ? 'text-brass' : 'text-smoke hover:text-brass'
                     }`}
