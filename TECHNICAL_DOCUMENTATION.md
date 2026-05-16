@@ -36,6 +36,13 @@
 - **Lucide React** - Icon library
 - **Tailwind CSS v4** - Utility-first styling with CSS-native `@theme`
 
+### AI
+- **@anthropic-ai/sdk** - Claude API integration (client-side, `dangerouslyAllowBrowser: true`)
+  - Model: `claude-haiku-4-5-20251001`
+  - Streaming via `client.messages.stream()` + `.on('text', handler)`
+  - API key: `VITE_ANTHROPIC_API_KEY` in `.env` (never commit this file)
+  - For production: move to a Firebase Cloud Function to avoid key exposure
+
 ### Backend & Services
 - **Firebase** - Backend-as-a-Service
   - **Firebase Authentication** - User management (email/password)
@@ -336,22 +343,48 @@ safepress/
 │   ├── features/
 │   │   ├── admin/
 │   │   │   └── services/
-│   │   │       └── adminService.js  # Reports + specialist verification Firestore logic
+│   │   │       └── adminService.js      # Reports + specialist verification Firestore logic
 │   │   ├── community/
+│   │   │   ├── components/             # AuthorLine, AuthorProfileModal, modals, UserAvatar
+│   │   │   ├── hooks/                  # useCommunityPosts, useFollowedPosts, useNewPost, etc.
 │   │   │   └── services/
-│   │   │       └── communityService.js # Posts, comments subcollection, reports
+│   │   │       └── communityService.js  # Posts, comments subcollection, reports
+│   │   ├── ai/
+│   │   │   └── services/
+│   │   │       └── aiService.js         # Anthropic client, system prompt builder, stream handler
+│   │   ├── dashboard/
+│   │   │   └── hooks/
+│   │   │       └── useDashboardData.js  # myRequests state, feedback, email verification handlers
+│   │   ├── home/
+│   │   │   ├── hooks/
+│   │   │   │   └── useHomeData.js      # Field signal + journalist/specialist data loading
+│   │   │   └── services/
+│   │   │       ├── homeService.js      # Firebase data fetching for Home page
+│   │   │       └── homePageModel.jsx   # Pure brief builders + instruments data (no Firebase)
+│   │   ├── news/
+│   │   │   ├── NewsSidebar.jsx         # External news sidebar component
+│   │   │   └── useNewsArticles.js      # News articles hook
+│   │   ├── notifications/
+│   │   │   ├── hooks/
+│   │   │   │   └── useNotifications.js # Notification count + panel state hook
+│   │   │   └── services/
+│   │   │       └── notificationService.js # Firestore notification queries
+│   │   ├── setup/
+│   │   │   └── data/
+│   │   │       └── setupTasks.js       # Static task data, allTasks, TASKS_BY_ID, DEFAULT_TASK_ORDER
 │   │   ├── support/
 │   │   │   └── services/
-│   │   │       └── supportService.js # Support request workflow Firestore logic
+│   │   │       └── supportService.js   # Support request workflow Firestore logic
 │   │   └── users/
 │   │       └── services/
-│   │           └── userService.js   # Private user + public profile helpers
+│   │           └── userService.js      # Private user + public profile helpers
 │   │
 │   ├── utils/
 │   │   └── userUtils.js             # Anonymous identity generation
 │   │
 │   ├── pages/
 │   │   ├── Home.jsx                 # Landing page
+│   │   ├── AIAdvisor.jsx            # AI Security Advisor (protected, /ai-advisor)
 │   │   ├── Dashboard.jsx            # User dashboard (score + setup at a glance)
 │   │   ├── SecurityScore.jsx        # Security quiz (31 questions, 6 categories)
 │   │   ├── CrisisMode.jsx           # Emergency guidance (4 scenarios)
@@ -1063,11 +1096,24 @@ export const generateUserIdentity = () => {
   - **Android** (7 steps): Device encryption, permissions, etc.
 
 **Features**:
-- Expandable accordion cards
+- Accordion rows — click any step to expand an animated OS UI mockup, click again to collapse
 - Color-coded OS badges
 - Exact menu paths for each step
-- Checklist format (future: track completion)
-- "Coming Soon" placeholders for AI Security & Tools tabs
+- `src/features/resources/OSMockup.jsx` — self-contained mockup component
+
+**OSMockup component** (`src/features/resources/OSMockup.jsx`):
+- Props: `{ osId: 'windows' | 'macos' | 'linux' | 'ios' | 'android', step: { title, details } }`
+- Parses `details` by splitting on `→` to extract the navigation path
+- Renders OS-appropriate chrome + content for each platform:
+  - **Windows 11**: Fluent sidebar + content panel, `#0078D4` accent, Segoe UI
+  - **macOS**: Traffic-light title bar + sidebar + main pane, `#007AFF` accent, -apple-system
+  - **Linux**: Terminal frame (dark bg, green/amber text), shows command being typed across 3 steps
+  - **iOS**: Grouped table view with status bar + nav bar, `#007AFF` accent, -apple-system
+  - **Android**: Material top bar + list rows, `#1A73E8` accent, Roboto
+- Framer Motion animates through each nav segment (one per 1.2 s), holds on final state
+- Final step renders toggle (ON/OFF) or checkmark depending on action verb detection
+- PathProgress breadcrumb strip below frame shows visited vs upcoming segments
+- Replay button resets and re-runs the animation
 
 **Implementation**:
 ```javascript
