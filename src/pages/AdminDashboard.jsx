@@ -160,7 +160,7 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen pt-32 pb-20 px-4 flex items-center justify-center">
+      <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-12 h-12 text-midnight-400 mx-auto mb-4 animate-pulse" />
           <p className="text-gray-400 lowercase">loading admin dashboard...</p>
@@ -170,7 +170,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen pt-32 pb-20 px-4">
+    <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div

@@ -153,12 +153,13 @@
 }
 
 /* ─── Base ─────────────────────────────────────────────────────────────
-   Body remains dark for product surfaces still on the old system.
-   Marketing surfaces (Home, eventually About) override with paper.
+   The global default is editorial paper. Pages that want the legacy
+   dark surface opt out with bg-dark-900 (or surface-product-dark) on
+   their root element. No page should ever re-paint the paper bg.
 ─────────────────────────────────────────────────────────────────────── */
 body {
-  background-color: #0B0B11;
-  color: #EAE7E0;
+  background-color: var(--color-paper);
+  color: var(--color-ink-soft);
   font-family: 'Geist', system-ui, sans-serif;
   margin: 0;
   min-height: 100vh;
@@ -171,29 +172,41 @@ body {
 
 .text-white { color: #ffffff !important; }
 
-/* ─── Restrained background for product surfaces ────────────────────── */
+/* Subtle paper grain — fixed, paints every paper page automatically.
+   Hidden when a legacy dark surface is in front (z-index keeps it below). */
 body::before {
   content: '';
   position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.08'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Legacy dark surface — opt-in helper for pages still on the old system.
+   Apply as a class on the page's root <div>. */
+.surface-product-dark {
+  background-color: var(--color-dark-900);
+  color: #EAE7E0;
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+}
+
+.surface-product-dark::before {
+  content: '';
+  position: absolute;
   inset: 0;
   background:
     radial-gradient(ellipse 70% 40% at 50% -10%, rgba(201, 168, 76, 0.035), transparent),
     radial-gradient(ellipse 80% 50% at 50% 110%, rgba(107, 31, 31, 0.025), transparent);
   filter: blur(80px);
-  z-index: -2;
+  z-index: 0;
   pointer-events: none;
 }
 
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='3.8' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
-  opacity: 0.5;
-  z-index: -1;
-  pointer-events: none;
-  mix-blend-mode: overlay;
-}
+.surface-product-dark > * { position: relative; z-index: 1; }
 
 /* ─── Editorial surface — opt-in paper canvas (Home, About) ─────────── */
 .surface-paper {

@@ -729,7 +729,7 @@ const SecurityScore = () => {
     ];
 
     return (
-      <div className="min-h-screen pt-32 pb-20 px-4">
+      <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
         <div className="max-w-3xl mx-auto">
           {/* Header */}
           <motion.div
@@ -881,7 +881,7 @@ const SecurityScore = () => {
     const progress = ((currentQuestion + 1) / totalQuestions) * 100;
 
     return (
-      <div className="min-h-screen pt-32 pb-20 px-4">
+      <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
         <div className="max-w-3xl mx-auto">
           {/* Progress Bar */}
           <motion.div
@@ -997,7 +997,7 @@ const SecurityScore = () => {
     const riskLevel = calculateRiskLevel();
 
     return (
-      <div className="min-h-screen pt-32 pb-20 px-4">
+      <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Overall Score */}
           <motion.div

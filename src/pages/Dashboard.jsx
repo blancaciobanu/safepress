@@ -245,7 +245,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen pt-32 pb-20 px-4 flex items-center justify-center">
+      <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4 flex items-center justify-center">
         <div className="text-center">
           <div className="w-6 h-6 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600 text-[10px] tracking-widest uppercase">loading</p>
@@ -255,7 +255,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen pt-32 pb-20 px-4">
+    <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
       <div className="max-w-7xl mx-auto">
 
         {/* ── Greeting ── */}

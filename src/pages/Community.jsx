@@ -937,7 +937,7 @@ const Community = () => {
 
     return (
       <>
-      <div className="min-h-screen pt-32 pb-20 px-4">
+      <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
           <div className="min-w-0">
@@ -1298,7 +1298,7 @@ const Community = () => {
 
   // ── Main Feed View ────────────────────────────────────────────────
   return (
-    <div className="min-h-screen pt-32 pb-20 px-4">
+    <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 8 }}

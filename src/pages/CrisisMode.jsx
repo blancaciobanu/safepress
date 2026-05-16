@@ -299,7 +299,7 @@ const CrisisMode = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 px-4">
+    <div className="surface-product-dark min-h-screen pb-24 px-4">
       <div className="max-w-4xl mx-auto">
 
         <AnimatePresence mode="wait">

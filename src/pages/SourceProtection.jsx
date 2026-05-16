@@ -551,7 +551,7 @@ const SourceProtection = () => {
   const active = TABS.find(t => t.id === activeTab);
 
   return (
-    <div className="min-h-screen pt-32 pb-20 px-4">
+    <div className="surface-product-dark min-h-screen pt-32 pb-20 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <motion.div
