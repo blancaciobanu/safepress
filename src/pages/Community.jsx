@@ -574,13 +574,13 @@ const Community = () => {
 
       {/* ── Modals ─────────────────────────────────────────────────── */}
       <DeleteConfirmModal
-        isOpen={!!deleteTarget}
-        onConfirm={() => { handleDeletePost(deleteTarget); setDeleteTarget(null); }}
-        onCancel={() => setDeleteTarget(null)}
+        target={deleteTarget}
+        onConfirm={(t) => { handleDeletePost(t.id); setDeleteTarget(null); }}
+        onClose={() => setDeleteTarget(null)}
       />
       <ReportModal
-        isOpen={reportDialog.open}
-        onClose={() => setReportDialog({ open: false, postId: null })}
+        target={reportDialog}
+        onClose={() => setReportDialog(null)}
         onSubmit={submitReport}
       />
       {authorProfile && (
