@@ -1,10 +1,10 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import {
   Shield, CheckCircle2, XCircle, AlertTriangle,
   Lock, Smartphone, MessageSquare, Database, MapPin,
   ArrowRight, RotateCcw, Briefcase
 } from 'lucide-react';
-import { useState } from 'react';
+import { createElement, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
@@ -47,14 +47,7 @@ const Gauge = ({ value, size = 60 }) => {
   );
 };
 
-const SecurityScore = () => {
-  const { user } = useAuth();
-  const [view, setView] = useState('welcome');
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [saving, setSaving] = useState(false);
-
-  const questions = [
+const QUESTIONS = [
     { id: 'risk1', category: 'risk', categoryName: 'work context', icon: Briefcase, question: 'How would you describe the sensitivity of your current journalistic work?', options: [ { value: 'low', label: 'General news, entertainment, or lifestyle reporting', points: 10 }, { value: 'medium', label: 'Political, business, or social issues reporting', points: 7 }, { value: 'high', label: 'Investigative journalism or sensitive topics (corruption, whistleblowers)', points: 3 }, { value: 'critical', label: 'Conflict zones, hostile environments, or authoritarian regimes', points: 0 } ] },
     { id: 'risk2', category: 'risk', categoryName: 'work context', icon: Briefcase, question: 'Do you work with confidential sources who could face risks if their identity is revealed?', options: [ { value: 'no', label: 'No, my sources are public or low-risk', points: 10 }, { value: 'rarely', label: 'Rarely, only for specific stories', points: 7 }, { value: 'sometimes', label: 'Sometimes, for investigative work', points: 3 }, { value: 'frequently', label: 'Frequently, protecting sources is critical to my work', points: 0 } ] },
     { id: 'risk3', category: 'risk', categoryName: 'work context', icon: Briefcase, question: 'What is your geographic work environment?', options: [ { value: 'safe', label: 'Stable democracy with strong press freedom protections', points: 10 }, { value: 'moderate', label: 'Democracy with some press restrictions or surveillance concerns', points: 5 }, { value: 'restricted', label: 'Authoritarian regime or conflict zone with limited press freedom', points: 0 } ] },
@@ -86,7 +79,16 @@ const SecurityScore = () => {
     { id: 'physical3', category: 'physical', categoryName: 'physical security', icon: MapPin, question: 'Do you use privacy screens or screen protectors to prevent shoulder surfing?', options: [ { value: 'yes', label: 'Yes, on all devices used in public', points: 10 }, { value: 'sometimes', label: 'On some devices', points: 5 }, { value: 'no', label: "No, I don't use privacy screens", points: 0 } ] },
     { id: 'physical4', category: 'physical', categoryName: 'physical security', icon: MapPin, question: 'Do you cover webcams when not in use?', options: [ { value: 'yes', label: 'Yes, always covered or has physical shutter', points: 10 }, { value: 'sometimes', label: 'Sometimes, when I remember', points: 5 }, { value: 'no', label: 'No, never covered', points: 0 } ] },
     { id: 'physical5', category: 'physical', categoryName: 'physical security', icon: MapPin, question: 'Do you vary your routes and routines when working on sensitive stories?', options: [ { value: 'yes', label: 'Yes, I vary patterns and stay aware of surroundings', points: 10 }, { value: 'sometimes', label: 'Sometimes, for high-risk situations', points: 5 }, { value: 'no', label: 'No, I maintain regular patterns', points: 0 } ] },
-  ];
+];
+
+const SecurityScore = () => {
+  const { user } = useAuth();
+  const [view, setView] = useState('welcome');
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [saving, setSaving] = useState(false);
+  const questions = QUESTIONS;
+  const answeredCount = Object.keys(answers).length;
 
   const total = questions.length;
 
@@ -148,7 +150,7 @@ const SecurityScore = () => {
         riskLevel: calculateRiskLevel(),
         completedAt: new Date().toISOString(),
         totalQuestions: total,
-        answeredQuestions: Object.keys(answers).length,
+        answeredQuestions: answeredCount,
       };
       const ref = doc(db, COLLECTIONS.USERS, user.uid);
       const snap = await getDoc(ref);
@@ -179,7 +181,7 @@ const SecurityScore = () => {
     const lastDate = last ? new Date(last.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
     return (
       <NewsPage max="reading">
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+        <Motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
           <div className="flex items-baseline justify-between pb-3">
             <span className="eyebrow sm text-oxblood">Form SP-A — Security assessment</span>
             <span className="eyebrow sm">{last ? `Last filed · ${lastDate}` : '31 questions · 6 categories'}</span>
@@ -215,7 +217,7 @@ const SecurityScore = () => {
               { Icon: Briefcase, label: 'Work context' },
             ].map(({ Icon, label }, i) => (
               <div key={i} className="flex flex-col items-center gap-2 p-3 border border-ink/10 bg-paper-soft/50">
-                <Icon className="w-4 h-4 text-smoke" />
+                {createElement(Icon, { className: 'w-4 h-4 text-smoke' })}
                 <p className="eyebrow text-[9px] normal-case text-center text-smoke leading-tight">{label}</p>
               </div>
             ))}
@@ -227,7 +229,7 @@ const SecurityScore = () => {
               Begin assessment <ArrowRight className="w-4 h-4 ml-0.5" />
             </button>
           </div>
-        </motion.div>
+        </Motion.div>
       </NewsPage>
     );
   }
@@ -240,7 +242,7 @@ const SecurityScore = () => {
     const pct = Math.round((currentQuestion / total) * 100);
     return (
       <NewsPage max="form">
-        <motion.div
+        <Motion.div
           key={currentQuestion}
           initial={{ opacity: 0, x: 8 }}
           animate={{ opacity: 1, x: 0 }}
@@ -294,7 +296,7 @@ const SecurityScore = () => {
               <ArrowRight className="w-4 h-4 ml-0.5" />
             </button>
           </div>
-        </motion.div>
+        </Motion.div>
       </NewsPage>
     );
   }
@@ -306,12 +308,12 @@ const SecurityScore = () => {
   const { Icon: RiskIcon, label: riskLabel, tone: riskTone, note: riskNote } = riskInfo[risk] ?? riskInfo.medium;
   const recs      = getRecommendations();
   const today     = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const filingReference = `SP-A-${new Date().getFullYear()}-${String(score).padStart(3, '0')}-${String(answeredCount).padStart(2, '0')}`;
   const catOrder  = ['password', 'device', 'communication', 'data', 'physical'];
-  const catIcons  = { password: Lock, device: Smartphone, communication: MessageSquare, data: Database, physical: MapPin };
 
   return (
     <NewsPage>
-      <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+      <Motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
         {/* Form header */}
         <div className="flex items-baseline justify-between pb-3">
           <span className="eyebrow sm text-oxblood">Form SP-A — Security assessment</span>
@@ -323,8 +325,8 @@ const SecurityScore = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pb-6 border-b border-ink/12">
           {[
             { label: 'Respondent', value: user?.username || 'Anonymous', sub: user?.avatarIcon ?? '' },
-            { label: 'Questions answered', value: `${Object.keys(answers).length} of ${total}`, sub: null },
-            { label: 'Filing reference', value: `SP-A-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000) + 1000}`, sub: 'Form revision · v3.1' },
+            { label: 'Questions answered', value: `${answeredCount} of ${total}`, sub: null },
+            { label: 'Filing reference', value: filingReference, sub: 'Form revision · v3.1' },
           ].map(({ label, value, sub }) => (
             <div key={label}>
               <p className="eyebrow sm">{label}</p>
@@ -361,7 +363,6 @@ const SecurityScore = () => {
             {catOrder.map((k, i) => {
               const d = cats[k];
               if (!d) return null;
-              const Icon = catIcons[k];
               return (
                 <div key={k} className={`flex items-center gap-4 py-4 ${i < catOrder.length - 2 || (catOrder.length % 2 !== 0 && i === catOrder.length - 1) ? '' : ''} border-b border-ink/10`}>
                   <Gauge value={d.score} />
@@ -383,7 +384,7 @@ const SecurityScore = () => {
           <div className="mt-10">
             <p className="eyebrow sm pb-3 border-b border-ink/20">Priority actions</p>
             <div className="flex flex-col gap-0">
-              {recs.map(({ key, name, score: s, priority, icon: Icon, action, link }) => (
+              {recs.map(({ key, name, score: s, priority, action, link }) => (
                 <div key={key} className={`flex items-baseline gap-5 py-4 border-b border-ink/10 last:border-b-0`}>
                   <Gauge value={s} size={44} />
                   <div className="flex-1">
@@ -413,7 +414,7 @@ const SecurityScore = () => {
             </button>
           </div>
         </div>
-      </motion.div>
+      </Motion.div>
     </NewsPage>
   );
 };

@@ -1,17 +1,17 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence, Reorder } from 'framer-motion';
 import {
   Lock, Smartphone, Database, MessageSquare, MapPin,
-  Check, ExternalLink, AlertTriangle, ArrowRight,
+  Check, ExternalLink, AlertTriangle, ArrowRight, GripVertical,
 } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../config/firebaseCollections';
 import {
-  NewsButton,
   NewsNotice,
+  NewsPanel,
   NewsPage,
   NewsRule,
 } from '../components/editorial/NewsPage';
@@ -31,13 +31,6 @@ const CATEGORY_TONE = {
   data:          'var(--color-brass)',
   communication: 'var(--color-oxblood-soft)',
   physical:      'var(--color-smoke)',
-};
-
-const PRIORITY_BORDER = {
-  critical: 'border-l-oxblood',
-  high:     'border-l-brass',
-  medium:   'border-l-ink/30',
-  low:      'border-l-ink/15',
 };
 
 const DIFFICULTY_TONE = {
@@ -63,7 +56,7 @@ const ProgressRing = ({ progress, color, size = 44, strokeWidth = 2.5 }) => {
         cx={size / 2} cy={size / 2} r={r}
         fill="none" stroke="rgba(21,17,12,0.10)" strokeWidth={strokeWidth}
       />
-      <motion.circle
+      <Motion.circle
         cx={size / 2} cy={size / 2} r={r}
         fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round"
         style={{ strokeDasharray: c }}
@@ -401,6 +394,21 @@ const allTasks = Object.entries(setupTasks).flatMap(([key, cat]) =>
   cat.tasks.map(t => ({ ...t, categoryKey: key }))
 );
 
+const TASKS_BY_ID = Object.fromEntries(allTasks.map((task) => [task.id, task]));
+
+const DEFAULT_TASK_ORDER = [...allTasks]
+  .sort((a, b) => {
+    const priorityDelta = (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
+    if (priorityDelta !== 0) return priorityDelta;
+    return a.title.localeCompare(b.title);
+  })
+  .map((task) => task.id);
+
+const mergeOrderedSubset = (currentOrder, nextVisibleIds, visibleIds) => {
+  let cursor = 0;
+  return currentOrder.map((id) => (visibleIds.has(id) ? nextVisibleIds[cursor++] : id));
+};
+
 const deriveWeakCategories = (scores = []) => {
   if (!scores?.length) return [];
   const latest = scores[scores.length - 1];
@@ -417,32 +425,158 @@ const deriveWeakCategories = (scores = []) => {
     .map(([key]) => QUIZ_TO_SETUP[key]);
 };
 
+const CategoryTrayCard = ({ categoryKey, category, progress, done, active, flagged, onSelect }) => {
+  const Icon = category.icon;
+  const accent = CATEGORY_TONE[categoryKey];
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(active ? null : categoryKey)}
+      className={`workbench-category ${active ? 'is-active' : ''}`}
+      style={{ '--category-accent': accent }}
+    >
+      {flagged && <span className="workbench-category__flag" aria-hidden="true" />}
+      <div className="workbench-category__ring">
+        <ProgressRing progress={progress} color={accent} />
+        <div className="workbench-category__icon">
+          <Icon className="w-4 h-4" />
+        </div>
+      </div>
+      <div className="workbench-category__copy">
+        <span className="workbench-category__label">{category.name}</span>
+        <span className="workbench-category__meta">{done}/{category.tasks.length} complete</span>
+      </div>
+    </button>
+  );
+};
+
+const TaskCard = ({ task, done, selectedCategory, canToggle, onToggle }) => {
+  const category = setupTasks[task.categoryKey];
+  const priorityBorder = done
+    ? 'rgba(21, 17, 12, 0.12)'
+    : ({
+      critical: 'var(--color-oxblood)',
+      high: 'var(--color-brass)',
+      medium: 'rgba(21, 17, 12, 0.32)',
+      low: 'rgba(21, 17, 12, 0.18)',
+    }[task.priority] ?? 'rgba(21, 17, 12, 0.18)');
+
+  return (
+    <article
+      className={`workbench-task-card ${done ? 'is-done' : ''}`}
+      style={{ '--task-accent': priorityBorder }}
+    >
+      <div className="workbench-task-card__topline">
+        <span className="eyebrow sm">
+          {category.name} · {task.priority}
+        </span>
+        <GripVertical className="workbench-task-card__handle" aria-hidden="true" />
+      </div>
+
+      <div className="workbench-task-card__header">
+        <Motion.button
+          type="button"
+          onClick={() => onToggle(task.id)}
+          disabled={!canToggle}
+          whileTap={{ scale: 0.92 }}
+          className={`workbench-task-card__check ${!canToggle ? 'is-disabled' : ''} ${done ? 'is-checked' : ''}`}
+          aria-label={done ? 'Mark task incomplete' : 'Mark task complete'}
+        >
+          <AnimatePresence>
+            {done && (
+              <Motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                transition={{ duration: 0.18 }}
+              >
+                <Check className="w-3 h-3" />
+              </Motion.span>
+            )}
+          </AnimatePresence>
+        </Motion.button>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className={`workbench-task-card__title ${done ? 'is-done' : ''}`}>
+              {task.title}
+            </h3>
+            <span
+              className={`workbench-task-card__difficulty ${DIFFICULTY_TONE[task.difficulty] ?? 'text-smoke border-smoke/40'}`}
+            >
+              {task.difficulty}
+            </span>
+          </div>
+
+          <div className={`workbench-task-card__body ${done ? 'is-muted' : ''}`}>
+            <p>
+              <span>Why</span>
+              {task.why}
+            </p>
+            <p>
+              <span>How</span>
+              {task.how}
+            </p>
+          </div>
+
+          <div className="workbench-task-card__meta">
+            {!selectedCategory && (
+              <span
+                className="workbench-task-card__tag"
+                style={{
+                  color: CATEGORY_TONE[task.categoryKey],
+                  borderColor: `color-mix(in srgb, ${CATEGORY_TONE[task.categoryKey]} 35%, transparent)`,
+                }}
+              >
+                {category.name}
+              </span>
+            )}
+            {task.link && (
+              <Link to={task.link} className="workbench-link workbench-link--oxblood">
+                View tools <ExternalLink className="w-3 h-3" />
+              </Link>
+            )}
+            {task.categoryKey === 'communication' && (
+              <Link to="/source-protection" className="workbench-link workbench-link--brass">
+                Source playbook <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+};
+
 /* ─── Main ────────────────────────────────────────────────────────────── */
 
 const SecureSetup = () => {
-  const { user } = useAuth();
-  const [completedTasks,   setCompletedTasks]   = useState(() => new Set(user?.setupProgress?.completedTasks || []));
-  const [weakCategories,   setWeakCategories]   = useState(() => deriveWeakCategories(user?.securityScores));
-  const [loading,          setLoading]          = useState(!user);
+  const { user, loading } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [taskOrder,        setTaskOrder]        = useState(DEFAULT_TASK_ORDER);
+  const [completedDrafts,  setCompletedDrafts]  = useState({});
 
-  useEffect(() => {
-    if (!user) {
-      setCompletedTasks(new Set());
-      setWeakCategories([]);
-      setLoading(false);
-      return;
-    }
-    setCompletedTasks(new Set(user.setupProgress?.completedTasks || []));
-    setWeakCategories(deriveWeakCategories(user.securityScores));
-    setLoading(false);
-  }, [user]);
+  const currentUserKey = user?.uid ?? 'guest';
+  const persistedCompletedIds = useMemo(
+    () => user?.setupProgress?.completedTasks || [],
+    [user?.setupProgress?.completedTasks],
+  );
+  const weakCategories = useMemo(
+    () => deriveWeakCategories(user?.securityScores),
+    [user?.securityScores],
+  );
+
+  const completedTasks = useMemo(
+    () => new Set(completedDrafts[currentUserKey] ?? persistedCompletedIds),
+    [completedDrafts, currentUserKey, persistedCompletedIds],
+  );
 
   const toggleTask = async (taskId) => {
     if (!user) return;
     const next = new Set(completedTasks);
     next.has(taskId) ? next.delete(taskId) : next.add(taskId);
-    setCompletedTasks(next);
+    setCompletedDrafts((prev) => ({ ...prev, [user.uid]: Array.from(next) }));
     try {
       const ref = doc(db, COLLECTIONS.USERS, user.uid);
       await updateDoc(ref, {
@@ -468,17 +602,38 @@ const SecureSetup = () => {
     return Math.round(tasks.filter(t => completedTasks.has(t.id)).length / tasks.length * 100);
   };
 
-  const filteredTasks = useMemo(() => {
-    const base = selectedCategory
-      ? allTasks.filter(t => t.categoryKey === selectedCategory)
-      : [...allTasks];
-    return base.sort((a, b) => {
-      const ac = completedTasks.has(a.id) ? 1 : 0;
-      const bc = completedTasks.has(b.id) ? 1 : 0;
-      if (ac !== bc) return ac - bc;
-      return (PRIORITY_ORDER[a.priority] ?? 3) - (PRIORITY_ORDER[b.priority] ?? 3);
-    });
-  }, [selectedCategory, completedTasks]);
+  const orderedTasks = useMemo(
+    () => taskOrder.map((id) => TASKS_BY_ID[id]).filter(Boolean),
+    [taskOrder],
+  );
+
+  const visibleTasks = useMemo(
+    () => (
+      selectedCategory
+        ? orderedTasks.filter((task) => task.categoryKey === selectedCategory)
+        : orderedTasks
+    ),
+    [orderedTasks, selectedCategory],
+  );
+
+  const activeTasks = useMemo(
+    () => visibleTasks.filter((task) => !completedTasks.has(task.id)),
+    [visibleTasks, completedTasks],
+  );
+
+  const completedVisibleTasks = useMemo(
+    () => visibleTasks.filter((task) => completedTasks.has(task.id)),
+    [visibleTasks, completedTasks],
+  );
+
+  const weakFocus = weakCategories[0] ? setupTasks[weakCategories[0]] : null;
+  const selectedCategoryData = selectedCategory ? setupTasks[selectedCategory] : null;
+  const nextThreeTasks = activeTasks.slice(0, 3);
+
+  const handleReorder = (nextIds) => {
+    const visibleIds = new Set(activeTasks.map((task) => task.id));
+    setTaskOrder((currentOrder) => mergeOrderedSubset(currentOrder, nextIds, visibleIds));
+  };
 
   if (loading) {
     return (
@@ -489,9 +644,8 @@ const SecureSetup = () => {
   }
 
   return (
-    <NewsPage>
-      {/* Form masthead — typographic, no metal clip. */}
-      <motion.header
+    <NewsPage className="setup-workbench">
+      <Motion.header
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -502,53 +656,65 @@ const SecureSetup = () => {
         </div>
         <NewsRule />
 
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-[1.45fr_1fr] gap-x-10 gap-y-5 items-end pb-9 border-b border-ink/12">
+        <div className="workbench-hero">
           <div className="max-w-prose">
             <h1 className="display text-4xl md:text-6xl leading-none">
               Secure your setup<span className="italic-ox">.</span>
             </h1>
-            <p className="mt-5 text-base md:text-lg leading-relaxed text-ink-soft">
-              Work through each task to harden your digital security. Each item
-              is something you do; checked items stay on the page as a record
-              of the work.
+            <p className="workbench-lede">
+              Work through practical security tasks as if they were laid out on a real desk:
+              choose a tray, drag the active cards into the order that makes sense, and keep
+              completed work filed below.
             </p>
           </div>
-          <div className="md:text-right">
-            <p className="eyebrow sm">Progress</p>
-            <p className={`display num text-5xl md:text-6xl mt-2 leading-none ${level.tone}`}>
-              {overallPct}
-              <span className="text-2xl text-smoke">%</span>
-            </p>
-            <p className={`mt-2 font-mono text-[11px] uppercase tracking-[0.18em] ${level.tone}`}>
-              {level.label}
-            </p>
+
+          <div className="workbench-headcards">
+            <div className="workbench-headcard">
+              <p className="eyebrow sm text-oxblood">Progress</p>
+              <p className={`display num text-4xl mt-3 leading-none ${level.tone}`}>
+                {overallPct}
+                <span className="text-xl text-smoke">%</span>
+              </p>
+              <p className={`workbench-headcard__meta ${level.tone}`}>{level.label}</p>
+            </div>
+            <div className="workbench-headcard">
+              <p className="eyebrow sm">Open cards</p>
+              <p className="display-soft text-3xl mt-3 leading-none num text-ink">
+                {activeTasks.length}
+              </p>
+              <p className="workbench-headcard__meta">Ready to arrange on the bench</p>
+            </div>
+            <div className="workbench-headcard">
+              <p className="eyebrow sm">Weakest signal</p>
+              <p className="display-soft text-2xl mt-3 leading-tight text-ink">
+                {weakFocus ? weakFocus.name : 'Balanced'}
+              </p>
+              <p className="workbench-headcard__meta">
+                {weakFocus ? 'Start here first' : 'No low-scoring area flagged'}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Progress bar with milestone markers */}
-        <div className="mt-7 relative">
-          <div className="relative h-1 bg-ink/10">
-            <motion.div
+        <div className="workbench-meter">
+          <div className="workbench-meter__bar">
+              <Motion.div
               initial={{ width: 0 }}
               animate={{ width: `${overallPct}%` }}
               transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute inset-y-0 left-0 bg-ink"
+              className="workbench-meter__fill"
             />
-            {/* Tick marks every 10% */}
             {Array.from({ length: 11 }, (_, i) => (
               <span
                 key={i}
-                className="absolute -top-1 w-px h-3 bg-ink/30"
+                className="workbench-meter__tick"
                 style={{ left: `${i * 10}%` }}
               />
             ))}
-            {/* Milestone diamonds at 25/50/75 */}
-            {[25, 50, 75].map(m => (
+            {[25, 50, 75].map((m) => (
               <span
                 key={m}
-                className={`absolute top-1/2 w-1.5 h-1.5 ${
-                  overallPct >= m ? 'bg-oxblood' : 'bg-paper border border-ink/35'
-                }`}
+                className={`workbench-meter__marker ${overallPct >= m ? 'is-passed' : ''}`}
                 style={{
                   left: `${m}%`,
                   transform: 'translate(-50%, -50%) rotate(45deg)',
@@ -556,7 +722,7 @@ const SecureSetup = () => {
               />
             ))}
           </div>
-          <div className="flex justify-between mt-3 font-mono text-[9px] uppercase tracking-[0.15em] text-smoke">
+          <div className="workbench-meter__labels">
             <span>Getting started</span>
             <span>Building habits</span>
             <span>Security aware</span>
@@ -564,11 +730,10 @@ const SecureSetup = () => {
             <span>Hardened</span>
           </div>
         </div>
-      </motion.header>
+      </Motion.header>
 
-      {/* Weak categories — appears when quiz signals areas to focus on */}
       {user && weakCategories.length > 0 && (
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
@@ -601,186 +766,172 @@ const SecureSetup = () => {
               })}
             </div>
           </NewsNotice>
-        </motion.div>
+        </Motion.div>
       )}
 
-      {/* Category strip — circular gauges */}
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-10 grid grid-cols-3 md:grid-cols-5 gap-3"
+        className="workbench-tray"
       >
-        {Object.entries(setupTasks).map(([key, cat]) => {
-          const pct      = catPct(key);
-          const done     = cat.tasks.filter(t => completedTasks.has(t.id)).length;
-          const isActive = selectedCategory === key;
-          const isWeak   = weakCategories.includes(key);
-          const Icon     = cat.icon;
-          const tone     = CATEGORY_TONE[key];
-          return (
+        <div className="workbench-tray__header">
+          <div>
+            <p className="eyebrow sm text-oxblood">Task trays</p>
+            <h2 className="workbench-section-title">Choose a stack to work through.</h2>
+          </div>
+          {selectedCategory && (
             <button
-              key={key}
-              onClick={() => setSelectedCategory(isActive ? null : key)}
-              className={`relative p-4 border flex flex-col items-center gap-2.5 transition-colors ${
-                isActive
-                  ? 'bg-paper-soft border-ink'
-                  : 'bg-paper-soft/40 border-ink/15 hover:bg-paper-soft/80 hover:border-ink/30'
-              }`}
+              type="button"
+              onClick={() => setSelectedCategory(null)}
+              className="workbench-link workbench-link--oxblood"
             >
-              {isWeak && (
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-oxblood" />
-              )}
-              <div className="relative flex items-center justify-center">
-                <ProgressRing progress={pct} color={tone} />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Icon className="w-4 h-4" style={{ color: tone }} />
-                </div>
-              </div>
-              <p className="text-[11px] font-medium text-ink text-center leading-tight">
-                {cat.name}
-              </p>
-              <p className="font-mono text-[10px] tabular-nums text-smoke">
-                {done}/{cat.tasks.length}
-              </p>
+              Clear filter
             </button>
-          );
-        })}
-      </motion.div>
+          )}
+        </div>
 
-      {/* Filter + count strip */}
-      <div className="mt-9 mb-4 pb-2 flex items-baseline justify-between border-b border-ink/15">
-        <p className="eyebrow sm">
-          {selectedCategory
-            ? `${setupTasks[selectedCategory].name} — ${filteredTasks.length} tasks`
-            : `All tasks — ${filteredTasks.length} total`}
-        </p>
-        {selectedCategory && (
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className="font-mono text-[11px] uppercase tracking-[0.16em] text-oxblood hover:underline"
-          >
-            Clear filter
-          </button>
-        )}
-      </div>
+        <div className="workbench-category-grid">
+          {Object.entries(setupTasks).map(([key, cat]) => (
+            <CategoryTrayCard
+              key={key}
+              categoryKey={key}
+              category={cat}
+              progress={catPct(key)}
+              done={cat.tasks.filter((task) => completedTasks.has(task.id)).length}
+              active={selectedCategory === key}
+              flagged={weakCategories.includes(key)}
+              onSelect={setSelectedCategory}
+            />
+          ))}
+        </div>
+      </Motion.div>
 
-      {/* Task grid */}
-      <AnimatePresence mode="popLayout">
-        <motion.div
+      <AnimatePresence mode="wait">
+        <Motion.section
           key={selectedCategory ?? 'all'}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-3"
+          className="workbench-board"
         >
-          {filteredTasks.map((task) => {
-            const done = completedTasks.has(task.id);
-            const priorityBorder = done
-              ? 'border-l-ink/10'
-              : (PRIORITY_BORDER[task.priority] ?? 'border-l-ink/15');
-            return (
-              <article
-                key={task.id}
-                className={`p-4 bg-paper-soft border border-ink/10 border-l-2 ${priorityBorder} transition-colors`}
-              >
-                <div className="flex items-start gap-3">
-                  {/* Square ink checkbox */}
-                  <motion.button
-                    onClick={() => toggleTask(task.id)}
-                    disabled={!user}
-                    whileTap={{ scale: 0.9 }}
-                    className={`flex-shrink-0 w-5 h-5 mt-0.5 inline-flex items-center justify-center transition-colors ${
-                      done
-                        ? 'bg-ink text-paper border border-ink'
-                        : 'border-[1.5px] border-ink/35 hover:border-ink'
-                    } ${!user ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                    aria-label={done ? 'Mark task incomplete' : 'Mark task complete'}
-                  >
-                    <AnimatePresence>
-                      {done && (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          exit={{ scale: 0 }}
-                          transition={{ duration: 0.18 }}
-                        >
-                          <Check className="w-3 h-3" />
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </motion.button>
+          <div className="workbench-board__heading">
+            <div>
+              <p className="eyebrow sm">
+                {selectedCategoryData
+                  ? `${selectedCategoryData.name} · ${visibleTasks.length} tasks`
+                  : `Open board · ${visibleTasks.length} tasks`}
+              </p>
+              <h2 className="workbench-section-title">
+                {selectedCategoryData
+                  ? `Arrange your ${selectedCategoryData.name.toLowerCase()} checklist.`
+                  : 'Arrange the next tasks on your desk.'}
+              </h2>
+            </div>
+            <p className="workbench-drag-note">Drag active cards to reorder your bench.</p>
+          </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <h4
-                        className={`text-sm font-medium leading-snug ${
-                          done
-                            ? 'line-through text-smoke decoration-oxblood decoration-[1.5px]'
-                            : 'text-ink'
-                        }`}
-                      >
-                        {task.title}
-                      </h4>
-                      <span
-                        className={`font-mono text-[9px] uppercase tracking-[0.14em] px-1.5 py-0.5 border ${DIFFICULTY_TONE[task.difficulty] ?? 'text-smoke border-smoke/40'}`}
-                      >
-                        {task.difficulty}
-                      </span>
-                    </div>
+          <div className="workbench-board__layout">
+            <div>
+              <div className="workbench-stack-head">
+                <span className="eyebrow sm text-oxblood">Active</span>
+                <span className="eyebrow sm">{activeTasks.length} open</span>
+              </div>
 
-                    <div className={done ? 'opacity-55' : ''}>
-                      <p className="text-xs text-smoke leading-relaxed mt-1">
-                        <span className="text-ink-soft font-medium">Why:</span>{' '}
-                        {task.why}
-                      </p>
-                      <p className="text-xs text-smoke leading-relaxed mt-1">
-                        <span className="text-ink-soft font-medium">How:</span>{' '}
-                        {task.how}
-                      </p>
-                    </div>
+              {activeTasks.length > 0 ? (
+                <Reorder.Group
+                  axis="y"
+                  values={activeTasks.map((task) => task.id)}
+                  onReorder={handleReorder}
+                  className="workbench-task-list"
+                >
+                  {activeTasks.map((task) => (
+                    <Reorder.Item
+                      key={task.id}
+                      value={task.id}
+                      className="list-none"
+                    >
+                      <TaskCard
+                        task={task}
+                        done={false}
+                        selectedCategory={selectedCategory}
+                        canToggle={Boolean(user)}
+                        onToggle={toggleTask}
+                      />
+                    </Reorder.Item>
+                  ))}
+                </Reorder.Group>
+              ) : (
+                <NewsNotice tone="info" icon={Check}>
+                  <p className="eyebrow sm text-ink">Bench cleared</p>
+                  <p className="mt-2 text-sm text-ink-soft">
+                    Everything in this tray is already checked off. Pick another category
+                    or reopen a task if you want it back on the bench.
+                  </p>
+                </NewsNotice>
+              )}
+            </div>
 
-                    <div className="flex items-center flex-wrap gap-x-4 gap-y-1.5 mt-3">
-                      {!selectedCategory && (
-                        <span
-                          className="font-mono text-[9px] uppercase tracking-[0.16em] px-1.5 py-0.5 border"
-                          style={{
-                            color: CATEGORY_TONE[task.categoryKey],
-                            borderColor: `color-mix(in srgb, ${CATEGORY_TONE[task.categoryKey]} 35%, transparent)`,
-                          }}
-                        >
-                          {setupTasks[task.categoryKey].name}
-                        </span>
-                      )}
-                      {task.link && (
-                        <Link
-                          to={task.link}
-                          className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.16em] text-oxblood hover:underline"
-                        >
-                          View tools <ExternalLink className="w-3 h-3" />
-                        </Link>
-                      )}
-                      {task.categoryKey === 'communication' && (
-                        <Link
-                          to="/source-protection"
-                          className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.16em] text-brass hover:underline"
-                        >
-                          Source playbook <ArrowRight className="w-3 h-3" />
-                        </Link>
-                      )}
-                    </div>
-                  </div>
+            <div className="space-y-4">
+              <NewsPanel className="workbench-sidecard">
+                <p className="eyebrow sm text-oxblood">On deck</p>
+                <ul className="workbench-sidecard__list">
+                  {nextThreeTasks.length > 0 ? nextThreeTasks.map((task, index) => (
+                    <li key={task.id}>
+                      <span>{String(index + 1).padStart(2, '0')}</span>
+                      <p>{task.title}</p>
+                    </li>
+                  )) : (
+                    <li className="is-empty">
+                      <p>No open tasks in this tray.</p>
+                    </li>
+                  )}
+                </ul>
+              </NewsPanel>
+
+              <NewsPanel muted className="workbench-sidecard">
+                <p className="eyebrow sm">Reference links</p>
+                <div className="workbench-reference-links">
+                  <Link to="/resources" className="workbench-link workbench-link--ink">
+                    Resource notebook <ExternalLink className="w-3 h-3" />
+                  </Link>
+                  <Link to="/source-protection" className="workbench-link workbench-link--brass">
+                    Field manual <ArrowRight className="w-3 h-3" />
+                  </Link>
+                  <Link to="/security-score" className="workbench-link workbench-link--oxblood">
+                    Re-take assessment <ArrowRight className="w-3 h-3" />
+                  </Link>
                 </div>
-              </article>
-            );
-          })}
-        </motion.div>
+              </NewsPanel>
+            </div>
+          </div>
+
+          {completedVisibleTasks.length > 0 && (
+            <div className="workbench-complete">
+              <div className="workbench-stack-head">
+                <span className="eyebrow sm">Filed</span>
+                <span className="eyebrow sm">{completedVisibleTasks.length} checked off</span>
+              </div>
+              <div className="workbench-complete__grid">
+                {completedVisibleTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    done
+                    selectedCategory={selectedCategory}
+                    canToggle={Boolean(user)}
+                    onToggle={toggleTask}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </Motion.section>
       </AnimatePresence>
 
-      {/* Signed-out CTA */}
       {!user && (
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
@@ -797,26 +948,22 @@ const SecureSetup = () => {
               </p>
               <Link
                 to="/signup"
-                className="inline-flex items-center gap-2 mt-4 font-mono text-[11px] uppercase tracking-[0.18em] px-3.5 py-2 border border-ink text-ink hover:bg-ink hover:text-paper transition-colors"
+                className="btn mono mt-4"
               >
                 Create free account <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </NewsNotice>
-        </motion.div>
+        </Motion.div>
       )}
 
-      {/* Footer rule */}
       <div className="mt-12 pt-4 border-t border-ink/22 flex items-baseline justify-between">
         <span className="eyebrow sm">
           Workbench · {completedCount === totalTasks ? 'Complete' : 'In progress'}
         </span>
         {completedCount < totalTasks && (
-          <Link
-            to="/security-score"
-            className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink hover:text-oxblood transition-colors"
-          >
-            Re-take the score →
+          <Link to="/security-score" className="workbench-link workbench-link--ink">
+            Re-take the score <ArrowRight className="w-3 h-3" />
           </Link>
         )}
       </div>

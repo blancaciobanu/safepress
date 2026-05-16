@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+
 const cx = (...classes) => classes.filter(Boolean).join(' ');
 
 export const NewsPage = ({ children, max = 'wide', className = '' }) => {
@@ -98,6 +100,36 @@ export const NewsCard = ({ children, className = '', accent }) => (
   </article>
 );
 
+export const NewsPanel = ({ as = 'div', children, muted = false, className = '', ...rest }) => (
+  createElement(as, { className: cx('news-panel', muted && 'news-panel--muted', className), ...rest }, children)
+);
+
+export const NewsModalCard = ({ as = 'div', children, className = '', borderColor, style, ...rest }) => (
+  createElement(
+    as,
+    {
+      className: cx('news-modal-card', className),
+      style: borderColor ? { ...style, '--modal-border': borderColor } : style,
+      ...rest,
+    },
+    children,
+  )
+);
+
+export const NewsInput = ({ className = '', ...rest }) => (
+  <input className={cx('news-input', className)} {...rest} />
+);
+
+export const NewsTextarea = ({ className = '', ...rest }) => (
+  <textarea className={cx('news-textarea', className)} {...rest} />
+);
+
+export const NewsSelect = ({ className = '', children, ...rest }) => (
+  <select className={cx('news-select', className)} {...rest}>
+    {children}
+  </select>
+);
+
 /* ─── Editorial primitives shared across newsroom-object pages ────────
    These wrap the canonical classes in src/index.css. Use them so per-page
    files stay short and the editorial vocabulary stays consistent. */
@@ -107,9 +139,9 @@ export const NewsCard = ({ children, className = '', accent }) => (
 export const NewsRule = ({ tone = 'ink', className = '' }) => {
   const color = tone === 'oxblood' ? 'var(--color-oxblood)' : 'var(--color-ink)';
   return (
-    <div className={cx('news-rule-pair', className)} aria-hidden="true">
-      <hr style={{ border: 'none', borderTop: `3px solid ${color}`, margin: 0 }} />
-      <hr style={{ border: 'none', borderTop: `1px solid ${color}`, marginTop: 3 }} />
+    <div className={cx('news-rule-pair', className)} style={{ '--rule-color': color }} aria-hidden="true">
+      <hr />
+      <hr />
     </div>
   );
 };

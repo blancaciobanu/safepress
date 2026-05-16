@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   Menu, X, LogOut, AlertCircle, ShieldCheck, ArrowRight,
   Bell, Settings, ChevronDown,
@@ -21,8 +21,7 @@ const NOTIF_COUNT_CACHE_PREFIX = 'notif-count:';
 
 /* Paths where the page below the header is on the editorial paper system.
    Add a path here when you migrate that page off the legacy dark surfaces.
-   Remaining legacy pages: /source-protection, /security-score, /secure-setup,
-   /community, /request-support, /specialist-dashboard, /admin, /dashboard. */
+   Remaining legacy pages: /dashboard and any route not listed below. */
 const PAPER_SURFACE_PATHS = new Set([
   '/',
   '/resources',
@@ -308,7 +307,7 @@ const Header = () => {
     <div className="fixed top-0 left-0 right-0 z-50">
 
       {/* ── Header bar ─────────────────────────────────────────────────── */}
-      <motion.header
+      <Motion.header
         initial={{ y: -32, opacity: 0 }}
         animate={{ y: 0,    opacity: 1 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
@@ -340,7 +339,7 @@ const Header = () => {
                       {item.name}
                     </span>
                     {isActive(item.path) && (
-                      <motion.div
+                      <Motion.div
                         layoutId="nav-rule"
                         className="absolute bottom-3 left-0 right-0 h-px"
                         style={{ background: t.navRule }}
@@ -380,7 +379,7 @@ const Header = () => {
 
                       <AnimatePresence>
                         {notifOpen && (
-                          <motion.div
+                          <Motion.div
                             initial={{ opacity: 0, y: -6 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{    opacity: 0, y: -6 }}
@@ -416,7 +415,7 @@ const Header = () => {
                                 ))}
                               </div>
                             )}
-                          </motion.div>
+                          </Motion.div>
                         )}
                       </AnimatePresence>
                     </div>
@@ -437,7 +436,7 @@ const Header = () => {
 
                       <AnimatePresence>
                         {userMenuOpen && (
-                          <motion.div
+                          <Motion.div
                             initial={{ opacity: 0, y: -6 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{    opacity: 0, y: -6 }}
@@ -467,7 +466,7 @@ const Header = () => {
                               <LogOut className="w-3.5 h-3.5" />
                               Log out
                             </button>
-                          </motion.div>
+                          </Motion.div>
                         )}
                       </AnimatePresence>
                     </div>
@@ -504,7 +503,7 @@ const Header = () => {
           {/* Mobile nav */}
           <AnimatePresence>
             {mobileMenuOpen && (
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{    opacity: 0, height: 0 }}
@@ -525,16 +524,16 @@ const Header = () => {
                     </Link>
                   ))}
                 </div>
-              </motion.div>
+              </Motion.div>
             )}
           </AnimatePresence>
         </div>
-      </motion.header>
+      </Motion.header>
 
       {/* ── Crisis banner ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {isInCrisis && (
-          <motion.div
+          <Motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{    height: 0, opacity: 0 }}
@@ -569,7 +568,7 @@ const Header = () => {
                 </button>
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
 

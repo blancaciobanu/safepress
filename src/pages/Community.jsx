@@ -3,8 +3,8 @@ import {
   Users, MessageSquare, HelpCircle, Heart, Send,
   Plus, ArrowLeft, CheckCircle2, X, Search,
   Shield, Smartphone, Lock, Radio, Scale,
-  Newspaper, ExternalLink, AlertTriangle, Bookmark, BookmarkCheck,
-  Pencil, Pen, Star, BadgeCheck, Trash2, Flag, MoreHorizontal,
+  AlertTriangle, Bookmark, BookmarkCheck,
+  Pencil, Pen, Star, BadgeCheck, Trash2, Flag,
   Clock, ArrowUp, EyeOff
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   collection, getDocs, doc, updateDoc,
-  arrayUnion, arrayRemove, increment, query, where
+  arrayUnion, arrayRemove, query, where
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -30,9 +30,18 @@ import {
   updateCommunityPost,
 } from '../features/community/services/communityService';
 import { COLLECTIONS } from '../config/firebaseCollections';
-import { COMMUNITY_NEWS_FEEDS } from '../config/externalResources';
 import { logError } from '../utils/logger';
-import { NewsPage } from '../components/editorial/NewsPage';
+import { timeAgo } from '../utils/time';
+import { NewsSidebar } from '../features/news/NewsSidebar';
+import {
+  NewsInput,
+  NewsModalCard,
+  NewsPage,
+  NewsPanel,
+  NewsRule,
+  NewsSelect,
+  NewsTextarea,
+} from '../components/editorial/NewsPage';
 
 const categories = [
   { id: 'all', name: 'all' },
@@ -104,7 +113,7 @@ const resolveAuthor = (item) => {
   };
 };
 
-const AuthorLine = ({ item, size = 'xs', onOpenProfile, className = '' }) => {
+const AuthorLine = ({ item, onOpenProfile, className = '' }) => {
   const a = resolveAuthor(item);
   const clickable = a.clickable && onOpenProfile && !a.anonymous;
   const Inner = (
@@ -149,8 +158,6 @@ const Community = () => {
   const [error, setError] = useState('');
   const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
   const [questionForm, setQuestionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
-  const [newsArticles, setNewsArticles] = useState([]);
-  const [newsLoading, setNewsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [followedPosts, setFollowedPosts] = useState(new Set());
@@ -169,7 +176,7 @@ const Community = () => {
 
   useEffect(() => {
     setFollowedPosts(new Set(user?.followedPosts || []));
-  }, [user?.uid]);
+  }, [user?.followedPosts, user?.uid]);
 
   const isQA = activeTab === 'qa';
   const currentTabType = isQA ? 'question' : 'discussion';
@@ -208,31 +215,7 @@ const Community = () => {
       }
     };
     fetchSelectedComments();
-  }, [selectedPost?.id]);
-
-  useEffect(() => {
-    const fetchNews = async () => {
-      setNewsLoading(true);
-      try {
-        const results = await Promise.allSettled(COMMUNITY_NEWS_FEEDS.map(({ url }) => fetch(url).then(r => r.json())));
-        const articles = results
-          .filter(r => r.status === 'fulfilled' && r.value.status === 'ok')
-          .flatMap(r => r.value.items.map(item => ({
-            title: item.title,
-            link: item.link,
-            pubDate: item.pubDate,
-            source: r.value.feed?.title || 'Security Feed',
-          })))
-          .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-          .slice(0, 8);
-        setNewsArticles(articles);
-      } catch (err) {
-        logError('Error fetching news:', err);
-      }
-      setNewsLoading(false);
-    };
-    fetchNews();
-  }, []);
+  }, [selectedPost?.comments, selectedPost?.id]);
 
   const filteredPosts = (() => {
     const base = posts.filter(post => {
@@ -535,84 +518,6 @@ const Community = () => {
     }
   };
 
-  const timeAgo = (dateString) => {
-    const seconds = Math.floor((new Date() - new Date(dateString)) / 1000);
-    if (seconds < 60) return 'just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}d ago`;
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // ── News Sidebar Component ────────────────────────────────────────
-  const NewsSidebar = () => (
-    <motion.aside
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="lg:sticky lg:top-32"
-    >
-      <div className="border border-ink/10 rounded-2xl p-5 bg-paper-soft/40">
-        <div className="flex items-center gap-2 mb-5">
-          <div className="w-7 h-7 rounded-lg bg-crimson-500/10 border border-oxblood/20 flex items-center justify-center">
-            <Newspaper className="w-3.5 h-3.5 text-oxblood" />
-          </div>
-          <h3 className="text-[10px] font-bold tracking-widest uppercase text-smoke">
-            latest threats
-          </h3>
-        </div>
-
-        {newsLoading ? (
-          <div className="space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="h-3 bg-ink/8 rounded w-full mb-2" />
-                <div className="h-3 bg-ink/8 rounded w-3/4 mb-1.5" />
-                <div className="h-2 bg-ink/5 rounded w-1/3" />
-              </div>
-            ))}
-          </div>
-        ) : newsArticles.length === 0 ? (
-          <div className="text-center py-6">
-            <AlertTriangle className="w-5 h-5 text-smoke-dim mx-auto mb-2" />
-            <p className="text-xs text-smoke-dim lowercase">couldn't load news feed</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {newsArticles.map((article, i) => (
-              <a
-                key={i}
-                href={article.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block"
-              >
-                <p className="text-[13px] text-ink-soft leading-snug lowercase group-hover:text-ink transition-colors mb-1.5 line-clamp-2">
-                  {article.title}
-                </p>
-                <div className="flex items-center gap-2 text-[10px] text-smoke-dim">
-                  <span className="lowercase">{article.source}</span>
-                  <span>·</span>
-                  <span className="lowercase">{timeAgo(article.pubDate)}</span>
-                  <ExternalLink className="w-2.5 h-2.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-smoke" />
-                </div>
-              </a>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-5 pt-4 border-t border-ink/8">
-          <p className="text-[10px] text-smoke-dim lowercase leading-relaxed">
-            powered by the hacker news & bleepingcomputer rss feeds
-          </p>
-        </div>
-      </div>
-    </motion.aside>
-  );
-
   // ── Modals (rendered once at root) ─────────────────────────────────
   const Modals = () => (
     <>
@@ -628,11 +533,13 @@ const Community = () => {
             onClick={() => setDeleteTarget(null)}
           >
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div
+            <NewsModalCard
+              as={motion.div}
+              borderColor="rgba(107, 31, 31, 0.2)"
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              className="relative w-full max-w-sm bg-paper-soft border border-ink/12 rounded-2xl border border-oxblood/20 p-6"
+              className="relative w-full max-w-sm p-6"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-3">
@@ -670,7 +577,7 @@ const Community = () => {
                   delete
                 </button>
               </div>
-            </motion.div>
+            </NewsModalCard>
           </motion.div>
         )}
       </AnimatePresence>
@@ -687,11 +594,12 @@ const Community = () => {
             onClick={() => !reportSubmitting && setReportDialog(null)}
           >
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div
+            <NewsModalCard
+              as={motion.div}
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
-              className="relative w-full max-w-md bg-paper-soft border border-ink/12 rounded-2xl border border-ink/14 p-6"
+              className="relative w-full max-w-md p-6"
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-5">
@@ -730,16 +638,16 @@ const Community = () => {
                           onChange={() => setReportReason(r.id)}
                           className="accent-amber-400"
                         />
-                        <span className="text-sm text-gray-200 lowercase">{r.label}</span>
+                        <span className="text-sm text-ink-soft lowercase">{r.label}</span>
                       </label>
                     ))}
                   </div>
-                  <textarea
+                  <NewsTextarea
                     value={reportNote}
                     onChange={e => setReportNote(e.target.value)}
                     rows="2"
                     placeholder="optional: add context..."
-                    className="w-full px-3 py-2 bg-paper-soft border border-ink/12 rounded-lg text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-amber-500/40 transition-colors resize-none lowercase mb-4"
+                    className="lowercase mb-4"
                   />
                   <div className="flex gap-2 justify-end">
                     <button
@@ -760,7 +668,7 @@ const Community = () => {
                   </div>
                 </>
               )}
-            </motion.div>
+            </NewsModalCard>
           </motion.div>
         )}
       </AnimatePresence>
@@ -777,12 +685,13 @@ const Community = () => {
             onClick={() => setAuthorProfile(null)}
           >
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div
+            <NewsModalCard
+              as={motion.div}
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="relative w-full max-w-md bg-paper-soft border border-ink/12 rounded-2xl border border-ink/14 overflow-hidden max-h-[85vh] overflow-y-auto"
+              className="relative w-full max-w-md overflow-hidden max-h-[85vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               <button onClick={() => setAuthorProfile(null)} className="absolute top-4 right-4 text-smoke-dim hover:text-ink transition-colors z-10">
@@ -913,7 +822,7 @@ const Community = () => {
                   )}
                 </>
               )}
-            </motion.div>
+            </NewsModalCard>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1122,16 +1031,16 @@ const Community = () => {
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
             {user ? (
-              <div className="bg-paper-soft border border-ink/12 p-4 mb-4">
+              <NewsPanel className="p-4 mb-4">
                 <div className="flex gap-3 items-start">
                   <UserAvatar name={user.username || ''} accountType={user.accountType} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <textarea
+                    <NewsTextarea
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       placeholder={isQuestion ? 'write your answer...' : 'add a reply...'}
                       rows="2"
-                      className="w-full px-3 py-2 bg-paper-soft/80 border border-ink/10 rounded-lg text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood/60 transition-colors resize-none leading-relaxed"
+                      className="leading-relaxed"
                     />
                     <div className="flex justify-end mt-2">
                       <button
@@ -1146,9 +1055,9 @@ const Community = () => {
                   </div>
                 </div>
                 {error && <p className="text-xs text-oxblood mt-2 lowercase">{error}</p>}
-              </div>
+              </NewsPanel>
             ) : (
-              <div className="flex items-center justify-between gap-4 px-5 py-3.5 mb-4 border border-ink/8 rounded-xl bg-paper-soft/40">
+              <NewsPanel muted className="flex items-center justify-between gap-4 px-5 py-3.5 mb-4 rounded-xl">
                 <p className="text-xs text-smoke lowercase">log in to join the conversation</p>
                 <button
                   onClick={() => navigate('/login')}
@@ -1156,7 +1065,7 @@ const Community = () => {
                 >
                   log in
                 </button>
-              </div>
+              </NewsPanel>
             )}
 
             {commentCount > 0 && (
@@ -1178,9 +1087,9 @@ const Community = () => {
                 const canReport = user && comment.authorId && comment.authorId !== user.uid && !comment.deleted;
                 return (
                   <div
-                    key={comment.id ?? index}
+                    key={comment.id ?? comment.createdAt ?? comment.content}
                     className={`bg-paper-soft border border-ink/12 px-4 py-3 border-l-4 ${
-                      isAccepted ? 'border-l-olive-500' : 'border-l-white/[0.06]'
+                      isAccepted ? 'border-l-olive-500' : 'border-l-ink/10'
                     }`}
                   >
                     {isAccepted && (
@@ -1270,12 +1179,12 @@ const Community = () => {
               >
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-smoke-dim pointer-events-none" />
-                  <input
+                  <NewsInput
                     type="text"
                     value={sidebarSearch}
                     onChange={e => setSidebarSearch(e.target.value)}
                     placeholder="search discussions..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-paper-soft/60 border border-ink/10 rounded-xl text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood/60 transition-colors lowercase"
+                    className="pl-9 pr-4 py-2.5 rounded-xl lowercase"
                   />
                 </div>
               </form>
@@ -1310,9 +1219,7 @@ const Community = () => {
             <span className="eyebrow sm text-oxblood">The newsroom board</span>
             <span className="eyebrow sm">{!loading && `${posts.length} posts`}</span>
           </div>
-          <div className="border-t-[3px] border-t-ink border-b border-b-ink/22">
-            <hr className="border-t border-ink mt-[3px]" />
-          </div>
+          <NewsRule />
           <div className="mt-8 max-w-prose">
             <h1 className="display text-4xl md:text-6xl leading-none">
               Letters to <em className="italic-ox">the editor.</em>
@@ -1355,12 +1262,12 @@ const Community = () => {
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-smoke-dim pointer-events-none" />
-              <input
+              <NewsInput
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={`search ${isQA ? 'questions' : 'discussions'}...`}
-                className="w-full pl-9 pr-4 py-2 bg-paper-soft/60 border border-ink/10 rounded-lg text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood/60 transition-colors lowercase"
+                className="pl-9 pr-4 py-2 lowercase"
               />
             </div>
             <button
@@ -1434,7 +1341,7 @@ const Community = () => {
               transition={{ duration: 0.3 }}
               className="mb-8"
             >
-              <form onSubmit={handleCreatePost} className="border border-ink/10 p-6 bg-paper-soft border border-ink/10">
+              <NewsPanel as="form" onSubmit={handleCreatePost} className="p-6">
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-[10px] font-bold tracking-widest uppercase text-smoke">
                     {isQA ? 'ask a question' : 'new discussion'}
@@ -1466,15 +1373,15 @@ const Community = () => {
                 {error && <p className="text-xs text-oxblood mb-3 lowercase">{error}</p>}
 
                 <div className="flex items-center gap-3 mt-4 pt-4 border-t border-ink/8 flex-wrap">
-                  <select
+                  <NewsSelect
                     value={newPost.category}
                     onChange={(e) => setNewPost(prev => ({ ...prev, category: e.target.value }))}
-                    className="px-3 py-1.5 bg-white/[0.05] border border-ink/14 rounded-lg text-ink text-xs focus:outline-none focus:border-ink/40 transition-colors lowercase"
+                    className="w-auto px-3 py-1.5 text-xs lowercase"
                   >
                     {categories.filter(c => c.id !== 'all').map(cat => (
                       <option key={cat.id} value={cat.id} className="bg-dark-900">{cat.name}</option>
                     ))}
-                  </select>
+                  </NewsSelect>
 
                   {!isQA && (
                     <label className="flex items-center gap-2 text-xs text-smoke lowercase cursor-pointer">
@@ -1504,12 +1411,12 @@ const Community = () => {
                 {!isQA && newPost.isAnonymous && (
                   <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-purple-500/[0.06] border border-ink/20">
                     <EyeOff className="w-3.5 h-3.5 text-oxblood flex-shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-purple-300/80 lowercase leading-relaxed">
+                    <p className="text-[11px] text-smoke lowercase leading-relaxed">
                       your username and avatar will be hidden from the community. you can still delete this post later.
                     </p>
                   </div>
                 )}
-              </form>
+              </NewsPanel>
             </motion.div>
           )}
         </AnimatePresence>

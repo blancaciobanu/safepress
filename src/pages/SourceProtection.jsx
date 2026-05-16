@@ -1,12 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield, Eye, MessageSquare, MapPin, BookOpen, Scale,
+  Shield, Eye, MessageSquare, MapPin, Scale,
   ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, X,
   ArrowRight, Lock
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { NewsPage } from '../components/editorial/NewsPage';
+import { NewsModalCard, NewsPage } from '../components/editorial/NewsPage';
 
 /* Field manual — Source Protection.
    Ink cover band → chapter tabs → accordion protocols → decision-tree scenarios. */
@@ -342,12 +342,13 @@ const ScenarioModal = ({ scenario, onClose }) => {
         className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-ink/50"
         onClick={onClose}
       >
-        <motion.div
+        <NewsModalCard
+          as={motion.div}
           initial={{ opacity: 0, scale: 0.97, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.97, y: 8 }}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-xl bg-paper-soft border border-ink/16 max-h-[85vh] overflow-y-auto"
+          className="relative w-full max-w-xl max-h-[85vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
           <button onClick={onClose} className="absolute top-4 right-4 text-smoke hover:text-ink transition-colors z-10">
@@ -427,7 +428,7 @@ const ScenarioModal = ({ scenario, onClose }) => {
               </div>
             )}
           </div>
-        </motion.div>
+        </NewsModalCard>
       </motion.div>
     </AnimatePresence>
   );
@@ -452,7 +453,7 @@ const SourceProtection = () => {
           <div>
             <p className="eyebrow sm text-brass-soft">Field Manual · Pocket Ed.</p>
             <h1 className="display text-3xl md:text-5xl mt-2 leading-none text-paper">
-              Source protection<span style={{ color: 'var(--color-oxblood-soft)' }}><em className="italic">.</em></span>
+              Source protection<span className="text-oxblood-soft italic">.</span>
             </h1>
           </div>
           <p className="eyebrow sm opacity-60">Issue III · Rev. 2026</p>
