@@ -26,6 +26,7 @@ const PAPER_SURFACE_PATHS = new Set([
   '/simulations',
   '/security-score',
   '/community',
+  '/community/new',
   '/specialist-dashboard',
   '/admin',
   '/ai-advisor',

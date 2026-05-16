@@ -156,7 +156,7 @@ const Home = () => {
   const externalSignal = fieldSignals.externalAdvisory || {
     label: 'from public advisories',
     title: 'Public advisories will rotate in here.',
-    excerpt: 'If the live feed is quiet or unavailable, go straight to the resource library and crisis mode rather than waiting on this block.',
+    excerpt: 'If the live feed is quiet or unavailable, go straight to the field manual and crisis mode rather than waiting on this block.',
     href: '/resources',
     source: 'SafePress fallback',
     publishedAt: null,

@@ -12,20 +12,27 @@ const VISITOR_INSTRUMENTS = [
   },
   {
     kicker: '02 — Playbook',
-    title: 'Source protection.',
-    body: 'First contact, safer meetings, compartmentalisation, and publication discipline.',
-    to: '/source-protection',
-    cta: 'Read playbook',
+    title: 'Source protection guide.',
+    body: 'First contact, safer meetings, compartmentalisation, and publication discipline inside the field manual.',
+    to: '/resources?tab=source-protection',
+    cta: 'Open guide',
   },
   {
     kicker: '03 — Reference',
     title: 'OS guides & tools.',
-    body: 'Platform-specific hardening guides for the kit you already use in the field.',
+    body: 'Platform hardening, source guidance, and vetted tools in one desk.',
     to: '/resources',
-    cta: 'Open library',
+    cta: 'Open manual',
   },
   {
-    kicker: '04 — Discussion',
+    kicker: '04 — Training',
+    title: 'Simulations.',
+    body: 'Practice phishing, source-contact, and border-search decisions before the real thing.',
+    to: '/simulations',
+    cta: 'Run drills',
+  },
+  {
+    kicker: '05 — Discussion',
     title: 'Community.',
     body: 'Public field notes and open questions from journalists under similar pressure.',
     to: '/community',
@@ -50,27 +57,34 @@ const JOURNALIST_INSTRUMENTS = [
   },
   {
     kicker: '03 — Playbook',
-    title: 'Source protection.',
-    body: 'First contact, safer meetings, and publication discipline for higher-risk work.',
-    to: '/source-protection',
-    cta: 'Read playbook',
+    title: 'Source protection guide.',
+    body: 'First contact, safer meetings, and publication discipline for higher-risk work, now inside the field manual.',
+    to: '/resources?tab=source-protection',
+    cta: 'Open guide',
   },
   {
     kicker: '04 — Reference',
     title: 'OS guides & tools.',
-    body: 'Platform-specific hardening guides and curated, field-ready picks.',
+    body: 'Platform hardening, source guidance, and curated field-ready picks.',
     to: '/resources',
-    cta: 'Open library',
+    cta: 'Open manual',
   },
   {
     kicker: '05 — Discussion',
+    title: 'Simulations.',
+    body: 'Scenario drills for phishing, source contact, and device-search pressure.',
+    to: '/simulations',
+    cta: 'Run drills',
+  },
+  {
+    kicker: '06 — Discussion',
     title: 'Community.',
     body: 'Public field notes and open questions from peers facing similar pressure.',
     to: '/community',
     cta: 'Read threads',
   },
   {
-    kicker: '06 — Direct help',
+    kicker: '07 — Direct help',
     title: 'Specialist support.',
     body: 'File a request when the situation needs hands-on intervention.',
     to: '/request-support',
@@ -95,20 +109,27 @@ const SPECIALIST_INSTRUMENTS = [
   },
   {
     kicker: '03 — Playbook',
-    title: 'Source protection.',
-    body: 'Operational guidance journalists are pointed to across higher-risk reporting.',
-    to: '/source-protection',
-    cta: 'Review playbook',
+    title: 'Source protection guide.',
+    body: 'Operational guidance journalists are pointed to across higher-risk reporting, kept inside the field manual.',
+    to: '/resources?tab=source-protection',
+    cta: 'Open guide',
   },
   {
     kicker: '04 — Reference',
     title: 'OS guides & tools.',
-    body: 'Keep recommendations current with platform-specific hardening references.',
+    body: 'Keep hardening guidance, source protocols, and vetted tools close.',
     to: '/resources',
-    cta: 'Open library',
+    cta: 'Open manual',
   },
   {
-    kicker: '05 — Account',
+    kicker: '05 — Training',
+    title: 'Simulations.',
+    body: 'Walk the same scenario drills reporters use when pressure is high.',
+    to: '/simulations',
+    cta: 'Run drills',
+  },
+  {
+    kicker: '06 — Account',
     title: 'Settings.',
     body: 'Profile, verification state, and account details.',
     to: '/settings',
@@ -177,8 +198,8 @@ const buildJournalistBrief = ({ user, latestScore, setupProgress, latestRequest,
       : 'none active';
 
   let nextAction = {
-    label: 'Refresh the playbook',
-    to: '/source-protection',
+    label: 'Review the source protection guide',
+    to: '/resources?tab=source-protection',
     note: 'Good posture still needs routine maintenance and better source habits.',
   };
 
@@ -220,8 +241,8 @@ const buildJournalistBrief = ({ user, latestScore, setupProgress, latestRequest,
     };
   } else {
     nextAction = {
-      label: 'Refresh the playbook',
-      to: '/source-protection',
+      label: 'Review the source protection guide',
+      to: '/resources?tab=source-protection',
       note: 'Good posture still needs routine maintenance and better source habits.',
     };
   }
@@ -352,14 +373,14 @@ const buildApprovedSpecialistBrief = ({ stats, loading }) => {
     activity = {
       label: 'Queue signal',
       title: 'The queue is quiet right now.',
-      detail: 'Community, resources, and source-protection material stay useful while you wait for new work.',
+      detail: 'Community, the field manual, and the source-protection guide stay useful while you wait for new work.',
     };
   }
 
   return {
     headingNode: <>Today on {emphasis('the desk.')}</>,
     lede: 'Home keeps the summary light: open queue, active cases, resolved work, and one next move back into the specialist workflow. The casework itself still happens inside the specialist dashboard. This page is only the front-page brief — the counts and the way back in.',
-    ledeBody: 'The instruments running down the left are the supporting tools you reach for when the queue is quiet: community, source-protection guidance, OS guides, account. The figures on the right name the state of your queue right now. The activity callout below this paragraph names the next sensible move into the work.',
+    ledeBody: 'The instruments running down the left are the supporting tools you reach for when the queue is quiet: community, the source-protection guide in the field manual, OS guides, account. The figures on the right name the state of your queue right now. The activity callout below this paragraph names the next sensible move into the work.',
     metrics: [
       { label: 'Open queue',   value: openCount,     detail: 'redacted until claimed',     tone: 'var(--color-ink)' },
       { label: 'Active cases', value: claimedCount,  detail: 'currently assigned',          tone: 'var(--color-ink)' },
@@ -434,7 +455,7 @@ const buildPendingSpecialistBrief = ({ verificationState, emailVerified }) => {
   return {
     headingNode: <>Your verification is {emphasis('reading.')}</>,
     lede: `${current.lede} Home keeps the state legible on the front page — verification status, email confirmation, and queue access — and points back into the specialist workflow when there is something to act on.`,
-    ledeBody: `${current.heading} The instruments running down the left rail stay available while you wait — community discussion, source-protection guidance, and the OS guides. None of them depend on queue access, and they keep the time before approval useful rather than idle.`,
+    ledeBody: `${current.heading} The instruments running down the left rail stay available while you wait — community discussion, the source-protection guide in the field manual, and the OS guides. None of them depend on queue access, and they keep the time before approval useful rather than idle.`,
     metrics: [
       {
         label: 'Verification',
@@ -460,7 +481,7 @@ const buildPendingSpecialistBrief = ({ verificationState, emailVerified }) => {
     instruments: SPECIALIST_INSTRUMENTS,
     closing: {
       heading: 'Keep the rest of the toolkit close while you wait.',
-      lead: 'Resources, community, and source-protection guidance still matter before specialist approval is final.',
+      lead: 'The field manual, community, and the source-protection guide still matter before specialist approval is final.',
       to: current.nextAction.to,
       label: current.nextAction.label,
     },
@@ -482,10 +503,10 @@ export const buildPageModel = ({
       hero: {
         headingNode: <>Journalism is as safe as {emphasis('the journalist.')}</>,
         lede: 'An editorial brief for journalists working under pressure. Assessment first, crisis access always visible, the rest of the toolkit close. The front page is meant to be read at a glance — masthead at the top, instruments running down the left, the lead in the middle, figures and field signals on the right.',
-        ledeBody: 'No account is needed to read the crisis protocols, take the score, or browse the resource library. Crisis protocols sit on every page — four scenarios written for the first ten minutes after something goes wrong. The slower posture work, and the community feed, wait one column away until you decide they are the right tool for the moment.',
+        ledeBody: 'No account is needed to read the crisis protocols, take the score, or browse the field manual. Crisis protocols sit on every page — four scenarios written for the first ten minutes after something goes wrong. The slower posture work, and the community feed, wait one column away until you decide they are the right tool for the moment.',
         actions: [
           { label: 'Take the security score',   to: '/security-score' },
-          { label: 'Browse the resource library', to: '/resources' },
+          { label: 'Browse the field manual', to: '/resources' },
         ],
       },
       metrics: [

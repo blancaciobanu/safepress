@@ -52,7 +52,7 @@ export const NewsSidebar = ({ className = '' }) => {
                 rel="noopener noreferrer"
                 className="group block"
               >
-                <p className="text-[13px] text-ink-soft leading-snug lowercase group-hover:text-ink transition-colors mb-1.5 line-clamp-2">
+                <p className="text-[13px] text-ink-soft leading-snug group-hover:text-ink transition-colors mb-1.5 line-clamp-2">
                   {article.title}
                 </p>
                 <div className="flex items-center gap-2 text-[10px] text-smoke-dim">

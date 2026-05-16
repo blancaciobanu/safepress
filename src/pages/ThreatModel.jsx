@@ -35,8 +35,8 @@ const THREAT_LEVEL_META = {
 
 const DESTINATION_META = {
   'secure-setup': { to: '/secure-setup', label: 'Open Secure Setup' },
-  resources: { to: '/resources', label: 'Open Resources' },
-  'source-protection': { to: '/source-protection', label: 'Open Source Protection' },
+  resources: { to: '/resources', label: 'Open Manual' },
+  'source-protection': { to: '/resources?tab=source-protection', label: 'Open Source Protection Guide' },
   'request-support': { to: '/request-support', label: 'Request Specialist Support' },
   'ai-advisor': { to: '/ai-advisor', label: 'Continue in AI Advisor' },
 };
@@ -287,7 +287,7 @@ const ThreatModel = () => {
       >
         <NewsNotice tone="info" icon={ShieldAlert}>
           <p className="text-sm leading-relaxed text-ink-soft">
-            The model runs through Firebase Functions. Free-text incident details are redacted before they are sent to the backend model, and the output is designed to support newsroom and source-protection decisions rather than replace specialist help.
+            The model runs through Firebase Functions. Free-text incident details are redacted before they are sent to the backend model, and the output is designed to support newsroom and source-protection decisions inside the wider resource workflow rather than replace specialist help.
           </p>
         </NewsNotice>
 
@@ -493,7 +493,7 @@ const ThreatModel = () => {
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link to="/secure-setup" className="link-handdrawn">Open secure setup</Link>
-                <Link to="/source-protection" className="link-handdrawn">Open source protection</Link>
+                <Link to="/resources?tab=source-protection" className="link-handdrawn">Open source protection guide</Link>
                 <Link to="/request-support" className="link-handdrawn">Request specialist support</Link>
               </div>
             </section>

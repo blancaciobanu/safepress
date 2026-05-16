@@ -226,6 +226,8 @@ const CommunityPostDetail = () => {
   }
 
   const isQuestion = post.type === 'question';
+  const isAMA      = post.type === 'ama';
+  const isClosed   = isQuestion && post.resolved;
   const liked = post.likedBy?.includes(user?.uid);
   const commentCount = Math.max(getPostCommentCount(post), comments.length);
   const isAuthor = post.authorId === user?.uid;
@@ -280,12 +282,27 @@ const CommunityPostDetail = () => {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                className={`bg-paper-soft border border-ink/12 p-5 mb-4 border-l-4 ${
-                  isQuestion
-                    ? post.resolved ? 'border-l-brass/50' : 'border-l-oxblood/30'
-                    : 'border-l-ink/20'
+                className={`bg-paper-soft border border-ink/12 p-5 mb-4 ${
+                  isAMA
+                    ? 'border-t-2 border-t-oxblood/60'
+                    : `border-l-4 ${isQuestion
+                        ? post.resolved ? 'border-l-brass/50' : 'border-l-oxblood/30'
+                        : 'border-l-ink/20'}`
                 }`}
               >
+                {/* AMA specialist banner */}
+                {isAMA && (
+                  <div className="flex items-start gap-4 mb-5 pb-4 border-b border-ink/8">
+                    <span className="text-4xl leading-none flex-shrink-0">{post.avatarIcon || '◉'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="eyebrow sm text-oxblood mb-1">Ask Me Anything</p>
+                      <p className="font-semibold text-ink text-base">{post.authorName}</p>
+                      {post.specialistBio && (
+                        <p className="text-xs text-smoke-dim italic mt-1 leading-relaxed">{post.specialistBio}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center gap-3 mb-4">
                   <UserAvatar
                     name={post.authorName}
@@ -348,7 +365,7 @@ const CommunityPostDetail = () => {
                       rows="4"
                       className="w-full px-0 py-2 bg-transparent text-sm text-ink-soft placeholder-smoke focus:outline-none transition-colors resize-none leading-relaxed mb-3"
                     />
-                    <div className="flex items-start gap-2 px-3 py-2.5 mb-4 rounded-lg bg-amber-500/[0.08] border border-amber-500/20">
+                    <div className="flex items-start gap-2 px-3 py-2.5 mb-4 bg-amber-500/[0.08] border border-amber-500/20">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
                       <p className="text-[11px] text-brass/80 lowercase leading-relaxed">
                         once saved, an "edited" label will be visible to all community members.
@@ -358,7 +375,7 @@ const CommunityPostDetail = () => {
                       <button
                         onClick={handleEditPost}
                         disabled={submitting || !editForm.title.trim() || !editForm.content.trim()}
-                        className="px-4 py-1.5 btn disabled:opacity-40 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                        className="px-4 py-1.5 btn disabled:opacity-40 text-xs font-semibold uppercase tracking-wide transition-all"
                       >
                         {submitting ? 'saving...' : 'save'}
                       </button>
@@ -426,7 +443,13 @@ const CommunityPostDetail = () => {
               </motion.div>
 
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
-                {user ? (
+                {isClosed ? (
+                  <div className="border border-ink/10 bg-paper-soft/40 px-5 py-4 mb-4 flex items-center gap-3">
+                    <span className="eyebrow sm text-brass">✓ resolved</span>
+                    <span className="text-smoke-dim text-[10px]">·</span>
+                    <span className="eyebrow sm text-smoke-dim">thread closed — this question has been answered</span>
+                  </div>
+                ) : user ? (
                   <NewsPanel className="p-4 mb-4">
                     <div className="flex gap-3 items-start">
                       <UserAvatar name={user.username || ''} accountType={user.accountType} size="sm" />
@@ -434,7 +457,7 @@ const CommunityPostDetail = () => {
                         <NewsTextarea
                           value={newComment}
                           onChange={(e) => setNewComment(e.target.value)}
-                          placeholder={isQuestion ? 'write your answer...' : 'add a reply...'}
+                          placeholder={isAMA ? 'ask your question...' : isQuestion ? 'write your answer...' : 'add a reply...'}
                           rows="2"
                           className="leading-relaxed"
                         />
@@ -442,10 +465,10 @@ const CommunityPostDetail = () => {
                           <button
                             onClick={handleAddComment}
                             disabled={!newComment.trim() || submitting}
-                            className="flex items-center gap-1.5 px-3 py-1.5 btn disabled:opacity-40 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 btn disabled:opacity-40 text-xs font-semibold uppercase tracking-wide transition-all"
                           >
                             <Send className="w-3 h-3" />
-                            {submitting ? '...' : isQuestion ? 'answer' : 'reply'}
+                            {submitting ? '...' : isAMA ? 'ask' : isQuestion ? 'answer' : 'reply'}
                           </button>
                         </div>
                       </div>
@@ -453,11 +476,13 @@ const CommunityPostDetail = () => {
                     {error && <p className="text-xs text-oxblood mt-2 lowercase">{error}</p>}
                   </NewsPanel>
                 ) : (
-                  <NewsPanel muted className="flex items-center justify-between gap-4 px-5 py-3.5 mb-4 rounded-xl">
-                    <p className="text-xs text-smoke lowercase">log in to join the conversation</p>
+                  <NewsPanel muted className="flex items-center justify-between gap-4 px-5 py-3.5 mb-4">
+                    <p className="text-xs text-smoke lowercase">
+                      {isAMA ? 'log in to ask a question' : 'log in to join the conversation'}
+                    </p>
                     <button
                       onClick={() => navigate('/login')}
-                      className="px-4 py-1.5 bg-ink hover:bg-ink-soft text-paper rounded-lg text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
+                      className="px-4 py-1.5 bg-ink hover:bg-ink-soft text-paper text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
                     >
                       log in
                     </button>
@@ -466,7 +491,9 @@ const CommunityPostDetail = () => {
 
                 {commentCount > 0 && (
                   <p className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mb-3 px-1">
-                    {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
+                    {commentCount} {isAMA
+                      ? (commentCount === 1 ? 'question' : 'questions')
+                      : (commentCount === 1 ? 'reply' : 'replies')}
                   </p>
                 )}
 
@@ -579,7 +606,7 @@ const CommunityPostDetail = () => {
                       value={sidebarSearch}
                       onChange={(e) => setSidebarSearch(e.target.value)}
                       placeholder="search discussions..."
-                      className="pl-9 pr-4 py-2.5 rounded-xl lowercase"
+                      className="pl-9 pr-4 py-2.5 lowercase"
                     />
                   </div>
                 </form>

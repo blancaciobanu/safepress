@@ -4,10 +4,11 @@ import {
   Brain, Wrench, MessageSquare,
   Radio, Mail, Globe, Lock, Key, ExternalLink, AlertTriangle,
   Eye, Mic, Camera, FileText, User, Fingerprint, ShieldAlert, Book,
+  MapPin, Scale, ArrowRight,
   ChevronDown,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { OSMockup } from '../features/resources/OSMockup';
 import {
   NewsBadge,
@@ -188,6 +189,231 @@ const aiProtectionTools = [
   { name: 'Content Credentials',  description: 'C2PA-standard media watermarking to prove photo and video authenticity and provenance.',                     url: 'https://contentcredentials.org',          platforms: ['Web', 'Camera Tools'],       badge: 'Authenticity'       },
 ];
 
+const sourceProtectionChapters = [
+  {
+    id: 'compartmentalization',
+    label: 'Compartmentalize',
+    icon: Eye,
+    color: '#7B2E2E',
+    brief: 'Keep your work life and source life in two separate worlds — different devices, accounts, browsers, even physical locations.',
+    cards: [
+      {
+        title: 'Why compartmentalization is non-negotiable',
+        body: `A single shared login, a single shared device, or a single shared identity is all it takes to burn a source. Compartmentalization is not paranoia — it's the default hygiene of investigative work.
+
+What it buys you:
+- If one identity is compromised, the others survive
+- Your source cannot be identified by correlation of mundane data (browsing history, login times, contacts list)
+- You can credibly claim in a hostile jurisdiction that you had no knowledge of a channel's contents from another device`,
+      },
+      {
+        title: 'Device compartmentalization',
+        body: `Keep a dedicated "source device" — a second phone and, ideally, a second laptop used only for sensitive work.
+
+Minimum setup:
+- Separate phone (prepaid, anonymous SIM where legal)
+- Separate laptop with full-disk encryption (FileVault / LUKS / BitLocker)
+- Different physical location for storage when not in use
+- No personal apps, no work email, no social media logged in
+- Never use the source device on your home wifi without a VPN or Tor`,
+      },
+      {
+        title: 'Identity compartmentalization',
+        body: `Each "life" gets its own identity stack.
+
+Per identity you control:
+- Unique email address (ProtonMail or similar, created from a clean network)
+- Unique username — do not re-use handles from other platforms; adversaries correlate names across services
+- Unique password and a dedicated password-manager vault (or entirely separate PM instance)
+- Unique Signal number (a second number via a burner SIM or a privacy-respecting VoIP)
+- Ideally: different writing style — cadence and vocabulary are identifiable`,
+      },
+      {
+        title: 'Browser and account compartmentalization',
+        body: `At minimum, use separate browsers or browser profiles for work and for source contact. Better: use the Tor Browser for anything sensitive.
+
+Rules:
+- No shared cookies, no shared extensions, no shared bookmarks
+- Do not log in to a personal account from the source browser, ever
+- Do not log in to a work account from the personal browser
+- Clear state aggressively; "private mode" is not enough`,
+      },
+    ],
+  },
+  {
+    id: 'first-contact',
+    label: 'First contact',
+    icon: MessageSquare,
+    color: '#8A6D2C',
+    brief: 'The first message establishes whether you can be trusted — and whether the channel can.',
+    cards: [
+      {
+        title: 'Choose the channel before you choose the person',
+        body: `The first rule of source contact: the channel has to be secure before you verify the person's identity. If the channel is compromised, identity verification exposes the source.
+
+Hierarchy (most to least preferred):
+1. SecureDrop (anonymous, no metadata, no phone number)
+2. Signal (with safety number verification on first contact)
+3. SimpleX Chat (no phone number, bidirectional verification code)
+4. Encrypted email (PGP — acceptable for low-risk initial contact only)
+5. Anything else — do not use for sensitive source work`,
+      },
+      {
+        title: 'Signal safety numbers',
+        body: `Signal's safety number is a cryptographic fingerprint of your channel. Verify it out-of-band (in person, or via a second independent channel) before exchanging anything sensitive.
+
+How:
+- Open the conversation in Signal → tap the name → "View Safety Number"
+- Compare every digit/word with the source by phone, in person, or via a different trusted channel
+- If numbers don't match: the channel has been tampered with. Do not continue.
+
+Set a verification reminder: re-check safety numbers every 30–90 days or any time the source gets a new device.`,
+      },
+      {
+        title: 'Retention windows — agree on day one',
+        body: `Agree a message-retention window at first contact, before anything sensitive is shared.
+
+Standard:
+- 1 week disappearing messages — adequate for most low-risk sources
+- 24 hours — for sources in high-surveillance environments
+- Message-per-message deletion — in active hostile situations
+
+Document the agreed retention window in your case notes (offline), not in the channel itself.`,
+      },
+    ],
+  },
+  {
+    id: 'meeting',
+    label: 'Meeting & handoff',
+    icon: MapPin,
+    color: '#34515E',
+    brief: 'Physical meetings are the hardest to monitor — but only if you plan them right.',
+    cards: [
+      {
+        title: 'Location selection',
+        body: `Criteria for a meeting location:
+- Busy but not so loud you can't speak
+- Multiple entrances and exits
+- No CCTV or low-density CCTV (cafés, parks, libraries)
+- Not near either person's home, workplace, or commute route
+- Not a place either person has been seen before
+
+Pre-agree backup locations: if one person doesn't appear within 10 minutes, the other leaves.`,
+      },
+      {
+        title: 'Phones and devices at meetings',
+        body: `Phones are tracking devices. There are three options for a sensitive meeting:
+
+1. Leave all devices at home (strongest)
+2. Use a Faraday bag for your phone during the meeting
+3. Power down completely before approaching the meeting area (not airplane mode — fully off)
+
+If you leave your phone at home: don't tell anyone where you're "really" going — your normal location data should show you at a plausible alternative location.`,
+      },
+      {
+        title: 'Document handoff',
+        body: `Physical document exchange:
+- Never photograph documents at the meeting location itself
+- Use a clean device to photograph — not your personal phone
+- Strip all EXIF data before any digital transmission (Exiftool, Signal's "Remove" feature, or mat2)
+- Physical originals: decide in advance whether you're keeping them, returning them, or destroying them
+
+For digital documents: SecureDrop is the gold standard. For anything else, use a one-time-use ProtonMail address and PGP.`,
+      },
+    ],
+  },
+  {
+    id: 'after',
+    label: 'After publication',
+    icon: Shield,
+    color: '#375E5A',
+    brief: 'The story is out. The work of protecting your source has just begun.',
+    cards: [
+      {
+        title: 'The publication window',
+        body: `In the 48–72 hours after publication, the attack surface is highest. Adversaries looking for the source will be:
+- Correlating timing: who had access to this information, and when?
+- Searching for digital footprints: shared documents, metadata, access logs
+- Social-engineering your newsroom: asking who "the reporter close to the story" talked to
+
+Minimum protocol: after publication, go silent on any channel that was used for source contact for at least 30 days.`,
+      },
+      {
+        title: 'Source removal',
+        body: `Source removal is the practice of systematically deleting all traces of a source after a story has been published.
+
+What to remove:
+- Message threads (confirm deletion from both devices)
+- Contact entries
+- Saved documents or photos that could identify them
+- Browser history related to source research
+- Cloud backups that captured any of the above
+
+Keep: your own case journal (offline, encrypted), your legal notes, and any records required by your newsroom's document-retention policy.`,
+      },
+      {
+        title: 'Legal hold',
+        body: `If a subpoena, court order, or law-enforcement request is anticipated:
+
+1. Call your newsroom's legal counsel before doing anything
+2. Pause all document deletion until counsel advises
+3. Note the date/time you became aware of the legal risk
+4. Do not discuss specifics on any digital channel
+
+Shield laws vary significantly by jurisdiction. Your counsel will know the applicable protections and exceptions in your territory.`,
+      },
+    ],
+  },
+  {
+    id: 'legal',
+    label: 'Legal protections',
+    icon: Scale,
+    color: '#6B6253',
+    brief: 'Know what the law protects before you need the protection.',
+    cards: [
+      {
+        title: 'Shield laws: what they are and what they are not',
+        body: `A shield law gives a journalist the right to refuse to identify a source in legal proceedings. Coverage and strength vary dramatically:
+
+- US: No federal shield law; state laws differ widely in scope and exceptions
+- UK: s.10 Contempt of Court Act — significant, but qualified
+- EU: ECHR Article 10 provides the strongest baseline across member states
+- Many jurisdictions: no shield law at all
+
+What no shield law protects:
+- Your digital records — metadata from telecoms can be obtained without your knowledge
+- Your source if they voluntarily identify themselves
+- Evidence of criminal conduct (in most jurisdictions)`,
+      },
+      {
+        title: 'Digital surveillance and the law',
+        body: `In most jurisdictions, law enforcement can obtain:
+- Cell-site location records (often without a warrant)
+- Email metadata (sender, recipient, subject, timestamps)
+- Cloud storage (via legal process served to the provider)
+- Call records
+
+They typically cannot (or face higher bar to obtain):
+- Content of encrypted messages (if implemented correctly)
+- Content on devices with strong full-disk encryption and a strong passphrase
+- Communications that never touched a server (e.g. local Signal messages on an offline device)
+
+The practical implication: use end-to-end encryption for everything. Assume metadata is always available to a motivated adversary.`,
+      },
+      {
+        title: 'When to call a lawyer',
+        body: `Call legal counsel before:
+- Publishing material that could expose a source
+- Any meeting or call with law enforcement about your reporting
+- Responding to any legal demand, subpoena, or preservation letter
+- Crossing an international border with sensitive material on your device
+
+Journalists should have a relationship with media-law counsel before a crisis arises — not during one. CPJ and RSF both provide emergency legal referrals.`,
+      },
+    ],
+  },
+];
+
 /* ─── Sub-components ─────────────────────────────────────────────────────── */
 
 const ToolLedgerRow = ({ tool, index, color }) => {
@@ -277,6 +503,7 @@ const Resources = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab]   = useState(() => searchParams.get('tab') || 'os-guides');
   const [selectedOS, setSelectedOS] = useState(() => searchParams.get('os') || 'windows');
+  const [activeSourceChapter, setActiveSourceChapter] = useState(() => searchParams.get('chapter') || 'compartmentalization');
 
   const targetSection = searchParams.get('section');
 
@@ -290,12 +517,14 @@ const Resources = () => {
   }, [targetSection, activeTab]);
 
   const tabs = [
-    { id: 'os-guides',   label: 'OS security guides', desc: 'step-by-step hardening for every platform',         icon: Monitor, accent: '#7B2E2E' },
-    { id: 'tools',       label: 'Recommended tools',  desc: 'vetted apps for messaging, privacy, and storage',   icon: Wrench,  accent: '#8A6D2C' },
-    { id: 'ai-security', label: 'AI security',        desc: 'threats, safer tools, and what never to share',     icon: Brain,   accent: '#15110C' },
+    { id: 'os-guides',   label: 'OS Guides', desc: 'platform hardening',              icon: Monitor, accent: '#7B2E2E' },
+    { id: 'tools',       label: 'Tools',     desc: 'vetted field kit',                icon: Wrench,  accent: '#8A6D2C' },
+    { id: 'source-protection', label: 'Sources', desc: 'contact, meetings, publication', icon: Shield, accent: '#375E5A' },
+    { id: 'ai-security', label: 'AI Safety', desc: 'threats and safer practice',      icon: Brain,   accent: '#15110C' },
   ];
 
   const currentOS = osGuides.find(o => o.id === selectedOS);
+  const currentSourceChapter = sourceProtectionChapters.find((chapter) => chapter.id === activeSourceChapter) || sourceProtectionChapters[0];
 
   const [expandedStep, setExpandedStep] = useState(null);
   useEffect(() => setExpandedStep(null), [selectedOS]);
@@ -311,13 +540,13 @@ const Resources = () => {
         >
           <div className="flex items-center gap-3 mb-4">
             <Book className="w-5 h-5 text-smoke" />
-            <span className="eyebrow sm text-smoke">Reference desk</span>
+            <span className="eyebrow sm text-smoke">Field desk</span>
           </div>
           <h1 className="display text-4xl md:text-6xl leading-none">
-            Resources<em className="italic-ox">.</em>
+            Field Manual<em className="italic-ox">.</em>
           </h1>
           <p className="mt-4 text-base md:text-lg text-ink-soft leading-relaxed max-w-[52ch]">
-            Security guides and field-ready tools for journalists. Start with operating-system hardening, then move into communications, storage, browsing, passwords, and AI-risk habits.
+            Security guides, source-handling protocols, and field-ready tools for journalists. Start with operating-system hardening, then move into communications, storage, source contact, and AI-risk habits.
           </p>
         </motion.div>
 
@@ -461,6 +690,89 @@ const Resources = () => {
               <p className="border-t border-ink/15 pt-4 mt-12 text-xs leading-relaxed text-smoke">
                 Always verify downloads from official sources. Keep software updated. Enable 2FA everywhere.
               </p>
+            </motion.div>
+          )}
+
+          {/* ── Source protection ─────────────────────────────────── */}
+          {activeTab === 'source-protection' && (
+            <motion.div
+              key="source-protection"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.35 }}
+            >
+              <NewsNotice tone="info" icon={ShieldAlert} className="notebook-warning">
+                <h2 className="news-card-title">Pocket manual for source-facing work</h2>
+                <p className="news-card-copy mt-1">
+                  This section belongs in the reference desk: it is the slower, consultative layer for first contact, safer meetings, publication windows, and legal posture. For rehearsal under pressure, move into the Simulation Desk.
+                </p>
+              </NewsNotice>
+
+              <NewsSectionHeader
+                className="notebook-section"
+                kicker={`§ ${String(sourceProtectionChapters.findIndex((chapter) => chapter.id === currentSourceChapter.id) + 1).padStart(2, '0')} · Pocket manual`}
+                title={currentSourceChapter.label}
+                lede={currentSourceChapter.brief}
+                icon={currentSourceChapter.icon}
+                accent={currentSourceChapter.color}
+              />
+
+              <div className="news-selector">
+                {sourceProtectionChapters.map((chapter) => {
+                  const Icon = chapter.icon;
+                  return (
+                    <button
+                      key={chapter.id}
+                      type="button"
+                      onClick={() => setActiveSourceChapter(chapter.id)}
+                      className={`news-selector-button ${activeSourceChapter === chapter.id ? 'is-active' : ''}`}
+                      style={{ '--selector-accent': chapter.color }}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {chapter.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-4 mt-4">
+                {currentSourceChapter.cards.map((card) => (
+                  <NewsCard key={card.title} accent={currentSourceChapter.color}>
+                    <h3 className="news-card-title">{card.title}</h3>
+                    <p className="news-card-copy mt-3 whitespace-pre-wrap">{card.body}</p>
+                  </NewsCard>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5 mt-8">
+                <NewsCard accent="#7B2E2E">
+                  <h3 className="news-card-title">Practice the judgment layer</h3>
+                  <p className="news-card-copy mt-3">
+                    Once the manual feels familiar, use the simulations to test phishing response, safer source contact, and border-search choices with immediate consequence feedback.
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <Link to="/simulations" className="inline-flex items-center gap-1.5 btn">
+                      Open simulations
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                    <Link
+                      to="/threat-model"
+                      className="inline-flex items-center gap-1 eyebrow sm text-oxblood hover:text-ink transition-colors"
+                    >
+                      Build a threat model
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </NewsCard>
+
+                <NewsCard accent="#8A6D2C">
+                  <h3 className="news-card-title">Related tools in this library</h3>
+                  <p className="news-card-copy mt-3">
+                    The most relevant resources here are SecureDrop, Signal, Tor Browser, ProtonMail, and encrypted storage tools. They already live under the tools tab, which makes this merge cleaner than maintaining a separate manual page.
+                  </p>
+                </NewsCard>
+              </div>
             </motion.div>
           )}
 

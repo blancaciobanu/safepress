@@ -125,7 +125,7 @@ const SecurityScore = () => {
     const guidance = {
       password: { action: 'Set up secure passwords', link: '/secure-setup' },
       device: { action: 'Harden your devices', link: '/secure-setup' },
-      communication: { action: 'Open the source protection playbook', link: '/source-protection' },
+      communication: { action: 'Open the source protection guide in the Manual', link: '/resources?tab=source-protection' },
       data: { action: 'Improve data protection', link: '/secure-setup' },
       physical: { action: 'Review physical security', link: '/resources' },
     };

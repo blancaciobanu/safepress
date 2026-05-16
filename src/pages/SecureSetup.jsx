@@ -247,12 +247,12 @@ const TaskCard = ({
             )}
             {task.link && (
               <Link to={task.link} className="workbench-link workbench-link--oxblood">
-                {task.linkLabel ?? 'See in Resources'} <ArrowRight className="w-3 h-3" />
+                {task.linkLabel ?? 'See in Manual'} <ArrowRight className="w-3 h-3" />
               </Link>
             )}
             {task.categoryKey === 'communication' && (
-              <Link to="/source-protection" className="workbench-link workbench-link--brass">
-                Source playbook <ArrowRight className="w-3 h-3" />
+              <Link to="/resources?tab=source-protection" className="workbench-link workbench-link--brass">
+                Source guide in Manual <ArrowRight className="w-3 h-3" />
               </Link>
             )}
           </div>

@@ -19,7 +19,9 @@ const RequestSupport = lazy(() => import('./pages/RequestSupport'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AIAdvisor      = lazy(() => import('./pages/AIAdvisor'));
+const CreatePost     = lazy(() => import('./pages/CreatePost'));
 const ThreatModel    = lazy(() => import('./pages/ThreatModel'));
+const Simulations    = lazy(() => import('./pages/Simulations'));
 
 function withRouteSuspense(element) {
   return (
@@ -64,8 +66,10 @@ function App() {
         <Route path="secure-setup" element={withRouteSuspense(<SecureSetup />)} />
         <Route path="resources" element={withRouteSuspense(<Resources />)} />
         <Route path="community" element={withRouteSuspense(<Community />)} />
+        <Route path="community/new" element={withRouteSuspense(<CreatePost />)} />
         <Route path="community/:postId" element={withRouteSuspense(<CommunityPostDetail />)} />
         <Route path="source-protection" element={withRouteSuspense(<SourceProtection />)} />
+        <Route path="simulations" element={withRouteSuspense(<Simulations />)} />
         <Route path="request-support" element={withRouteSuspense(<RequestSupport />)} />
         <Route
           path="ai-advisor"
