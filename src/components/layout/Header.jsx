@@ -23,6 +23,7 @@ const PAPER_SURFACE_PATHS = new Set([
   '/request-support',
   '/secure-setup',
   '/source-protection',
+  '/simulations',
   '/security-score',
   '/community',
   '/specialist-dashboard',
@@ -88,19 +89,24 @@ const Header = () => {
     ...(isVerified ? [{ name: 'Dashboard', path: '/specialist-dashboard' }] : []),
     { name: 'Security Score', path: '/security-score' },
     { name: 'Secure Setup',   path: '/secure-setup' },
-    { name: 'Resources',      path: '/resources' },
+    { name: 'Manual',         path: '/resources' },
+    { name: 'Simulations',    path: '/simulations' },
     { name: 'Community',      path: '/community' },
     ...(user ? [{ name: 'AI Advisor', path: '/ai-advisor' }] : []),
     ...(user ? [{ name: 'Threat Model', path: '/threat-model' }] : []),
     ...(isAdmin ? [{ name: 'Admin', path: '/admin' }] : []),
   ];
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) =>
+    location.pathname === path || location.pathname.startsWith(path + '/');
 
   // ─── Surface-aware palette ────────────────────────────────────────────
   // Paper surfaces render under the editorial header; legacy product surfaces
   // stay on the dark canvas until they are migrated.
-  const isPaperSurface = PAPER_SURFACE_PATHS.has(location.pathname);
+  // Exact match OR nested path (e.g. /community/post-id still counts as paper).
+  const isPaperSurface = [...PAPER_SURFACE_PATHS].some(
+    (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
+  );
 
   const t = isPaperSurface
     ? {
