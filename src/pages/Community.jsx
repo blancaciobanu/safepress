@@ -254,14 +254,14 @@ const Community = () => {
           transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
           className="flex items-center gap-3 mt-5 mb-5"
         >
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-smoke-dim pointer-events-none" />
-            <NewsInput
+          <div className="flex items-center flex-1 border border-ink/12 bg-paper-soft/70 focus-within:border-oxblood/40 transition-colors">
+            <Search className="w-3 h-3 text-smoke-dim flex-shrink-0 ml-3" />
+            <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={`search ${isQA ? 'questions' : 'discussions'}...`}
-              className="pl-8 pr-3 py-1.5 text-xs lowercase"
+              className="flex-1 bg-transparent py-1.5 pl-2 pr-3 text-xs lowercase text-ink placeholder-smoke-dim outline-none"
             />
           </div>
 
