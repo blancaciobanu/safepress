@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, HelpCircle, Heart, Send,
-  Plus, ArrowLeft, CheckCircle2, X, Search,
+  Plus, X, Search,
   Shield, Smartphone, Lock, Radio, Scale,
-  AlertTriangle, Bookmark, BookmarkCheck,
-  Pencil, Trash2, Flag, Users,
+  Bookmark, BookmarkCheck,
+  Trash2, Flag, Users,
   Clock, ArrowUp, EyeOff,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -14,17 +14,13 @@ import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { getPublicProfile } from '../features/users/services/userService';
 import {
-  addCommunityComment,
   createCommunityPost,
   createCommunityReport,
   deleteCommunityPostWithComments,
   getAuthorProfile,
   getPostCommentCount,
-  listCommunityComments,
   listCommunityPosts,
-  softDeleteCommunityComment,
   updateCommunityPostLike,
-  updateCommunityPost,
 } from '../features/community/services/communityService';
 import { COLLECTIONS } from '../config/firebaseCollections';
 import { logError } from '../utils/logger';
@@ -41,7 +37,6 @@ import {
   NewsPanel,
   NewsRule,
   NewsSelect,
-  NewsTextarea,
 } from '../components/editorial/NewsPage';
 
 const categories = [
@@ -64,23 +59,16 @@ const Community = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewPost, setShowNewPost] = useState(false);
-  const [selectedPost, setSelectedPost] = useState(null);
-  const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
   const [questionForm, setQuestionForm] = useState({ title: '', content: '', category: 'general', isAnonymous: false });
   const [searchQuery, setSearchQuery] = useState('');
-  const [sidebarSearch, setSidebarSearch] = useState('');
   const [followedPosts, setFollowedPosts] = useState(new Set());
-  const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState({ title: '', content: '' });
   const [authorProfile, setAuthorProfile] = useState(null);
   const [sortMode, setSortMode] = useState('newest');
-  const [deleteTarget, setDeleteTarget] = useState(null); // {type: 'post'|'comment', id, commentId?}
-  const [reportDialog, setReportDialog] = useState(null); // {type, postId, commentId?}
-  const [selectedComments, setSelectedComments] = useState([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [reportDialog, setReportDialog] = useState(null);
 
   useEffect(() => {
     setFollowedPosts(new Set(user?.followedPosts || []));
@@ -104,26 +92,6 @@ const Community = () => {
     };
     fetchPosts();
   }, []);
-
-  useEffect(() => {
-    const fetchSelectedComments = async () => {
-      if (!selectedPost?.id) {
-        setSelectedComments([]);
-        return;
-      }
-      setCommentsLoading(true);
-      try {
-        const comments = await listCommunityComments(selectedPost.id, selectedPost.comments || []);
-        setSelectedComments(comments);
-      } catch (err) {
-        logError('Error fetching comments:', err);
-        setSelectedComments(selectedPost.comments || []);
-      } finally {
-        setCommentsLoading(false);
-      }
-    };
-    fetchSelectedComments();
-  }, [selectedPost?.comments, selectedPost?.id]);
 
   const filteredPosts = (() => {
     const base = posts.filter(post => {
@@ -193,96 +161,16 @@ const Community = () => {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
     const alreadyLiked = post.likedBy?.includes(user.uid);
-
-    const updateLikeState = (prev) => {
-      const newLikedBy = alreadyLiked
-        ? (prev.likedBy || []).filter(uid => uid !== user.uid)
-        : [...(prev.likedBy || []), user.uid];
-      return { ...prev, likes: newLikedBy.length, likedBy: newLikedBy };
-    };
-
-    setPosts(prev => prev.map(p => p.id === postId ? updateLikeState(p) : p));
-    if (selectedPost?.id === postId) setSelectedPost(updateLikeState);
-
+    const newLikedBy = alreadyLiked
+      ? (post.likedBy || []).filter(uid => uid !== user.uid)
+      : [...(post.likedBy || []), user.uid];
+    setPosts(prev => prev.map(p =>
+      p.id === postId ? { ...p, likes: newLikedBy.length, likedBy: newLikedBy } : p
+    ));
     try {
       await updateCommunityPostLike({ postId, alreadyLiked, userId: user.uid });
     } catch (err) {
       logError('Error liking post:', err);
-    }
-  };
-
-  const handleAddComment = async () => {
-    if (!user || !newComment.trim() || !selectedPost) return;
-    if (!user.emailVerified) {
-      setError('verify your email before replying in the community.');
-      return;
-    }
-    setSubmitting(true);
-    setError('');
-    try {
-      const comment = {
-        id: `${user.uid}-${Date.now()}`,
-        authorId: user.uid,
-        authorName: user.username || 'anonymous',
-        authorIcon: user.avatarIcon || '🔒',
-        authorType: user.accountType || 'journalist',
-        isVerified: user.verificationStatus === 'approved',
-        authorVerificationStatus: user.accountType === 'specialist' ? (user.verificationStatus || 'pending') : null,
-        content: newComment.trim(),
-        createdAt: new Date().toISOString(),
-        deleted: false,
-      };
-      await addCommunityComment({
-        postId: selectedPost.id,
-        comment,
-        fallbackCount: getPostCommentCount(selectedPost),
-      });
-      const nextCount = getPostCommentCount(selectedPost) + 1;
-      const updatedPost = {
-        ...selectedPost,
-        commentCount: nextCount,
-        lastCommentAt: comment.createdAt,
-      };
-      setSelectedComments(prev => [...prev, comment]);
-      setSelectedPost(updatedPost);
-      setPosts(prev => prev.map(p =>
-        p.id === selectedPost.id
-          ? { ...p, commentCount: nextCount, lastCommentAt: comment.createdAt }
-          : p
-      ));
-      setNewComment('');
-    } catch (err) {
-      logError('Error adding comment:', err);
-      setError('failed to add comment.');
-    }
-    setSubmitting(false);
-  };
-
-  const handleResolve = async (postId) => {
-    if (!user) return;
-    const post = posts.find(p => p.id === postId);
-    if (!post || post.authorId !== user.uid) return;
-    try {
-      await updateCommunityPost(postId, { resolved: !post.resolved });
-      setPosts(prev => prev.map(p => p.id === postId ? { ...p, resolved: !p.resolved } : p));
-      if (selectedPost?.id === postId) setSelectedPost(prev => ({ ...prev, resolved: !prev.resolved }));
-    } catch (err) {
-      logError('Error resolving post:', err);
-    }
-  };
-
-  const handleAcceptAnswer = async (commentId) => {
-    if (!selectedPost || selectedPost.authorId !== user?.uid) return;
-    const newAccepted = selectedPost.acceptedCommentId === commentId ? null : commentId;
-    try {
-      await updateCommunityPost(selectedPost.id, {
-        acceptedCommentId: newAccepted,
-      });
-      const updated = { ...selectedPost, acceptedCommentId: newAccepted };
-      setSelectedPost(updated);
-      setPosts(prev => prev.map(p => p.id === selectedPost.id ? updated : p));
-    } catch (err) {
-      logError('Error accepting answer:', err);
     }
   };
 
@@ -309,55 +197,16 @@ const Community = () => {
     }
   };
 
-  const handleEditPost = async () => {
-    if (!selectedPost || !editForm.title.trim() || !editForm.content.trim()) return;
-    setSubmitting(true);
-    try {
-      await updateCommunityPost(selectedPost.id, {
-        title: editForm.title.trim(),
-        content: editForm.content.trim(),
-        edited: true,
-        editedAt: new Date().toISOString(),
-      });
-      const updated = { ...selectedPost, title: editForm.title.trim(), content: editForm.content.trim(), edited: true, editedAt: new Date().toISOString() };
-      setSelectedPost(updated);
-      setPosts(prev => prev.map(p => p.id === selectedPost.id ? updated : p));
-      setEditMode(false);
-    } catch (err) {
-      logError('Error editing post:', err);
-      setError('failed to save edit — check your connection.');
-    }
-    setSubmitting(false);
-  };
-
   const handleDeletePost = async (postId) => {
     try {
       await deleteCommunityPostWithComments(postId);
       setPosts(prev => prev.filter(p => p.id !== postId));
-      if (selectedPost?.id === postId) setSelectedPost(null);
     } catch (err) {
       logError('Error deleting post:', err);
       setError('failed to delete — check your permissions.');
     }
   };
 
-  const handleDeleteComment = async (postId, commentId) => {
-    const target = selectedComments.find((comment) => comment.id === commentId);
-    if (!target || target.authorId !== user?.uid) return;
-    try {
-      await softDeleteCommunityComment({ postId, commentId });
-      setSelectedComments(prev => prev.map((comment) =>
-        comment.id === commentId
-          ? { ...comment, content: '[deleted]', authorName: 'deleted', authorId: null, deleted: true, authorType: 'journalist', isVerified: false, authorVerificationStatus: null }
-          : comment
-      ));
-    } catch (err) {
-      logError('Error deleting comment:', err);
-    }
-  };
-
-  /* Called by ReportModal with its own internal reason/note state.
-     The modal owns its loading + success animation; we just persist. */
   const submitReport = async ({ reason, note }) => {
     if (!user || !reportDialog) return;
     if (!user.emailVerified) {
@@ -391,415 +240,6 @@ const Community = () => {
       setAuthorProfile(null);
     }
   };
-
-  /* Modals rendered at the root of both views.
-     UserAvatar / Star / BadgeCheck / X / Trash2 / Flag / etc. all live
-     inside their own component files now. */
-  const modals = (
-    <>
-      <DeleteConfirmModal
-        target={deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={async (t) => {
-          if (t.type === 'post') {
-            await handleDeletePost(t.id);
-          } else {
-            await handleDeleteComment(t.id, t.commentId);
-          }
-        }}
-      />
-      <ReportModal
-        target={reportDialog}
-        onClose={() => setReportDialog(null)}
-        onSubmit={submitReport}
-      />
-      <AuthorProfileModal
-        profile={authorProfile}
-        onClose={() => setAuthorProfile(null)}
-        onSelectPost={(p) => {
-          setAuthorProfile(null);
-          setSelectedPost(p);
-        }}
-      />
-    </>
-  );
-
-  // ── Post Detail View ──────────────────────────────────────────────
-  if (selectedPost) {
-    const isQuestion = selectedPost.type === 'question';
-    const liked = selectedPost.likedBy?.includes(user?.uid);
-    const commentCount = Math.max(getPostCommentCount(selectedPost), selectedComments.length);
-    const isAuthor = selectedPost.authorId === user?.uid;
-
-    const orderedComments = (() => {
-      const list = [...selectedComments];
-      const acceptedId = selectedPost.acceptedCommentId;
-      if (!acceptedId) return list;
-      const accepted = list.find(c => c.id === acceptedId);
-      const rest = list.filter(c => c.id !== acceptedId);
-      return accepted ? [accepted, ...rest] : list;
-    })();
-
-    return (
-      <>
-      <NewsPage>
-        <div>
-          <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
-          <div className="min-w-0">
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-3 mb-5 flex-wrap"
-          >
-            <button
-              onClick={() => { setSelectedPost(null); setError(''); }}
-              className="flex items-center gap-1.5 text-smoke hover:text-ink transition-colors text-xs lowercase flex-shrink-0"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              back
-            </button>
-            <span className="text-smoke-dim text-xs">·</span>
-            {isQuestion && (
-              <>
-                <span className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
-                  selectedPost.resolved ? 'bg-brass/12 text-brass' : 'bg-oxblood/8 text-oxblood'
-                }`}>
-                  {selectedPost.resolved ? 'resolved' : 'open'}
-                </span>
-                <span className="text-smoke-dim text-xs">·</span>
-              </>
-            )}
-            <span className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim">
-              {categories.find(c => c.id === selectedPost.category)?.name || selectedPost.category}
-            </span>
-            <span className="text-smoke-dim text-xs">·</span>
-            <span className="text-[10px] text-smoke-dim lowercase">{timeAgo(selectedPost.createdAt)}</span>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className={`bg-paper-soft border border-ink/12 p-5 mb-4 border-l-4 ${
-              isQuestion
-                ? selectedPost.resolved ? 'border-l-brass/50' : 'border-l-oxblood/30'
-                : 'border-l-ink/20'
-            }`}
-          >
-            {/* Author row */}
-            <div className="flex items-center gap-3 mb-4">
-              <UserAvatar
-                name={selectedPost.authorName}
-                accountType={selectedPost.authorType}
-                anonymous={selectedPost.isAnonymous}
-                size="md"
-              />
-              <div className="flex-1 min-w-0">
-                <AuthorLine item={selectedPost} onOpenProfile={openProfile} />
-                <p className="text-[11px] text-smoke-dim lowercase mt-0.5">
-                  {selectedPost.isAnonymous
-                    ? 'posted anonymously'
-                    : (selectedPost.authorType === 'specialist' ? 'security specialist' : 'journalist')}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {isAuthor && (
-                  <>
-                    <button
-                      onClick={() => {
-                        if (editMode) setEditMode(false);
-                        else { setEditMode(true); setEditForm({ title: selectedPost.title, content: selectedPost.content }); }
-                      }}
-                      className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-ink transition-colors lowercase"
-                    >
-                      {editMode ? <X className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
-                      {editMode ? 'cancel' : 'edit'}
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget({ type: 'post', id: selectedPost.id })}
-                      className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors lowercase"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      delete
-                    </button>
-                  </>
-                )}
-                {!isAuthor && user && (
-                  <button
-                    onClick={() => setReportDialog({ type: 'post', postId: selectedPost.id })}
-                    className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors lowercase"
-                  >
-                    <Flag className="w-3 h-3" />
-                    report
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {editMode ? (
-              <>
-                <input
-                  value={editForm.title}
-                  onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
-                  className="w-full px-0 py-2 bg-transparent border-b border-ink/10 text-ink text-xl font-display font-bold placeholder-smoke focus:outline-none focus:border-ink/40 transition-colors mb-3"
-                />
-                <textarea
-                  value={editForm.content}
-                  onChange={e => setEditForm(p => ({ ...p, content: e.target.value }))}
-                  rows="4"
-                  className="w-full px-0 py-2 bg-transparent text-sm text-ink-soft placeholder-smoke focus:outline-none transition-colors resize-none leading-relaxed mb-3"
-                />
-                <div className="flex items-start gap-2 px-3 py-2.5 mb-4 rounded-lg bg-amber-500/[0.08] border border-amber-500/20">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-brass/80 lowercase leading-relaxed">
-                    once saved, an "edited" label will be visible to all community members.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleEditPost}
-                    disabled={submitting || !editForm.title.trim() || !editForm.content.trim()}
-                    className="px-4 py-1.5 btn disabled:opacity-40 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
-                  >
-                    {submitting ? 'saving...' : 'save'}
-                  </button>
-                  <button onClick={() => setEditMode(false)} className="px-4 py-1.5 text-smoke hover:text-ink text-xs font-semibold uppercase tracking-wide transition-colors">
-                    cancel
-                  </button>
-                </div>
-                {error && <p className="text-xs text-oxblood mt-2 lowercase">{error}</p>}
-              </>
-            ) : (
-              <>
-                <h1 className="text-xl font-display font-bold mb-3 leading-snug text-ink">
-                  {selectedPost.title}
-                  {selectedPost.edited && (
-                    <span className="ml-2 text-[10px] font-normal text-smoke-dim lowercase align-middle">(edited)</span>
-                  )}
-                </h1>
-                <p className="text-sm text-ink-soft leading-relaxed whitespace-pre-wrap mb-4">
-                  {selectedPost.content}
-                </p>
-              </>
-            )}
-
-            <div className="flex items-center gap-4 pt-3 border-t border-ink/8">
-              <button
-                onClick={(e) => handleLike(e, selectedPost.id)}
-                className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${
-                  liked ? 'text-oxblood' : 'text-smoke hover:text-oxblood'
-                }`}
-              >
-                <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
-                {selectedPost.likes || 0}
-              </button>
-              <span className="flex items-center gap-1.5 text-xs text-smoke lowercase">
-                <MessageSquare className="w-3.5 h-3.5" />
-                {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
-              </span>
-              <button
-                onClick={(e) => toggleFollow(e, selectedPost.id)}
-                className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${
-                  followedPosts.has(selectedPost.id) ? 'text-brass' : 'text-smoke hover:text-brass'
-                }`}
-              >
-                {followedPosts.has(selectedPost.id)
-                  ? <BookmarkCheck className="w-3.5 h-3.5" />
-                  : <Bookmark className="w-3.5 h-3.5" />
-                }
-                {followedPosts.has(selectedPost.id) ? 'following' : 'follow'}
-              </button>
-              {isQuestion && isAuthor && (
-                <button
-                  onClick={() => handleResolve(selectedPost.id)}
-                  className={`flex items-center gap-1.5 text-xs transition-colors lowercase ml-auto ${
-                    selectedPost.resolved ? 'text-olive-400' : 'text-smoke hover:text-olive-400'
-                  }`}
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  {selectedPost.resolved ? 'resolved' : 'mark resolved'}
-                </button>
-              )}
-            </div>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
-            {user ? (
-              <NewsPanel className="p-4 mb-4">
-                <div className="flex gap-3 items-start">
-                  <UserAvatar name={user.username || ''} accountType={user.accountType} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <NewsTextarea
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder={isQuestion ? 'write your answer...' : 'add a reply...'}
-                      rows="2"
-                      className="leading-relaxed"
-                    />
-                    <div className="flex justify-end mt-2">
-                      <button
-                        onClick={handleAddComment}
-                        disabled={!newComment.trim() || submitting}
-                        className="flex items-center gap-1.5 px-3 py-1.5 btn disabled:opacity-40 rounded-lg text-xs font-semibold uppercase tracking-wide transition-all"
-                      >
-                        <Send className="w-3 h-3" />
-                        {submitting ? '...' : isQuestion ? 'answer' : 'reply'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {error && <p className="text-xs text-oxblood mt-2 lowercase">{error}</p>}
-              </NewsPanel>
-            ) : (
-              <NewsPanel muted className="flex items-center justify-between gap-4 px-5 py-3.5 mb-4 rounded-xl">
-                <p className="text-xs text-smoke lowercase">log in to join the conversation</p>
-                <button
-                  onClick={() => navigate('/login')}
-                  className="px-4 py-1.5 bg-ink hover:bg-ink-soft text-paper rounded-lg text-xs font-semibold tracking-wide uppercase transition-all flex-shrink-0"
-                >
-                  log in
-                </button>
-              </NewsPanel>
-            )}
-
-            {commentCount > 0 && (
-              <p className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mb-3 px-1">
-                {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
-              </p>
-            )}
-
-            <div className="space-y-2">
-              {commentsLoading && (
-                <div className="flex justify-center py-2">
-                  <div className="w-4 h-4 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-              {orderedComments.map((comment) => {
-                const isAccepted = selectedPost.acceptedCommentId && comment.id === selectedPost.acceptedCommentId;
-                const canAccept = isQuestion && isAuthor && !comment.deleted;
-                const canDelete = user && comment.authorId === user.uid && !comment.deleted;
-                const canReport = user && comment.authorId && comment.authorId !== user.uid && !comment.deleted;
-                return (
-                  <div
-                    key={comment.id ?? comment.createdAt ?? comment.content}
-                    className={`bg-paper-soft border border-ink/12 px-4 py-3 border-l-4 ${
-                      isAccepted ? 'border-l-olive-500' : 'border-l-ink/10'
-                    }`}
-                  >
-                    {isAccepted && (
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-olive-500" />
-                        <span className="text-[10px] font-bold tracking-widest uppercase text-olive-400">accepted answer</span>
-                      </div>
-                    )}
-                    <div className="flex gap-3 items-start">
-                      <div className="flex-shrink-0 mt-0.5">
-                        <UserAvatar
-                          name={comment.authorName}
-                          accountType={comment.authorType}
-                          anonymous={comment.deleted}
-                          size="sm"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                          {comment.deleted ? (
-                            <span className="text-xs font-semibold text-smoke-dim lowercase italic">deleted</span>
-                          ) : (
-                            <AuthorLine item={comment} onOpenProfile={openProfile} />
-                          )}
-                          <span className="text-[10px] text-smoke-dim lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
-                        </div>
-                        <p className={`text-sm leading-relaxed ${comment.deleted ? 'text-smoke-dim italic' : 'text-smoke'}`}>
-                          {comment.content}
-                        </p>
-                        {(canAccept || canDelete || canReport) && (
-                          <div className="flex items-center gap-3 mt-2">
-                            {canAccept && (
-                              <button
-                                onClick={() => handleAcceptAnswer(comment.id)}
-                                className={`flex items-center gap-1 text-[11px] transition-colors lowercase ${
-                                  isAccepted ? 'text-olive-400' : 'text-smoke-dim hover:text-olive-400'
-                                }`}
-                              >
-                                <CheckCircle2 className="w-3 h-3" />
-                                {isAccepted ? 'unmark answer' : 'mark as answer'}
-                              </button>
-                            )}
-                            {canDelete && (
-                              <button
-                                onClick={() => setDeleteTarget({ type: 'comment', id: selectedPost.id, commentId: comment.id })}
-                                className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors lowercase"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                                delete
-                              </button>
-                            )}
-                            {canReport && (
-                              <button
-                                onClick={() => setReportDialog({ type: 'comment', postId: selectedPost.id, commentId: comment.id })}
-                                className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors lowercase"
-                              >
-                                <Flag className="w-3 h-3" />
-                                report
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {commentCount === 0 && (
-                <p className="text-center text-smoke-dim text-xs lowercase py-6">
-                  no {isQuestion ? 'answers' : 'replies'} yet — be the first
-                </p>
-              )}
-            </div>
-          </motion.div>
-
-          </div>
-
-          <div className="hidden lg:block">
-            <div className="lg:sticky lg:top-32 space-y-4">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setSearchQuery(sidebarSearch);
-                  setSelectedPost(null);
-                }}
-              >
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-smoke-dim pointer-events-none" />
-                  <NewsInput
-                    type="text"
-                    value={sidebarSearch}
-                    onChange={e => setSidebarSearch(e.target.value)}
-                    placeholder="search discussions..."
-                    className="pl-9 pr-4 py-2.5 rounded-xl lowercase"
-                  />
-                </div>
-              </form>
-              <NewsSidebar />
-            </div>
-          </div>
-
-          </div>
-
-          <div className="lg:hidden mt-10">
-            <NewsSidebar />
-          </div>
-
-        </div>
-      </NewsPage>
-
-      {modals}
-      </>
-    );
-  }
 
   // ── Main Feed View ────────────────────────────────────────────────
   return (
@@ -1052,7 +492,7 @@ const Community = () => {
                   return (
                     <div
                       key={post.id}
-                      onClick={() => setSelectedPost(post)}
+                      onClick={() => navigate(`/community/${post.id}`)}
                       className={`group relative border border-l-4 rounded-xl p-5 cursor-pointer transition-all hover:bg-paper-soft/60 ${
                         post.resolved
                           ? 'border-olive-500/20 border-l-brass/50 bg-olive-500/[0.02]'
@@ -1115,7 +555,7 @@ const Community = () => {
                 return (
                   <div
                     key={post.id}
-                    onClick={() => setSelectedPost(post)}
+                    onClick={() => navigate(`/community/${post.id}`)}
                     className="group border border-l-4 border-ink/10 border-l-ink/20 rounded-xl p-5 cursor-pointer transition-all hover:bg-paper-soft/60 hover:border-ink/16"
                   >
                     <div className="flex items-start gap-3.5">
@@ -1196,7 +636,26 @@ const Community = () => {
         </div>
       </div>
 
-      {modals}
+      <DeleteConfirmModal
+        target={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={async (t) => {
+          if (t.type === 'post') await handleDeletePost(t.id);
+        }}
+      />
+      <ReportModal
+        target={reportDialog}
+        onClose={() => setReportDialog(null)}
+        onSubmit={submitReport}
+      />
+      <AuthorProfileModal
+        profile={authorProfile}
+        onClose={() => setAuthorProfile(null)}
+        onSelectPost={(p) => {
+          setAuthorProfile(null);
+          navigate(`/community/${p.id}`);
+        }}
+      />
     </NewsPage>
   );
 };

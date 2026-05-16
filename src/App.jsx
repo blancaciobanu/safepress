@@ -14,6 +14,7 @@ const SecurityScore = lazy(() => import('./pages/SecurityScore'));
 const SecureSetup = lazy(() => import('./pages/SecureSetup'));
 const Resources = lazy(() => import('./pages/Resources'));
 const Community = lazy(() => import('./pages/Community'));
+const CommunityPostDetail = lazy(() => import('./pages/CommunityPostDetail'));
 const SourceProtection = lazy(() => import('./pages/SourceProtection'));
 const RequestSupport = lazy(() => import('./pages/RequestSupport'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -69,6 +70,7 @@ function App() {
         <Route path="secure-setup" element={withRouteSuspense(<SecureSetup />)} />
         <Route path="resources" element={withRouteSuspense(<Resources />)} />
         <Route path="community" element={withRouteSuspense(<Community />)} />
+        <Route path="community/:postId" element={withRouteSuspense(<CommunityPostDetail />)} />
         <Route path="source-protection" element={withRouteSuspense(<SourceProtection />)} />
         <Route path="request-support" element={withRouteSuspense(<RequestSupport />)} />
         <Route path="login" element={<Login />} />
