@@ -9,6 +9,8 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 
 const SpecialistDashboard = lazy(() => import('./pages/SpecialistDashboard'));
+const SpecialistCaseFile = lazy(() => import('./pages/SpecialistCaseFile'));
+const SupportCaseDesk = lazy(() => import('./pages/SupportCaseDesk'));
 const SecurityScore = lazy(() => import('./pages/SecurityScore'));
 const SecureSetup = lazy(() => import('./pages/SecureSetup'));
 const Resources = lazy(() => import('./pages/Resources'));
@@ -22,6 +24,7 @@ const AIAdvisor      = lazy(() => import('./pages/AIAdvisor'));
 const CreatePost     = lazy(() => import('./pages/CreatePost'));
 const ThreatModel    = lazy(() => import('./pages/ThreatModel'));
 const Simulations    = lazy(() => import('./pages/Simulations'));
+const MyCases        = lazy(() => import('./pages/MyCases'));
 
 function withRouteSuspense(element) {
   return (
@@ -57,6 +60,30 @@ function App() {
           element={
             <ProtectedRoute>
               {withRouteSuspense(<SpecialistDashboard />)}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="specialist-cases/:requestId"
+          element={
+            <ProtectedRoute>
+              {withRouteSuspense(<SpecialistCaseFile />)}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="support-cases/:requestId"
+          element={
+            <ProtectedRoute>
+              {withRouteSuspense(<SupportCaseDesk />)}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="my-cases"
+          element={
+            <ProtectedRoute>
+              {withRouteSuspense(<MyCases />)}
             </ProtectedRoute>
           }
         />

@@ -54,6 +54,7 @@ const RequestSupport = () => {
   const [specialists, setSpecialists] = useState([]);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const [filedAt, setFiledAt] = useState(null);
+  const [submittedRequestId, setSubmittedRequestId] = useState('');
   const [draftNotes, setDraftNotes] = useState('');
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState('');
@@ -95,7 +96,7 @@ const RequestSupport = () => {
     if (!user || !user.emailVerified) return;
     setSubmitting(true);
     try {
-      await createSupportRequest({
+      const created = await createSupportRequest({
         requesterId: user.uid,
         requesterName: formData.name,
         requesterEmail: formData.email,
@@ -105,6 +106,7 @@ const RequestSupport = () => {
         description: formData.description,
         contactMethod: formData.contactMethod,
       });
+      setSubmittedRequestId(created.id);
       setFiledAt(new Date());
       setSubmitted(true);
     } catch (error) {
@@ -246,12 +248,20 @@ const RequestSupport = () => {
           <div className="asterism mt-10 mb-8">⁂</div>
 
           <div className="flex flex-col sm:flex-row gap-5 items-baseline">
-            <Link to="/" className="link-handdrawn">
-              Return home
-            </Link>
-            <Link to="/crisis" className="link-handdrawn">
-              View crisis steps
-            </Link>
+              <Link to="/" className="link-handdrawn">
+                Return home
+              </Link>
+              {submittedRequestId && (
+                <Link to={`/support-cases/${submittedRequestId}`} className="link-handdrawn">
+                  Open case desk
+                </Link>
+              )}
+              <Link to="/my-cases" className="link-handdrawn">
+                All my cases
+              </Link>
+              <Link to="/crisis" className="link-handdrawn">
+                View crisis steps
+              </Link>
           </div>
         </motion.div>
       </NewsPage>
@@ -303,6 +313,14 @@ const RequestSupport = () => {
           <p className="mt-5 text-base md:text-lg leading-relaxed text-ink-soft">
             Fill out this form and a verified cybersecurity expert will contact you.
           </p>
+          {user && (
+            <p className="mt-3 text-sm text-smoke lowercase">
+              Filed before?{' '}
+              <Link to="/my-cases" className="link-handdrawn">
+                View your existing cases →
+              </Link>
+            </p>
+          )}
         </div>
 
         {/* Specialist availability strip — kept quiet, no glass pill. */}

@@ -62,8 +62,8 @@ const TRAVEL_PROFILE_OPTIONS = [
 ];
 
 const Section = ({ n, label, children }) => (
-  <section className="mt-12">
-    <p className="eyebrow sm pb-2.5 border-b border-ink mb-7">
+  <section className="threat-section">
+    <p className="eyebrow sm threat-section__header">
       <span className="text-ink mr-2">§ {n}</span>
       <span className="text-ink-soft">{label}</span>
     </p>
@@ -77,7 +77,7 @@ const OptionGroup = ({ legendNo, legend, options, value, onChange }) => (
       <span className="no">№ {legendNo}</span>
       <span>{legend}</span>
     </span>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+    <div className="threat-option-grid">
       {options.map((option) => {
         const active = value === option.id;
         return (
@@ -85,7 +85,7 @@ const OptionGroup = ({ legendNo, legend, options, value, onChange }) => (
             key={option.id}
             type="button"
             onClick={() => onChange(option.id)}
-            className={`text-left border px-4 py-3 transition-colors ${
+            className={`threat-option ${active ? 'is-active' : ''} ${
               active
                 ? 'border-ink bg-paper-soft'
                 : 'border-ink/12 hover:border-ink/25 hover:bg-paper-soft/50'
@@ -101,7 +101,7 @@ const OptionGroup = ({ legendNo, legend, options, value, onChange }) => (
 );
 
 const ListCard = ({ title, items, accent }) => (
-  <NewsCard accent={accent}>
+  <NewsCard accent={accent} className="threat-list-card">
     <h3 className="news-card-title">{title}</h3>
     <div className="mt-3 space-y-3">
       {items.length > 0 ? items.map((item) => (
@@ -216,7 +216,7 @@ const ThreatModel = () => {
   const threatMeta = THREAT_LEVEL_META[report?.threatLevel] || THREAT_LEVEL_META.medium;
 
   return (
-    <NewsPage>
+    <NewsPage className="threat-dossier">
       <PrivacyGuardModal
         open={Boolean(pendingPrivacyReview)}
         title="Review sensitive assignment details"
@@ -254,7 +254,7 @@ const ThreatModel = () => {
         </div>
         <NewsRule />
 
-        <div className="mt-10 grid grid-cols-1 lg:grid-cols-[1.25fr_0.9fr] gap-10 items-start">
+        <div className="mt-10 grid grid-cols-1 lg:grid-cols-[1.25fr_0.9fr] gap-10 items-start lg:items-center">
           <div>
             <h1 className="display text-4xl md:text-6xl leading-none">
               Threat model<br />generator<span className="italic-ox">.</span>
@@ -264,15 +264,26 @@ const ThreatModel = () => {
             </p>
           </div>
 
-          <NewsCard accent="#8A6D2C">
+          <NewsCard accent="#8A6D2C" className="threat-context-card">
             <div className="flex items-center gap-3">
               <Radar className="w-4 h-4 text-brass" />
-              <p className="eyebrow sm text-brass">Profile context already loaded</p>
+              <p className="eyebrow sm text-brass">Case context already loaded</p>
             </div>
-            <div className="mt-4 space-y-2">
-              <p className="news-card-copy">Latest score: <span className="text-ink">{latestScore?.score ?? 'none on file'}</span></p>
-              <p className="news-card-copy">Completed setup tasks: <span className="text-ink">{completedTasks}/31</span></p>
-              <p className="news-card-copy">Weak areas in context: <span className="text-ink">{weakAreas.join(', ') || 'none currently flagged'}</span></p>
+            <div className="threat-context-card__grid">
+              <div className="threat-context-card__item">
+                <p className="eyebrow sm text-smoke">Latest score</p>
+                <p className="display-soft text-2xl mt-2 leading-none">{latestScore?.score ?? '—'}</p>
+              </div>
+              <div className="threat-context-card__item">
+                <p className="eyebrow sm text-smoke">Setup completed</p>
+                <p className="display-soft text-2xl mt-2 leading-none">{completedTasks}<span className="text-smoke text-base">/31</span></p>
+              </div>
+            </div>
+            <div className="mt-5 pt-4 border-t border-ink/10">
+              <p className="eyebrow sm text-smoke">Weak areas already in context</p>
+              <p className="news-card-copy mt-2">
+                <span className="text-ink">{weakAreas.join(', ') || 'none currently flagged'}</span>
+              </p>
             </div>
           </NewsCard>
         </div>
@@ -287,107 +298,109 @@ const ThreatModel = () => {
       >
         <NewsNotice tone="info" icon={ShieldAlert}>
           <p className="text-sm leading-relaxed text-ink-soft">
-            The model runs through Firebase Functions. Free-text incident details are redacted before they are sent to the backend model, and the output is designed to support newsroom and source-protection decisions inside the wider resource workflow rather than replace specialist help.
+            SafePress removes obvious identifying details from your notes before sending them for analysis. Use this report as a practical guide for next steps, then contact a specialist if the situation is urgent or high risk.
           </p>
         </NewsNotice>
 
-        <Section n="01" label="Assignment profile">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-            <NewsField no="01" label="Reporting beat">
-              <input
-                type="text"
-                value={formData.beat}
-                onChange={updateField('beat')}
-                placeholder="Investigative corruption, political accountability, organized crime..."
-              />
-            </NewsField>
-            <NewsField no="02" label="Primary region or country">
-              <input
-                type="text"
-                value={formData.region}
-                onChange={updateField('region')}
-                placeholder="Romania, Eastern Europe, cross-border EU reporting..."
-              />
-            </NewsField>
-            <NewsField no="03" label="Publication timeline">
-              <input
-                type="text"
-                value={formData.publicationTimeline}
-                onChange={updateField('publicationTimeline')}
-                placeholder="Publishing this week, long-running investigation, source contact just started..."
-              />
-            </NewsField>
-            <NewsField no="04" label="Recent incidents or warning signs">
-              <textarea
-                rows="4"
-                value={formData.recentIncidents}
-                onChange={updateField('recentIncidents')}
-                placeholder="Suspicious login, phishing, source intimidation, confiscated device, unusual surveillance..."
-              />
-            </NewsField>
-          </div>
-        </Section>
+        <div className="threat-intake-sheet">
+          <Section n="01" label="Assignment profile">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+              <NewsField no="01" label="Reporting beat">
+                <input
+                  type="text"
+                  value={formData.beat}
+                  onChange={updateField('beat')}
+                  placeholder="Investigative corruption, political accountability, organized crime..."
+                />
+              </NewsField>
+              <NewsField no="02" label="Primary region or country">
+                <input
+                  type="text"
+                  value={formData.region}
+                  onChange={updateField('region')}
+                  placeholder="Romania, Eastern Europe, cross-border EU reporting..."
+                />
+              </NewsField>
+              <NewsField no="03" label="Publication timeline">
+                <input
+                  type="text"
+                  value={formData.publicationTimeline}
+                  onChange={updateField('publicationTimeline')}
+                  placeholder="Publishing this week, long-running investigation, source contact just started..."
+                />
+              </NewsField>
+              <NewsField no="04" label="Recent incidents or warning signs">
+                <textarea
+                  rows="4"
+                  value={formData.recentIncidents}
+                  onChange={updateField('recentIncidents')}
+                  placeholder="Suspicious login, phishing, source intimidation, confiscated device, unusual surveillance..."
+                />
+              </NewsField>
+            </div>
+          </Section>
 
-        <Section n="02" label="Risk posture">
-          <OptionGroup
-            legendNo="05"
-            legend="Source sensitivity"
-            options={SOURCE_SENSITIVITY_OPTIONS}
-            value={formData.sourceSensitivity}
-            onChange={(value) => setFormData((current) => ({ ...current, sourceSensitivity: value }))}
-          />
-
-          <div className="mt-8">
+          <Section n="02" label="Risk posture">
             <OptionGroup
-              legendNo="06"
-              legend="Public visibility"
-              options={PUBLIC_VISIBILITY_OPTIONS}
-              value={formData.publicVisibility}
-              onChange={(value) => setFormData((current) => ({ ...current, publicVisibility: value }))}
+              legendNo="05"
+              legend="Source sensitivity"
+              options={SOURCE_SENSITIVITY_OPTIONS}
+              value={formData.sourceSensitivity}
+              onChange={(value) => setFormData((current) => ({ ...current, sourceSensitivity: value }))}
             />
-          </div>
 
-          <div className="mt-8">
-            <OptionGroup
-              legendNo="07"
-              legend="Travel profile"
-              options={TRAVEL_PROFILE_OPTIONS}
-              value={formData.travelProfile}
-              onChange={(value) => setFormData((current) => ({ ...current, travelProfile: value }))}
-            />
-          </div>
-        </Section>
-
-        <Section n="03" label="Operational habits">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-            <NewsField no="08" label="Device profile">
-              <textarea
-                rows="5"
-                value={formData.deviceProfile}
-                onChange={updateField('deviceProfile')}
-                placeholder="Laptop/phone mix, encryption status, personal vs work device separation, border crossing habits..."
+            <div className="mt-8">
+              <OptionGroup
+                legendNo="06"
+                legend="Public visibility"
+                options={PUBLIC_VISIBILITY_OPTIONS}
+                value={formData.publicVisibility}
+                onChange={(value) => setFormData((current) => ({ ...current, publicVisibility: value }))}
               />
-            </NewsField>
+            </div>
 
-            <NewsField no="09" label="Communication profile">
-              <textarea
-                rows="5"
-                value={formData.communicationProfile}
-                onChange={updateField('communicationProfile')}
-                placeholder="Signal, email, in-person meetings, burner devices, cloud collaboration, editor workflows..."
+            <div className="mt-8">
+              <OptionGroup
+                legendNo="07"
+                legend="Travel profile"
+                options={TRAVEL_PROFILE_OPTIONS}
+                value={formData.travelProfile}
+                onChange={(value) => setFormData((current) => ({ ...current, travelProfile: value }))}
               />
-            </NewsField>
+            </div>
+          </Section>
 
-            <NewsField no="10" label="Additional notes for the threat desk" className="md:col-span-2">
-              <textarea
-                rows="5"
-                value={formData.notes}
-                onChange={updateField('notes')}
-                placeholder="Anything else that changes the threat picture: source vulnerability, legal pressure, upcoming travel, newsroom constraints, or operational concerns."
-              />
-            </NewsField>
-          </div>
-        </Section>
+          <Section n="03" label="Operational habits">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+              <NewsField no="08" label="Device profile">
+                <textarea
+                  rows="5"
+                  value={formData.deviceProfile}
+                  onChange={updateField('deviceProfile')}
+                  placeholder="Laptop/phone mix, encryption status, personal vs work device separation, border crossing habits..."
+                />
+              </NewsField>
+
+              <NewsField no="09" label="Communication profile">
+                <textarea
+                  rows="5"
+                  value={formData.communicationProfile}
+                  onChange={updateField('communicationProfile')}
+                  placeholder="Signal, email, in-person meetings, burner devices, cloud collaboration, editor workflows..."
+                />
+              </NewsField>
+
+              <NewsField no="10" label="Additional notes for the threat desk" className="md:col-span-2">
+                <textarea
+                  rows="5"
+                  value={formData.notes}
+                  onChange={updateField('notes')}
+                  placeholder="Anything else that changes the threat picture: source vulnerability, legal pressure, upcoming travel, newsroom constraints, or operational concerns."
+                />
+              </NewsField>
+            </div>
+          </Section>
+        </div>
 
         {error && (
           <NewsNotice tone="danger" icon={AlertTriangle} className="mt-10">
@@ -395,13 +408,42 @@ const ThreatModel = () => {
           </NewsNotice>
         )}
 
-        <div className="mt-10 pt-5 border-t border-ink/22 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3">
+        <div className="threat-dossier__submit">
           <span className="eyebrow sm">Threat desk input prepared from your current profile and this assignment snapshot.</span>
-          <NewsButton type="submit" disabled={generating}>
-            <Radar className="w-4 h-4" />
-            {generating ? 'Generating the report...' : 'Generate threat model'}
-          </NewsButton>
+          <div className="threat-dossier__submit-actions">
+            <NewsButton type="submit" disabled={generating} className="threat-dossier__submit-button">
+              <Radar className={`w-4 h-4 ${generating ? 'animate-pulse' : ''}`} />
+              {generating ? 'Generating the report...' : 'Generate threat model'}
+            </NewsButton>
+          </div>
         </div>
+
+        <AnimatePresence>
+          {generating && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="threat-generating-panel"
+            >
+              <div className="threat-generating-panel__stamp">Threat desk processing</div>
+              <div className="threat-generating-panel__body">
+                <div className="threat-generating-panel__dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <div>
+                  <p className="news-card-title">Assembling the dossier</p>
+                  <p className="news-card-copy mt-2">
+                    Reviewing the assignment, weighting current exposures, and drafting the first action set.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.form>
 
       <AnimatePresence mode="wait">
@@ -415,6 +457,7 @@ const ThreatModel = () => {
             className="mt-14"
           >
             <NewsSectionHeader
+              className="threat-report-header"
               kicker="Generated report"
               title="Current threat model"
               lede="A structured risk picture for this assignment, based on your current posture and the reporting conditions you described."
@@ -422,8 +465,8 @@ const ThreatModel = () => {
               accent={threatMeta.color}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_0.9fr] gap-6 mt-4">
-              <NewsCard accent={threatMeta.color}>
+            <div className="threat-report-overview">
+              <NewsCard accent={threatMeta.color} className="threat-report-summary">
                 <div className="flex items-center justify-between gap-4">
                   <p className="news-card-title">Threat summary</p>
                   <NewsBadge color={threatMeta.color}>{threatMeta.label}</NewsBadge>
@@ -431,22 +474,28 @@ const ThreatModel = () => {
                 <p className="news-card-copy mt-3">{report.summary}</p>
               </NewsCard>
 
-              <NewsNotice tone={report.threatLevel === 'high' || report.threatLevel === 'critical' ? 'danger' : 'info'} icon={ShieldAlert}>
-                <p className="text-sm leading-relaxed text-ink-soft">
-                  <span className="text-ink font-medium">Source risk:</span> {report.sourceRisk}
-                </p>
-              </NewsNotice>
-            </div>
+              <div className="threat-report-sidecards">
+                <NewsNotice
+                  tone={report.threatLevel === 'high' || report.threatLevel === 'critical' ? 'danger' : 'info'}
+                  icon={ShieldAlert}
+                  className="threat-report-slip"
+                >
+                  <p className="text-sm leading-relaxed text-ink-soft">
+                    <span className="text-ink font-medium">Source risk:</span> {report.sourceRisk}
+                  </p>
+                </NewsNotice>
 
-            {redaction && (
-              <NewsNotice tone="info" icon={CheckCircle2} className="mt-5">
-                <p className="text-sm leading-relaxed text-ink-soft">
-                  {redaction.applied && redaction.flags?.length
-                    ? `Sensitive details were redacted before the model call: ${redaction.flags.map((flag) => REDACTION_FLAG_LABELS[flag] || flag).join(', ')}.`
-                    : 'The current privacy scan did not flag obvious sensitive identifiers in the free-text fields sent to the model.'}
-                </p>
-              </NewsNotice>
-            )}
+                {redaction && (
+                  <NewsNotice tone="info" icon={CheckCircle2} className="threat-report-slip">
+                    <p className="text-sm leading-relaxed text-ink-soft">
+                      {redaction.applied && redaction.flags?.length
+                        ? `Sensitive details were redacted before the model call: ${redaction.flags.map((flag) => REDACTION_FLAG_LABELS[flag] || flag).join(', ')}.`
+                        : 'The current privacy scan did not flag obvious sensitive identifiers in the free-text fields sent to the model.'}
+                    </p>
+                  </NewsNotice>
+                )}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
               <ListCard title="Likely adversaries" items={report.adversaries} accent="#7B2E2E" />
@@ -471,7 +520,7 @@ const ThreatModel = () => {
                 {report.fieldRecommendations.map((item) => {
                   const destination = DESTINATION_META[item.destination] || DESTINATION_META.resources;
                   return (
-                    <NewsCard key={`${item.destination}-${item.title}`} accent="#7B2E2E">
+                    <NewsCard key={`${item.destination}-${item.title}`} accent="#7B2E2E" className="threat-route-card">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <h3 className="news-card-title">{item.title}</h3>

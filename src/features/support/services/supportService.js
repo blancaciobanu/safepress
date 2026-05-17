@@ -1,7 +1,10 @@
 import {
+  addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
+  onSnapshot,
   orderBy,
   query,
   updateDoc,
@@ -20,12 +23,16 @@ import {
 const SUPPORT_REQUESTS_COLLECTION = COLLECTIONS.SUPPORT_REQUESTS;
 const SUPPORT_REQUEST_QUEUE_COLLECTION = COLLECTIONS.SUPPORT_REQUEST_QUEUE;
 const PUBLIC_PROFILES_COLLECTION = COLLECTIONS.PUBLIC_PROFILES;
+const SUPPORT_CASE_MESSAGES_SUBCOLLECTION = 'messages';
 
 const mapSnapshotDocs = (snapshot) =>
   snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
 
 const sortByCreatedAtDesc = (items = []) =>
   [...items].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+const getSupportCaseMessagesCollection = (requestId) =>
+  collection(db, SUPPORT_REQUESTS_COLLECTION, requestId, SUPPORT_CASE_MESSAGES_SUBCOLLECTION);
 
 const buildQueueCardData = (entry) => ({
   ...entry,
@@ -78,7 +85,9 @@ export const createSupportRequest = async ({
     claimedByName: null,
     claimedAt: null,
     resolvedAt: null,
+    caseReport: null,
     createdAt,
+    lastCaseActivityAt: createdAt,
   };
   const queuePayload = {
     requesterId,
@@ -91,6 +100,7 @@ export const createSupportRequest = async ({
     claimedAt: null,
     resolvedAt: null,
     createdAt,
+    lastCaseActivityAt: createdAt,
   };
 
   if (
@@ -169,6 +179,113 @@ export const getSupportRequestsByRequester = async (requesterId) => {
   return sortByCreatedAtDesc(mapSnapshotDocs(snapshot));
 };
 
+export const getRequesterCaseFile = async ({ requestId, requesterId }) => {
+  const privateRef = doc(db, SUPPORT_REQUESTS_COLLECTION, requestId);
+  const privateSnap = await getDoc(privateRef);
+
+  if (!privateSnap.exists()) {
+    throw new Error('support-request-not-found');
+  }
+
+  const privateData = { id: privateSnap.id, ...privateSnap.data() };
+
+  if (privateData.requesterId !== requesterId) {
+    throw new Error('support-request-access-denied');
+  }
+
+  return privateData;
+};
+
+export const getSpecialistCaseFile = async ({ requestId, specialistId }) => {
+  const privateRef = doc(db, SUPPORT_REQUESTS_COLLECTION, requestId);
+  const privateSnap = await getDoc(privateRef);
+
+  if (!privateSnap.exists()) {
+    throw new Error('support-request-not-found');
+  }
+
+  const privateData = { id: privateSnap.id, ...privateSnap.data() };
+
+  if (privateData.status === 'open') {
+    return buildQueueCardData(privateData);
+  }
+
+  if (privateData.claimedBy !== specialistId) {
+    throw new Error('support-request-access-denied');
+  }
+
+  return privateData;
+};
+
+export const listenToSupportCaseFile = ({ requestId, onData, onError }) => {
+  const privateRef = doc(db, SUPPORT_REQUESTS_COLLECTION, requestId);
+  return onSnapshot(
+    privateRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onError?.(new Error('support-request-not-found'));
+        return;
+      }
+
+      onData?.({ id: snapshot.id, ...snapshot.data() });
+    },
+    (error) => {
+      onError?.(error);
+    }
+  );
+};
+
+export const listenToSupportCaseMessages = ({ requestId, onData, onError }) => {
+  const messagesQuery = query(
+    getSupportCaseMessagesCollection(requestId),
+    orderBy('createdAt', 'asc')
+  );
+
+  return onSnapshot(
+    messagesQuery,
+    (snapshot) => {
+      onData?.(mapSnapshotDocs(snapshot));
+    },
+    (error) => {
+      onError?.(error);
+    }
+  );
+};
+
+export const addSupportCaseMessage = async ({
+  requestId,
+  authorId,
+  authorName,
+  authorRole,
+  body,
+}) => {
+  const trimmedBody = body.trim();
+  if (!trimmedBody) {
+    throw new Error('support-message-empty');
+  }
+
+  const createdAt = new Date().toISOString();
+  await addDoc(getSupportCaseMessagesCollection(requestId), {
+    authorId,
+    authorName,
+    authorRole,
+    body: trimmedBody,
+    createdAt,
+  });
+
+  await updateDoc(doc(db, SUPPORT_REQUESTS_COLLECTION, requestId), {
+    lastCaseActivityAt: createdAt,
+  });
+
+  return {
+    authorId,
+    authorName,
+    authorRole,
+    body: trimmedBody,
+    createdAt,
+  };
+};
+
 export const claimSupportRequest = async ({ requestId, specialistId, specialistName }) => {
   const claimedAt = new Date().toISOString();
   const payload = {
@@ -176,6 +293,7 @@ export const claimSupportRequest = async ({ requestId, specialistId, specialistN
     claimedBy: specialistId,
     claimedByName: specialistName,
     claimedAt,
+    lastCaseActivityAt: claimedAt,
   };
 
   const batch = writeBatch(db);
@@ -191,6 +309,7 @@ export const resolveSupportRequest = async (requestId) => {
   const payload = {
     status: 'resolved',
     resolvedAt,
+    lastCaseActivityAt: resolvedAt,
   };
 
   const batch = writeBatch(db);
@@ -199,6 +318,30 @@ export const resolveSupportRequest = async (requestId) => {
   await batch.commit();
 
   return payload;
+};
+
+export const saveSupportCaseReport = async ({
+  requestId,
+  specialistId,
+  specialistName,
+  report,
+}) => {
+  const updatedAt = new Date().toISOString();
+  const payload = {
+    caseReport: {
+      summary: report.summary?.trim() || '',
+      actionsTaken: report.actionsTaken?.trim() || '',
+      outstandingRisks: report.outstandingRisks?.trim() || '',
+      nextSteps: report.nextSteps?.trim() || '',
+      updatedAt,
+      specialistId,
+      specialistName,
+    },
+    lastCaseActivityAt: updatedAt,
+  };
+
+  await updateDoc(doc(db, SUPPORT_REQUESTS_COLLECTION, requestId), payload);
+  return payload.caseReport;
 };
 
 export const submitSupportFeedback = async ({ requestId, rating, comment }) => {

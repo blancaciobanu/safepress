@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import {
   Shield, AlertTriangle, CheckCircle, Clock, User,
-  Star, Inbox, ChevronRight, Mail, Phone, MessageSquare,
-  Lock, Users, BookOpen, ArrowRight, Award, TrendingUp,
+  Star,
+  Users, Award,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
@@ -17,7 +17,7 @@ import {
   resolveSupportRequest,
 } from '../features/support/services/supportService';
 import { logError } from '../utils/logger';
-import { NewsPage } from '../components/editorial/NewsPage';
+import { NewsPage, NewsRule } from '../components/editorial/NewsPage';
 
 const CRISIS_LABELS = {
   hacked:   'hacked account',
@@ -27,9 +27,16 @@ const CRISIS_LABELS = {
   other:    'security concern',
 };
 
-const CRISIS_ICONS = { hacked: Lock, source: Users, doxxed: AlertTriangle, phishing: Shield, other: Shield };
+const CRISIS_ICONS = { hacked: Shield, source: Users, doxxed: AlertTriangle, phishing: Shield, other: Shield };
 
-const CONTACT_ICONS = { email: Mail, phone: Phone, signal: MessageSquare };
+const getMonogram = (value) =>
+  (value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('') || 'SP';
 
 const URGENCY_CONFIG = {
   emergency: { label: 'emergency', bg: 'bg-oxblood/12', text: 'text-oxblood', border: 'border-oxblood/30' },
@@ -53,25 +60,52 @@ const loadSpecialistRequests = async (specialistId) => {
 
 /* ─── Request Card ─────────────────────────────────────────────────────────── */
 
-const RequestCard = ({ req, userId, onClaim, onResolve }) => {
-  const [expanded, setExpanded] = useState(false);
+const RequestCard = ({
+  req,
+  userId,
+  lane,
+  busy = false,
+  isDragging = false,
+  onClaim,
+  onResolve,
+  onDragStart,
+  onDragEnd,
+}) => {
   const urgency = URGENCY_CONFIG[req.urgency] || URGENCY_CONFIG.normal;
   const CrisisIcon = CRISIS_ICONS[req.crisisType] || Shield;
-  const ContactIcon = CONTACT_ICONS[req.contactMethod] || Mail;
   const isMine = req.claimedBy === userId;
   const privacyLocked = req.queueOnly && req.status === 'open';
+  const canRoute = lane === 'open' || lane === 'active';
+  const routeLabel = lane === 'open' ? 'drag to active' : 'drag to filed';
+  const canResolveFromDesk = Boolean(
+    req.caseReport?.summary?.trim() &&
+    req.caseReport?.actionsTaken?.trim() &&
+    req.caseReport?.nextSteps?.trim()
+  );
 
   return (
     <motion.div
-      layout
-      className="border border-ink/10  bg-paper-soft/40 overflow-hidden"
+      layout="position"
+      className={`specialist-request-card specialist-request-card--${lane}${busy ? ' is-routing' : ''}${isDragging ? ' is-dragging' : ''}`}
     >
-      {/* Card header — always visible */}
-      <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-start gap-4 p-5 text-left hover:bg-paper-soft/40 transition-all"
-      >
-        <div className={`flex-shrink-0 w-10 h-10  flex items-center justify-center border ${urgency.bg} ${urgency.border}`}>
+      <div className="specialist-request-card__meta">
+        <span className="eyebrow sm text-oxblood">
+          {lane === 'open' ? 'Redacted intake' : lane === 'active' ? 'Active case file' : 'Filed note'}
+        </span>
+        {canRoute && (
+          <div
+            className="specialist-request-card__handle"
+            draggable={!busy}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+          >
+            {busy ? 'routing...' : routeLabel}
+          </div>
+        )}
+      </div>
+
+      <div className="specialist-request-card__toggle">
+        <div className={`specialist-request-card__icon ${urgency.bg} ${urgency.border}`}>
           <CrisisIcon className={`w-5 h-5 ${urgency.text}`} />
         </div>
 
@@ -102,79 +136,56 @@ const RequestCard = ({ req, userId, onClaim, onResolve }) => {
             {req.claimedByName && req.claimedBy !== userId && ` · claimed by ${req.claimedByName}`}
           </p>
         </div>
+      </div>
 
-        <ChevronRight className={`flex-shrink-0 w-4 h-4 text-smoke transition-transform mt-0.5 ${expanded ? 'rotate-90' : ''}`} />
-      </button>
+      <div className="specialist-request-card__footer">
+        <Link to={`/specialist-cases/${req.id}`} className="specialist-request-card__filelink">
+          open case file →
+        </Link>
 
-      {/* Expanded details */}
-      {expanded && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.2 }}
-          className="border-t border-ink/8 px-5 pb-5 pt-4 space-y-4"
-        >
-          {privacyLocked ? (
-            <div className=" border border-amber-500/20 bg-amber-500/5 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-brass mb-2">
-                privacy-protected queue
-              </p>
-              <p className="text-sm text-ink-soft lowercase leading-relaxed">
-                this case stays redacted until you claim it. once claimed, the requester&apos;s
-                contact details and confidential description will appear in your active tab.
-              </p>
-            </div>
-          ) : (
-            <>
-              <p className="text-sm text-ink-soft lowercase leading-relaxed">{req.description}</p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-paper-soft/60 border border-ink/8  p-3">
-                  <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1">name</p>
-                  <p className="text-sm text-ink lowercase">{req.requesterName}</p>
-                </div>
-                <div className="bg-paper-soft/60 border border-ink/8  p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <ContactIcon className="w-3 h-3 text-smoke-dim" />
-                    <p className="text-[10px] text-smoke-dim uppercase tracking-wider">
-                      {req.contactMethod || 'email'}
-                    </p>
-                  </div>
-                  <p className="text-sm text-ink lowercase break-all">{req.requesterEmail}</p>
-                </div>
-                {req.requesterPhone && (
-                  <div className="bg-paper-soft/60 border border-ink/8  p-3">
-                    <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1">phone</p>
-                    <p className="text-sm text-ink lowercase">{req.requesterPhone}</p>
-                  </div>
-                )}
-              </div>
-            </>
+        <div className="flex gap-2">
+          {req.status === 'open' && (
+            <button
+              onClick={() => onClaim(req.id)}
+              disabled={busy}
+              className="flex items-center gap-1.5 px-4 py-2 bg-ink/[0.08] border border-ink/30  text-sm text-oxblood hover:bg-ink/[0.10] transition-all lowercase font-medium"
+            >
+              <User className="w-3.5 h-3.5" />
+              {busy ? 'routing...' : 'claim this request'}
+            </button>
           )}
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-1">
-            {req.status === 'open' && (
-              <button
-                onClick={() => onClaim(req.id)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-ink/[0.08] border border-ink/30  text-sm text-oxblood hover:bg-ink/[0.10] transition-all lowercase font-medium"
-              >
-                <User className="w-3.5 h-3.5" />
-                claim this request
-              </button>
-            )}
-            {req.status === 'claimed' && isMine && (
+          {req.status === 'claimed' && isMine && (
+            <div className="flex flex-col items-end gap-1">
               <button
                 onClick={() => onResolve(req.id)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-olive-500/20 border border-olive-500/30  text-sm text-olive-500 hover:bg-olive-500/30 transition-all lowercase font-medium"
+                disabled={busy || !canResolveFromDesk}
+                title={canResolveFromDesk ? undefined : 'Save the resolution report in the case file before filing'}
+                className="flex items-center gap-1.5 px-4 py-2 bg-olive-500/20 border border-olive-500/30  text-sm text-olive-500 hover:bg-olive-500/30 transition-all lowercase font-medium disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                mark as resolved
+                {busy ? 'filing...' : 'mark as resolved'}
               </button>
-            )}
+              {!canResolveFromDesk && (
+                <p className="text-[10px] text-smoke lowercase">open case file to write the report first</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {!privacyLocked && lane !== 'resolved' && (
+        <div className="specialist-request-card__details">
+          <div className="specialist-request-card__meta-block">
+            <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1">name</p>
+            <p className="text-sm text-ink lowercase">{req.requesterName}</p>
           </div>
-        </motion.div>
+          <div className="specialist-request-card__meta-block">
+            <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1">
+              {req.contactMethod || 'email'}
+            </p>
+            <p className="text-sm text-ink lowercase break-all">{req.requesterEmail}</p>
+          </div>
+        </div>
       )}
     </motion.div>
   );
@@ -190,8 +201,10 @@ const SpecialistDashboard = () => {
   const [loading,      setLoading]      = useState(false);
   const [requests,     setRequests]     = useState([]);
   const [resolved,     setResolved]     = useState([]);
-  const [activeTab,    setActiveTab]    = useState('open');
   const [claimedRequests, setClaimedRequests] = useState([]);
+  const [routeBusyId, setRouteBusyId] = useState(null);
+  const [dragState, setDragState] = useState(null);
+  const [activeDropLane, setActiveDropLane] = useState(null);
 
   const isSpecialist = user?.accountType === 'specialist';
   const isVerifiedSpecialist = isSpecialist && user?.verificationStatus === 'approved';
@@ -264,6 +277,7 @@ const SpecialistDashboard = () => {
   }, [isVerifiedSpecialist, user]);
 
   const handleClaim = async (id) => {
+    setRouteBusyId(id);
     try {
       const claimData = await claimSupportRequest({
         requestId: id,
@@ -277,10 +291,13 @@ const SpecialistDashboard = () => {
       ));
     } catch (e) {
       logError('Error claiming:', e);
+    } finally {
+      setRouteBusyId((current) => (current === id ? null : current));
     }
   };
 
   const handleResolve = async (id) => {
+    setRouteBusyId(id);
     try {
       const resolutionData = await resolveSupportRequest(id);
       const req = claimedRequests.find(r => r.id === id);
@@ -288,6 +305,8 @@ const SpecialistDashboard = () => {
       if (req) setResolved(prev => [{ ...req, ...resolutionData }, ...prev]);
     } catch (e) {
       logError('Error resolving:', e);
+    } finally {
+      setRouteBusyId((current) => (current === id ? null : current));
     }
   };
 
@@ -312,8 +331,8 @@ const SpecialistDashboard = () => {
     const rejectionReason = profile?.verificationRejectionReason;
 
     return (
-      <NewsPage >
-        <div>
+      <NewsPage className="specialist-desk">
+        <div className="specialist-desk__status">
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -353,7 +372,7 @@ const SpecialistDashboard = () => {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="border border-ink/10  p-6 bg-paper-soft/40 space-y-5"
+            className="specialist-status-sheet space-y-5"
           >
             {status === 'rejected' && rejectionReason && (
               <div className="bg-crimson-500/5 border border-oxblood/20  p-4">
@@ -441,198 +460,270 @@ const SpecialistDashboard = () => {
   // Derived data
   const sp           = profile?.specialistProfile || {};
   const vd           = profile?.verificationData  || {};
-  const status = user.emailVerified ? user.verificationStatus : 'pending-email-verification';
   const openReqs     = requests.filter(r => r.status === 'open');
   const myActiveReqs = claimedRequests.filter(r => r.status === 'claimed' && r.claimedBy === user.uid);
   const ratedReqs    = resolved.filter(r => r.feedback);
   const avgRating    = ratedReqs.length
     ? ratedReqs.reduce((s, r) => s + r.feedback.rating, 0) / ratedReqs.length
     : null;
-
-  const tabReqs = activeTab === 'open'     ? openReqs
-               : activeTab === 'active'   ? myActiveReqs
-               : resolved;
-
-  const tabConfig = [
-    { id: 'open',     label: 'open',     count: openReqs.length },
-    { id: 'active',   label: 'active',   count: myActiveReqs.length },
-    { id: 'resolved', label: 'resolved', count: resolved.length },
+  const specialistMonogram = getMonogram(user.username);
+  const laneConfig = [
+    {
+      id: 'open',
+      kicker: 'Intake tray',
+      title: 'New requests',
+      note: 'Requests stay redacted here until you pull them into the active folio.',
+      requests: openReqs,
+      empty: 'No new requests waiting in intake.',
+    },
+    {
+      id: 'active',
+      kicker: 'Active folio',
+      title: 'Cases in progress',
+      note: 'Claimed requests reveal the brief so you can work directly with the reporter.',
+      requests: myActiveReqs,
+      empty: 'No active cases yet. Pull one from intake when you are ready.',
+    },
+    {
+      id: 'resolved',
+      kicker: 'Filed notes',
+      title: 'Closed resolutions',
+      note: 'Keep recent closures and feedback on the desk for pattern memory.',
+      requests: resolved,
+      empty: 'Nothing filed yet. Resolved cases will collect here.',
+    },
   ];
 
-  return (
-    <NewsPage>
+  const beginDeskDrag = (requestId, fromLane) => (event) => {
+    event.dataTransfer.effectAllowed = 'move';
+    setDragState({ id: requestId, from: fromLane });
+  };
 
-        {/* ── Header ── */}
+  const endDeskDrag = () => {
+    setDragState(null);
+    setActiveDropLane(null);
+  };
+
+  const canDropIntoLane = (laneId) => {
+    if (!dragState) return false;
+    return (dragState.from === 'open' && laneId === 'active')
+      || (dragState.from === 'active' && laneId === 'resolved');
+  };
+
+  const allowLaneDrop = (laneId) => (event) => {
+    if (!canDropIntoLane(laneId)) return;
+    event.preventDefault();
+    setActiveDropLane(laneId);
+  };
+
+  const leaveLaneDrop = (laneId) => () => {
+    setActiveDropLane((current) => (current === laneId ? null : current));
+  };
+
+  const dropInLane = (laneId) => async (event) => {
+    event.preventDefault();
+    if (!dragState || !canDropIntoLane(laneId)) {
+      endDeskDrag();
+      return;
+    }
+
+    const { id, from } = dragState;
+    setActiveDropLane(laneId);
+
+    try {
+      if (from === 'open' && laneId === 'active') {
+        await handleClaim(id);
+      } else if (from === 'active' && laneId === 'resolved') {
+        await handleResolve(id);
+      }
+    } finally {
+      endDeskDrag();
+    }
+  };
+
+  return (
+    <NewsPage className="specialist-desk">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-10"
+          className="specialist-desk__header"
         >
-          <div className="flex flex-col sm:flex-row sm:items-start gap-5">
-            {/* Avatar */}
-            <div className="w-16 h-16  bg-ink/8 border border-ink/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-3xl">{user.avatarIcon || '🔒'}</span>
-            </div>
-
-            {/* Name + meta */}
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                <h1 className="text-4xl md:text-5xl font-display font-bold lowercase leading-none">
-                  {user.username}
-                </h1>
-                <VerifiedBadge size="md" />
-              </div>
-
-              <p className="text-smoke lowercase text-sm mb-3">
-                security specialist
-                {vd.organization && (
-                  <> · <span className="text-smoke">{vd.organization}</span></>
-                )}
-              </p>
-
-              {/* Expertise chips */}
-              {(sp.expertiseAreas?.length > 0 || vd.expertise) && (
-                <div className="flex flex-wrap gap-2">
-                  {(sp.expertiseAreas?.length > 0 ? sp.expertiseAreas : [vd.expertise]).map(area => (
-                    <span
-                      key={area}
-                      className="px-2.5 py-1 bg-ink/8 border border-ink/20 text-oxblood  text-[11px] font-semibold lowercase"
-                    >
-                      {area}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+          <div className="flex items-baseline justify-between pb-3">
+            <span className="eyebrow sm text-oxblood">Specialist Desk · Casework queue</span>
+            <span className="eyebrow sm">{openReqs.length + myActiveReqs.length + resolved.length} tracked cases</span>
           </div>
+          <NewsRule />
 
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3 mt-7">
-            {[
-              {
-                icon: CheckCircle,
-                value: resolved.length,
-                label: 'cases resolved',
-                color: 'text-olive-500',
-                iconBg: 'bg-olive-500/10 border-olive-500/20',
-              },
-              {
-                icon: Star,
-                value: avgRating ? avgRating.toFixed(1) : '—',
-                label: `avg rating${ratedReqs.length ? ` (${ratedReqs.length})` : ''}`,
-                color: 'text-brass',
-                iconBg: 'bg-amber-400/10 border-amber-400/20',
-              },
-              {
-                icon: TrendingUp,
-                value: myActiveReqs.length,
-                label: 'active now',
-                color: 'text-oxblood',
-                iconBg: 'bg-ink/8 border-ink/20',
-              },
-            ].map(stat => {
-              const StatIcon = stat.icon;
-              return (
-                <div key={stat.label} className="border border-ink/10  p-4 bg-paper-soft/40">
-                  <div className={`w-8 h-8  border flex items-center justify-center mb-3 ${stat.iconBg}`}>
-                    <StatIcon className={`w-4 h-4 ${stat.color}`} />
+          <div className="specialist-desk__hero">
+              <div className="specialist-desk__identity">
+                <div className="specialist-desk__avatar">
+                  <span className="specialist-desk__avatar-mark">{specialistMonogram}</span>
+                </div>
+                <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <h1 className="display text-4xl md:text-6xl leading-none">
+                    {user.username}<span className="italic-ox">.</span>
+                  </h1>
+                  <VerifiedBadge size="md" />
+                </div>
+                <p className="text-smoke lowercase text-sm mb-3">
+                  security specialist
+                  {vd.organization && (
+                    <> · <span className="text-smoke">{vd.organization}</span></>
+                  )}
+                </p>
+
+                {(sp.expertiseAreas?.length > 0 || vd.expertise) && (
+                  <div className="flex flex-wrap gap-2">
+                    {(sp.expertiseAreas?.length > 0 ? sp.expertiseAreas : [vd.expertise]).map(area => (
+                      <span
+                        key={area}
+                        className="specialist-desk__chip"
+                      >
+                        {area}
+                      </span>
+                    ))}
                   </div>
-                  <p className={`text-3xl font-display font-bold ${stat.color} mb-0.5`}>{stat.value}</p>
-                  <p className="text-[11px] text-smoke-dim lowercase">{stat.label}</p>
-                </div>
-              );
-            })}
+                )}
+              </div>
+            </div>
+
+            <div className="specialist-desk__note">
+              <p className="eyebrow sm text-brass">How this desk works</p>
+              <p className="news-card-copy mt-3">
+                Claim a case from the open queue, work it through your active desk, and file it once the journalist confirms the immediate risk is contained.
+              </p>
+            </div>
           </div>
+
+            <div className="specialist-desk__stats">
+              {[
+                {
+                  value: resolved.length,
+                  label: 'cases resolved',
+                  tone: 'olive',
+                },
+                {
+                  value: avgRating ? avgRating.toFixed(1) : '—',
+                  label: `avg rating${ratedReqs.length ? ` (${ratedReqs.length})` : ''}`,
+                  tone: 'brass',
+                },
+                {
+                  value: myActiveReqs.length,
+                  label: 'active now',
+                  tone: 'oxblood',
+                },
+              ].map(stat => {
+                return (
+                  <div key={stat.label} className={`specialist-stat specialist-stat--${stat.tone}`}>
+                    <p className="specialist-stat__kicker">{stat.label}</p>
+                    <p className="specialist-stat__value">{stat.value}</p>
+                  </div>
+                );
+              })}
+            </div>
         </motion.div>
 
-        {/* ── 2-column layout ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
+	        {/* ── 2-column layout ── */}
+	        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
 
-          {/* ── Left: request queue ── */}
-          <motion.div
+	          {/* ── Left: investigations board ── */}
+	          <motion.div
+	            initial={{ opacity: 0, y: 6 }}
+	            animate={{ opacity: 1, y: 0 }}
+	            transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+	            className="specialist-queue-panel"
+	          >
+	            <div className="specialist-queue-head">
+	              <div>
+	                <p className="eyebrow sm text-ink-soft">Investigations board</p>
+	                <h2 className="news-card-title mt-2">Route each case across intake, active, and filed lanes.</h2>
+	              </div>
+	              <div className="specialist-routing-note">
+	                <p className="eyebrow sm text-brass">Desk note</p>
+	                <p className="news-card-copy mt-3">
+	                  Drag a request into the active folio to claim it. Once the immediate risk is contained, drag it again into filed notes.
+	                </p>
+	              </div>
+	            </div>
+
+	            <div className="specialist-board">
+	              {laneConfig.map((lane) => (
+	                <section
+	                  key={lane.id}
+	                  className={`specialist-lane specialist-lane--${lane.id}${activeDropLane === lane.id ? ' is-target' : ''}${canDropIntoLane(lane.id) ? ' is-droppable' : ''}`}
+	                  onDragOver={allowLaneDrop(lane.id)}
+	                  onDragLeave={leaveLaneDrop(lane.id)}
+	                  onDrop={dropInLane(lane.id)}
+	                >
+	                  <div className="specialist-lane__head">
+	                    <span className="eyebrow sm text-oxblood">{lane.kicker}</span>
+	                    <span className="eyebrow sm">{lane.requests.length} on desk</span>
+	                  </div>
+	                  <div className="specialist-lane__titleline">
+	                    <h3 className="specialist-lane__title">{lane.title}</h3>
+	                  </div>
+	                  <p className="specialist-lane__note">{lane.note}</p>
+
+	                  <div className="specialist-lane__stack">
+	                    {loading ? (
+	                      <div className="specialist-empty-state">
+	                        <div className="specialist-empty-state__icon bg-ink/8 border border-ink/20">
+	                          <div className="w-4 h-4 border-2 border-ink border-t-transparent rounded-full animate-spin" />
+	                        </div>
+	                        <p className="text-sm text-smoke lowercase">loading the desk...</p>
+	                      </div>
+	                    ) : lane.requests.length > 0 ? (
+	                      <div className="specialist-request-list">
+	                        {lane.requests.map((req) => (
+	                          <RequestCard
+	                            key={req.id}
+	                            req={req}
+	                            lane={lane.id}
+	                            userId={user.uid}
+	                            busy={routeBusyId === req.id}
+	                            isDragging={dragState?.id === req.id}
+	                            onClaim={handleClaim}
+	                            onResolve={handleResolve}
+	                            onDragStart={lane.id === 'resolved' ? undefined : beginDeskDrag(req.id, lane.id)}
+	                            onDragEnd={lane.id === 'resolved' ? undefined : endDeskDrag}
+	                          />
+	                        ))}
+	                      </div>
+	                    ) : (
+	                      <div className="specialist-empty-state">
+	                        <p className="eyebrow sm text-smoke-dim">tray clear</p>
+	                        <p className="text-sm text-smoke lowercase">{lane.empty}</p>
+	                      </div>
+	                    )}
+	                  </div>
+	                </section>
+	              ))}
+	            </div>
+	          </motion.div>
+
+	          {/* ── Right: profile + feedback ── */}
+	          <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {/* Tabs */}
-            <div className="flex items-center gap-1 mb-5 bg-paper-soft/60 border border-ink/8  p-1 w-fit">
-              {tabConfig.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`relative flex items-center gap-1.5 px-4 py-2  text-xs font-semibold lowercase transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-white/[0.08] text-ink'
-                      : 'text-smoke-dim hover:text-smoke'
-                  }`}
-                >
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-                      activeTab === tab.id
-                        ? tab.id === 'open' && openReqs.some(r => r.urgency === 'emergency')
-                          ? 'bg-crimson-500/30 text-oxblood'
-                          : 'bg-ink/[0.08] text-oxblood'
-                        : 'bg-paper-soft/80 text-smoke-dim'
-                    }`}>
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+	            transition={{ duration: 0.8, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+	            className="specialist-side-rail lg:sticky lg:top-28"
+	          >
+	            <div className="specialist-side-note">
+	              <span className="specialist-side-note__pin" aria-hidden="true" />
+	              <p className="eyebrow sm text-oxblood">Pinned note</p>
+	              <p className="mt-3 text-sm text-ink-soft lowercase leading-relaxed">
+	                Keep only live risks in the active folio. Once a reporter is stabilized, file the case and let the desk breathe again.
+	              </p>
+	            </div>
 
-            {/* Request list */}
-            {tabReqs.length === 0 ? (
-              loading ? (
-                <div className="border border-ink/10  p-10 bg-paper-soft/40 flex flex-col items-center text-center gap-3">
-                  <div className="w-10 h-10  bg-ink/8 border border-ink/20 flex items-center justify-center">
-                    <div className="w-4 h-4 border-2 border-ink border-t-transparent rounded-full animate-spin" />
-                  </div>
-                  <p className="text-sm text-smoke lowercase">loading your request queue...</p>
-                </div>
-              ) : (
-                <div className="border border-ink/10  p-10 bg-paper-soft/40 flex flex-col items-center text-center gap-3">
-                  <div className="w-10 h-10  bg-olive-500/10 border border-olive-500/20 flex items-center justify-center">
-                    <Inbox className="w-5 h-5 text-olive-500" />
-                  </div>
-                  <p className="text-sm text-smoke lowercase">
-                    {activeTab === 'open'     && 'no open requests right now'}
-                    {activeTab === 'active'   && 'no active cases — claim one from open'}
-                    {activeTab === 'resolved' && 'no resolved cases yet'}
-                  </p>
-                </div>
-              )
-            ) : (
-              <div className="space-y-3">
-                {tabReqs.map(req => (
-                  <RequestCard
-                    key={req.id}
-                    req={req}
-                    userId={user.uid}
-                    onClaim={handleClaim}
-                    onResolve={handleResolve}
-                  />
-                ))}
-              </div>
-            )}
-          </motion.div>
-
-          {/* ── Right: profile + feedback ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="space-y-4 lg:sticky lg:top-28"
-          >
-            {/* Profile card */}
-            <div className="border border-ink/10  p-5 bg-paper-soft/40">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim">profile</p>
-                <Link
-                  to="/settings"
-                  className="text-[10px] text-smoke-dim hover:text-smoke transition-colors lowercase"
+	            <div className="specialist-sidecard">
+	              <div className="flex items-center justify-between mb-4">
+	                <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim">field credentials</p>
+	                <Link
+	                  to="/settings"
+	                  className="text-[10px] text-smoke-dim hover:text-smoke transition-colors lowercase"
                 >
                   edit →
                 </Link>
@@ -670,7 +761,7 @@ const SpecialistDashboard = () => {
 
             {/* Feedback card */}
             {ratedReqs.length > 0 && (
-              <div className="border border-ink/10  p-5 bg-paper-soft/40">
+              <div className="specialist-sidecard">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim">feedback</p>
                   <div className="flex items-center gap-1.5">
@@ -705,25 +796,23 @@ const SpecialistDashboard = () => {
               </div>
             )}
 
-            {/* Quick links */}
-            <div className="border border-ink/10  p-5 bg-paper-soft/40">
-              <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim mb-3">resources</p>
-              <div className="space-y-1">
+	            {/* Quick links */}
+	            <div className="specialist-sidecard">
+	              <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim mb-3">reference shelf</p>
+	              <div className="space-y-1">
                 {[
-                  { to: '/resources',  icon: BookOpen, label: 'security resources' },
-                  { to: '/community',  icon: Users,    label: 'community' },
+                  { to: '/resources',  label: 'field manual' },
+                  { to: '/community',  label: 'community desk' },
                 ].map(item => {
-                  const ItemIcon = item.icon;
                   return (
-                    <a
+                    <Link
                       key={item.to}
-                      href={item.to}
-                      className="flex items-center gap-3 py-2 text-smoke hover:text-ink-soft transition-colors group"
+                      to={item.to}
+                      className="specialist-sidecard__link"
                     >
-                      <ItemIcon className="w-4 h-4 flex-shrink-0" />
                       <span className="text-sm lowercase flex-1">{item.label}</span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </a>
+                      <span className="specialist-sidecard__link-arrow">→</span>
+                    </Link>
                   );
                 })}
               </div>
