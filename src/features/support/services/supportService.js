@@ -25,6 +25,13 @@ const SUPPORT_REQUEST_QUEUE_COLLECTION = COLLECTIONS.SUPPORT_REQUEST_QUEUE;
 const PUBLIC_PROFILES_COLLECTION = COLLECTIONS.PUBLIC_PROFILES;
 const SUPPORT_CASE_MESSAGES_SUBCOLLECTION = 'messages';
 
+export const SUPPORT_CASE_MARKERS = {
+  AWAITING_SPECIALIST: 'awaiting_specialist',
+  AWAITING_REPORTER: 'awaiting_reporter',
+  MONITORING: 'monitoring',
+  READY_TO_FILE: 'ready_to_file',
+};
+
 const mapSnapshotDocs = (snapshot) =>
   snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
 
@@ -34,6 +41,9 @@ const sortByCreatedAtDesc = (items = []) =>
 const getSupportCaseMessagesCollection = (requestId) =>
   collection(db, SUPPORT_REQUESTS_COLLECTION, requestId, SUPPORT_CASE_MESSAGES_SUBCOLLECTION);
 
+const getSupportQueueDocRef = (requestId) =>
+  doc(db, SUPPORT_REQUEST_QUEUE_COLLECTION, requestId);
+
 const buildQueueCardData = (entry) => ({
   ...entry,
   queueOnly: true,
@@ -42,6 +52,11 @@ const buildQueueCardData = (entry) => ({
   requesterEmail: 'claim to view contact details',
   requesterPhone: null,
 });
+
+const getDefaultMarkerForMessageRole = (authorRole) =>
+  authorRole === 'specialist'
+    ? SUPPORT_CASE_MARKERS.AWAITING_REPORTER
+    : SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST;
 
 export const listApprovedSpecialists = async () => {
   const specialistsQuery = query(
@@ -85,6 +100,7 @@ export const createSupportRequest = async ({
     claimedByName: null,
     claimedAt: null,
     resolvedAt: null,
+    caseMarker: SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST,
     caseReport: null,
     createdAt,
     lastCaseActivityAt: createdAt,
@@ -99,6 +115,7 @@ export const createSupportRequest = async ({
     claimedByName: null,
     claimedAt: null,
     resolvedAt: null,
+    caseMarker: SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST,
     createdAt,
     lastCaseActivityAt: createdAt,
   };
@@ -179,6 +196,20 @@ export const getSupportRequestsByRequester = async (requesterId) => {
   return sortByCreatedAtDesc(mapSnapshotDocs(snapshot));
 };
 
+export const listenToSupportRequestsByRequester = ({ requesterId, onData, onError }) => {
+  const requestsQuery = query(
+    collection(db, SUPPORT_REQUESTS_COLLECTION),
+    where('requesterId', '==', requesterId),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(
+    requestsQuery,
+    (snapshot) => onData?.(sortByCreatedAtDesc(mapSnapshotDocs(snapshot))),
+    (error) => onError?.(error)
+  );
+};
+
 export const getRequesterCaseFile = async ({ requestId, requesterId }) => {
   const privateRef = doc(db, SUPPORT_REQUESTS_COLLECTION, requestId);
   const privateSnap = await getDoc(privateRef);
@@ -235,6 +266,21 @@ export const listenToSupportCaseFile = ({ requestId, onData, onError }) => {
   );
 };
 
+export const listenToSupportQueueEntry = ({ requestId, onData, onError }) => {
+  return onSnapshot(
+    getSupportQueueDocRef(requestId),
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onError?.(new Error('support-request-not-found'));
+        return;
+      }
+
+      onData?.({ id: snapshot.id, ...snapshot.data() });
+    },
+    (error) => onError?.(error)
+  );
+};
+
 export const listenToSupportCaseMessages = ({ requestId, onData, onError }) => {
   const messagesQuery = query(
     getSupportCaseMessagesCollection(requestId),
@@ -265,6 +311,7 @@ export const addSupportCaseMessage = async ({
   }
 
   const createdAt = new Date().toISOString();
+  const caseMarker = getDefaultMarkerForMessageRole(authorRole);
   await addDoc(getSupportCaseMessagesCollection(requestId), {
     authorId,
     authorName,
@@ -275,6 +322,7 @@ export const addSupportCaseMessage = async ({
 
   await updateDoc(doc(db, SUPPORT_REQUESTS_COLLECTION, requestId), {
     lastCaseActivityAt: createdAt,
+    caseMarker,
   });
 
   return {
@@ -283,6 +331,7 @@ export const addSupportCaseMessage = async ({
     authorRole,
     body: trimmedBody,
     createdAt,
+    caseMarker,
   };
 };
 
@@ -293,6 +342,7 @@ export const claimSupportRequest = async ({ requestId, specialistId, specialistN
     claimedBy: specialistId,
     claimedByName: specialistName,
     claimedAt,
+    caseMarker: SUPPORT_CASE_MARKERS.MONITORING,
     lastCaseActivityAt: claimedAt,
   };
 
@@ -309,6 +359,7 @@ export const resolveSupportRequest = async (requestId) => {
   const payload = {
     status: 'resolved',
     resolvedAt,
+    caseMarker: SUPPORT_CASE_MARKERS.READY_TO_FILE,
     lastCaseActivityAt: resolvedAt,
   };
 
@@ -337,11 +388,25 @@ export const saveSupportCaseReport = async ({
       specialistId,
       specialistName,
     },
+    caseMarker: SUPPORT_CASE_MARKERS.READY_TO_FILE,
     lastCaseActivityAt: updatedAt,
   };
 
   await updateDoc(doc(db, SUPPORT_REQUESTS_COLLECTION, requestId), payload);
   return payload.caseReport;
+};
+
+export const updateSupportCaseMarker = async ({ requestId, marker }) => {
+  const updatedAt = new Date().toISOString();
+  await updateDoc(doc(db, SUPPORT_REQUESTS_COLLECTION, requestId), {
+    caseMarker: marker,
+    lastCaseActivityAt: updatedAt,
+  });
+
+  return {
+    caseMarker: marker,
+    lastCaseActivityAt: updatedAt,
+  };
 };
 
 export const submitSupportFeedback = async ({ requestId, rating, comment }) => {

@@ -12,6 +12,7 @@ import { db } from '../firebase/config';
 import { COLLECTIONS } from '../config/firebaseCollections';
 import { logError } from '../utils/logger';
 import { NewsPage, NewsRule } from '../components/editorial/NewsPage';
+import { getDisplayName } from '../utils/userUtils';
 
 /* Assessment sheet — Form SP-A.
    Printed-form structure: welcome → quiz → results with gauges.
@@ -324,7 +325,7 @@ const SecurityScore = () => {
         {/* Respondent strip */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pb-6 border-b border-ink/12">
           {[
-            { label: 'Respondent', value: user?.username || 'Anonymous', sub: user?.avatarIcon ?? '' },
+            { label: 'Respondent', value: getDisplayName(user) || 'Anonymous', sub: user?.accountType || null },
             { label: 'Questions answered', value: `${answeredCount} of ${total}`, sub: null },
             { label: 'Filing reference', value: filingReference, sub: 'Form revision · v3.1' },
           ].map(({ label, value, sub }) => (

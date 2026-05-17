@@ -85,6 +85,7 @@ export const createCommunityPost = async (postData) => {
     ...postData,
     commentCount: 0,
     acceptedCommentId: null,
+    lastCommentAt: postData.lastCommentAt ?? null,
   };
   const docRef = await addDoc(collection(db, COMMUNITY_POSTS_COLLECTION), payload);
   return { id: docRef.id, ...payload };

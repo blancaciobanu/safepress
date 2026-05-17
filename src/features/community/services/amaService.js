@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../firebase/config';
 import { COLLECTIONS } from '../../../config/firebaseCollections';
+import { getDisplayName } from '../../../utils/userUtils';
 
 const POSTS = COLLECTIONS.COMMUNITY_POSTS;
 
@@ -24,19 +25,22 @@ export const listAMAs = async () => {
 export const createAMA = async (user, bio = '') => {
   const payload = {
     type: 'ama',
-    title: `Ask ${user.username || 'me'} anything`,
+    title: `Ask ${getDisplayName(user) || 'me'} anything`,
     content: bio.trim() || "I'm a verified security specialist on SafePress. Ask me anything.",
     authorId: user.uid,
-    authorName: user.realName || user.username || 'Anonymous',
+    authorName: getDisplayName(user) || 'Anonymous',
     authorType: user.accountType,
     specialistId: user.uid,
     specialistBio: bio.trim(),
     isVerified: user.verificationStatus === 'approved',
+    authorVerificationStatus: user.accountType === 'specialist' ? (user.verificationStatus || 'pending') : null,
+    isAnonymous: false,
     category: 'general',
     createdAt: new Date().toISOString(),
     commentCount: 0,
     likes: 0,
     likedBy: [],
+    resolved: false,
     acceptedCommentId: null,
     lastCommentAt: null,
   };

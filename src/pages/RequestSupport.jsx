@@ -118,8 +118,8 @@ const RequestSupport = () => {
   };
 
   const handleResendVerification = async () => {
-    const sent = await resendVerificationEmail();
-    setVerificationEmailSent(sent);
+    const result = await resendVerificationEmail();
+    setVerificationEmailSent(!!result?.sent);
   };
 
   const runDraftAssist = async (roughDetails, clientFlags = []) => {

@@ -8,7 +8,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import VerifiedBadge from '../components/VerifiedBadge';
-import { reapplySpecialistVerification } from '../features/users/services/userService';
 import {
   claimSupportRequest,
   getClaimedSupportRequestsBySpecialist,
@@ -17,6 +16,10 @@ import {
   resolveSupportRequest,
   SUPPORT_CASE_MARKERS,
 } from '../features/support/services/supportService';
+import {
+  SPECIALIST_VERIFICATION_STATUSES,
+  specialistNeedsVerificationDossier,
+} from '../features/users/verification';
 import { logError } from '../utils/logger';
 import { NewsPage, NewsRule } from '../components/editorial/NewsPage';
 
@@ -208,7 +211,7 @@ const RequestCard = ({
 /* ─── Main page ────────────────────────────────────────────────────────────── */
 
 const SpecialistDashboard = () => {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const navigate  = useNavigate();
 
   const [profile,      setProfile]      = useState(user);
@@ -221,8 +224,7 @@ const SpecialistDashboard = () => {
   const [activeDropLane, setActiveDropLane] = useState(null);
 
   const isSpecialist = user?.accountType === 'specialist';
-  const isVerifiedSpecialist = isSpecialist && user?.verificationStatus === 'approved';
-  const [reapplying, setReapplying] = useState(false);
+  const isVerifiedSpecialist = isSpecialist && user?.verificationStatus === SPECIALIST_VERIFICATION_STATUSES.APPROVED;
 
   // Only redirect non-specialists; pending/rejected specialists stay here and see status
   useEffect(() => {
@@ -234,20 +236,6 @@ const SpecialistDashboard = () => {
   useEffect(() => {
     setProfile(user || null);
   }, [user]);
-
-  const handleReapply = async () => {
-    if (!user) return;
-    setReapplying(true);
-    try {
-      await reapplySpecialistVerification(user.uid);
-      const refreshedUser = await refreshUser();
-      if (refreshedUser) setProfile(refreshedUser);
-    } catch (e) {
-      logError('Error reapplying:', e);
-    } finally {
-      setReapplying(false);
-    }
-  };
 
   // Fetch all request lists together for verified specialists.
   useEffect(() => {
@@ -339,10 +327,13 @@ const SpecialistDashboard = () => {
 
   // Pending / rejected specialists see a status view instead of the dashboard
   if (!isVerifiedSpecialist) {
-    const status = user.emailVerified ? user.verificationStatus : 'pending-email-verification';
+    const status = user.emailVerified ? user.verificationStatus : SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL;
     const vd = profile?.verificationData || {};
-    const submittedAt = vd.submittedAt ? new Date(vd.submittedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
+    const submittedAtSource = vd.dossierSubmittedAt || vd.submittedAt;
+    const submittedAt = submittedAtSource ? new Date(submittedAtSource).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
     const rejectionReason = profile?.verificationRejectionReason;
+    const reviewNote = profile?.verificationReviewNote;
+    const needsDossier = specialistNeedsVerificationDossier(status);
 
     return (
       <NewsPage className="specialist-desk">
@@ -368,16 +359,24 @@ const SpecialistDashboard = () => {
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-3">
               {status === 'rejected'
                 ? 'application not approved'
-                : status === 'pending-email-verification'
+                : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL
                   ? 'verify your email first'
+                  : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS
+                    ? 'complete your verification file'
+                    : status === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO
+                      ? 'the desk needs more detail'
                   : 'verification in review'}
             </h1>
 
             <p className="text-base text-smoke max-w-md mx-auto leading-relaxed" style={{ letterSpacing: '0.03em' }}>
               {status === 'rejected'
-                ? 'your specialist application was not approved. you can update your credentials and reapply.'
-                : status === 'pending-email-verification'
+                ? 'your previous verification was not approved. revise the file if you want the desk to review it again.'
+                : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL
                   ? 'your specialist application is saved, but it will not enter review until you verify your email address.'
+                  : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS
+                    ? 'your basic application is on file, but the review desk still needs your working dossier before it can assess case readiness.'
+                    : status === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO
+                      ? 'the review desk sent the file back with notes. strengthen it, then send it back for another pass.'
                   : "we're reviewing your specialist credentials. you'll get access to the request queue once approved."}
             </p>
           </motion.div>
@@ -388,14 +387,21 @@ const SpecialistDashboard = () => {
             transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
             className="specialist-status-sheet space-y-5"
           >
-            {status === 'rejected' && rejectionReason && (
+            {(status === SPECIALIST_VERIFICATION_STATUSES.REJECTED && rejectionReason) && (
               <div className="bg-crimson-500/5 border border-oxblood/20  p-4">
                 <p className="text-[10px] text-oxblood uppercase tracking-widest font-bold mb-2">reason for rejection</p>
                 <p className="text-sm text-ink-soft leading-relaxed">{rejectionReason}</p>
               </div>
             )}
 
-            {status === 'pending' && (
+            {status === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO && reviewNote && (
+              <div className="bg-crimson-500/5 border border-oxblood/20  p-4">
+                <p className="text-[10px] text-oxblood uppercase tracking-widest font-bold mb-2">review note</p>
+                <p className="text-sm text-ink-soft leading-relaxed">{reviewNote}</p>
+              </div>
+            )}
+
+            {status === SPECIALIST_VERIFICATION_STATUSES.PENDING_REVIEW && (
               <div className="bg-amber-500/5 border border-amber-500/20  p-4">
                 <p className="text-[10px] text-brass uppercase tracking-widest font-bold mb-2">expected timeline</p>
                 <p className="text-sm text-ink-soft leading-relaxed">
@@ -404,11 +410,20 @@ const SpecialistDashboard = () => {
               </div>
             )}
 
-            {status === 'pending-email-verification' && (
+            {status === SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL && (
               <div className="bg-amber-500/5 border border-amber-500/20  p-4">
                 <p className="text-[10px] text-brass uppercase tracking-widest font-bold mb-2">next step</p>
                 <p className="text-sm text-ink-soft leading-relaxed">
                   open the verification email we sent you, confirm your address, then sign back in. your application will automatically move into the review queue.
+                </p>
+              </div>
+            )}
+
+            {status === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS && (
+              <div className="bg-amber-500/5 border border-amber-500/20  p-4">
+                <p className="text-[10px] text-brass uppercase tracking-widest font-bold mb-2">missing piece</p>
+                <p className="text-sm text-ink-soft leading-relaxed">
+                  the desk still needs your fuller verification file: proof of work, secure contact method, coverage areas, languages, and availability.
                 </p>
               </div>
             )}
@@ -443,18 +458,19 @@ const SpecialistDashboard = () => {
               </div>
             </div>
 
-            {status === 'rejected' && (
+            {needsDossier && (
               <div className="pt-3 border-t border-ink/8">
-                <button
-                  onClick={handleReapply}
-                  disabled={reapplying}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-ink hover:bg-ink-soft disabled:opacity-50 text-ink  font-semibold transition-all"
+                <Link
+                  to="/specialist-verification"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-ink hover:bg-ink-soft text-paper font-semibold transition-all"
                 >
                   <Shield className="w-4 h-4" />
-                  {reapplying ? 'resubmitting...' : 'resubmit for review'}
-                </button>
+                  {status === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS
+                    ? 'complete verification file'
+                    : 'revise verification file'}
+                </Link>
                 <p className="text-xs text-smoke-dim text-center mt-3">
-                  update your credentials in settings, then click resubmit
+                  keep the file current there, then send it back to the review desk
                 </p>
               </div>
             )}

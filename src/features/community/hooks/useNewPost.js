@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createCommunityPost } from '../services/communityService';
 import { logError } from '../../../utils/logger';
+import { getDisplayName } from '../../../utils/userUtils';
 
 const EMPTY_FORM = { title: '', content: '', category: 'general', isAnonymous: false };
 
@@ -34,7 +35,7 @@ export const useNewPost = (user, currentTabType, setPosts) => {
         title: newPost.title.trim(),
         content: newPost.content.trim(),
         authorId: user.uid,
-        authorName: anon ? 'anonymous' : (user.username || 'anonymous'),
+        authorName: anon ? 'anonymous' : (getDisplayName(user) || 'anonymous'),
         authorType: user.accountType || 'journalist',
         isVerified: user.verificationStatus === 'approved',
         authorVerificationStatus: user.accountType === 'specialist' ? (user.verificationStatus || 'pending') : null,

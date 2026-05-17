@@ -6,7 +6,7 @@ export const isStrongPassword = (password = '') =>
   password.length >= MIN_PASSWORD_LENGTH && PASSWORD_PATTERN.test(password);
 
 export const getPasswordRequirementMessage = () =>
-  `password must be at least ${MIN_PASSWORD_LENGTH} characters and include uppercase, lowercase, a number, and a symbol`;
+  `password must be at least ${MIN_PASSWORD_LENGTH} characters and include uppercase,, a number, and a symbol`;
 
 export const isAdminFromClaims = (claims = {}) =>
   claims?.admin === true && claims?.email_verified === true;

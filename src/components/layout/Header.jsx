@@ -10,6 +10,7 @@ import { useCrisis } from '../../contexts/CrisisContext';
 import VerifiedBadge from '../VerifiedBadge';
 import { useNotifications } from '../../features/notifications/hooks/useNotifications';
 import { logError } from '../../utils/logger';
+import { getDisplayName, getInitials } from '../../utils/userUtils';
 
 /* Paths where the page below the header is on the editorial paper system.
    Add a path here when you migrate that page off the legacy dark surfaces.
@@ -28,6 +29,9 @@ const PAPER_SURFACE_PATHS = new Set([
   '/community',
   '/community/new',
   '/specialist-dashboard',
+  '/specialist-cases',
+  '/support-cases',
+  '/my-cases',
   '/admin',
   '/ai-advisor',
   '/threat-model',
@@ -252,14 +256,30 @@ const Header = () => {
                             ) : (
                               <div className={`max-h-72 overflow-y-auto divide-y ${t.dropdownDivider}`}>
                                 {notifications.map(n => (
-                                  <div key={n.id} className={`px-5 py-4 ${t.dropdownHover} transition-colors`}>
-                                    <p className={`text-sm leading-snug ${t.dropdownText}`}>{n.text}</p>
-                                    {n.time && (
-                                      <p className={`font-mono text-[10px] uppercase tracking-[0.15em] mt-1.5 ${t.dropdownLabel}`}>
-                                        {notifTimeAgo(n.time)}
-                                      </p>
-                                    )}
-                                  </div>
+                                  n.path ? (
+                                    <Link
+                                      key={n.id}
+                                      to={n.path}
+                                      onClick={() => setNotifOpen(false)}
+                                      className={`block px-5 py-4 ${t.dropdownHover} transition-colors`}
+                                    >
+                                      <p className={`text-sm leading-snug ${t.dropdownText}`}>{n.text}</p>
+                                      {n.time && (
+                                        <p className={`font-mono text-[10px] uppercase tracking-[0.15em] mt-1.5 ${t.dropdownLabel}`}>
+                                          {notifTimeAgo(n.time)}
+                                        </p>
+                                      )}
+                                    </Link>
+                                  ) : (
+                                    <div key={n.id} className={`px-5 py-4 ${t.dropdownHover} transition-colors`}>
+                                      <p className={`text-sm leading-snug ${t.dropdownText}`}>{n.text}</p>
+                                      {n.time && (
+                                        <p className={`font-mono text-[10px] uppercase tracking-[0.15em] mt-1.5 ${t.dropdownLabel}`}>
+                                          {notifTimeAgo(n.time)}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )
                                 ))}
                               </div>
                             )}
@@ -275,14 +295,10 @@ const Header = () => {
                         className={`flex items-center gap-2 pl-2 pr-3 h-9 rounded-sm ${t.controlBg} border ${t.controlBorder} transition-all`}
                       >
                         <span className={`w-5 h-5 bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-[9px] text-ink flex-shrink-0`}>
-                          {(user.username || user.realName || '').trim().split(/[\s_]+/).filter(w => w && !/^\d+$/.test(w)).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?'}
+                          {getInitials(getDisplayName(user) || user.email || '')}
                         </span>
                         <span className={`hidden sm:inline font-mono text-[11px] tracking-[0.1em] truncate max-w-[100px] ${t.userText}`}>
-                          {user.isAdmin
-                            ? (user.displayName || user.username || user.email)
-                            : user.accountType === 'specialist'
-                              ? (user.realName || user.username)
-                              : (user.username || user.email)}
+                          {getDisplayName(user) || user.email}
                         </span>
                         {isVerified && <VerifiedBadge size="xs" />}
                         <ChevronDown className={`w-3 h-3 ${t.userChevron} transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
@@ -299,16 +315,20 @@ const Header = () => {
                           >
                             <div className={`px-5 py-4 border-b ${t.dropdownDivider}`}>
                               <p className={`text-sm ${t.dropdownText} truncate`}>
-                                {user.isAdmin
-                                  ? (user.displayName || user.username)
-                                  : user.accountType === 'specialist'
-                                    ? (user.realName || user.username)
-                                    : user.username}
+                                {getDisplayName(user) || user.email}
                               </p>
                               <p className={`font-mono text-[10px] uppercase tracking-[0.2em] mt-1 ${t.dropdownLabel}`}>
                                 {user.accountType}
                               </p>
                             </div>
+                            <Link
+                              to="/my-cases"
+                              onClick={() => setUserMenuOpen(false)}
+                              className={`flex items-center gap-3 px-5 py-3 text-sm ${t.dropdownText} ${t.dropdownHover} transition-all border-t ${t.dropdownDivider}`}
+                            >
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              My cases
+                            </Link>
                             <Link
                               to="/settings"
                               onClick={() => setUserMenuOpen(false)}

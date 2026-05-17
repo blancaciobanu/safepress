@@ -7,6 +7,7 @@ import { createCommunityPost } from '../features/community/services/communitySer
 import { createAMA } from '../features/community/services/amaService';
 import { NewsPage, NewsRule } from '../components/editorial/NewsPage';
 import { logError } from '../utils/logger';
+import { getDisplayName } from '../utils/userUtils';
 
 const CATS = [
   { id: 'device-security',   name: 'devices'  },
@@ -75,8 +76,10 @@ const CreatePost = () => {
           title:       title.trim(),
           content:     content.trim(),
           authorId:    user.uid,
-          authorName:  anon ? 'anonymous' : (user.username || 'anonymous'),
+          authorName:  anon ? 'anonymous' : (getDisplayName(user) || 'anonymous'),
           authorType:  user.accountType || 'journalist',
+          isVerified: user.verificationStatus === 'approved',
+          authorVerificationStatus: user.accountType === 'specialist' ? (user.verificationStatus || 'pending') : null,
           isAnonymous: anon,
           category:    finalCats[0],
           categories:  finalCats,

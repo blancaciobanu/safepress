@@ -10,6 +10,7 @@ import Signup from './pages/Signup';
 
 const SpecialistDashboard = lazy(() => import('./pages/SpecialistDashboard'));
 const SpecialistCaseFile = lazy(() => import('./pages/SpecialistCaseFile'));
+const SpecialistVerification = lazy(() => import('./pages/SpecialistVerification'));
 const SupportCaseDesk = lazy(() => import('./pages/SupportCaseDesk'));
 const SecurityScore = lazy(() => import('./pages/SecurityScore'));
 const SecureSetup = lazy(() => import('./pages/SecureSetup'));
@@ -61,6 +62,14 @@ function App() {
           element={
             <ProtectedRoute>
               {withRouteSuspense(<SpecialistDashboard />)}
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="specialist-verification"
+          element={
+            <ProtectedRoute>
+              {withRouteSuspense(<SpecialistVerification />)}
             </ProtectedRoute>
           }
         />

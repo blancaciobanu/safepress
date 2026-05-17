@@ -432,20 +432,52 @@ const buildPendingSpecialistBrief = ({ verificationState, emailVerified }) => {
         detail: 'There is nothing operational to do with the support queue yet, so use the supporting tools while you wait.',
       },
     },
+    'pending-details': {
+      heading: 'Your basic application is on file, but the review desk still needs your fuller dossier.',
+      lede: 'Complete the verification file before the desk can evaluate you for live casework.',
+      status: 'details required',
+      detail: 'Proof of work, coverage areas, secure contact method, languages, and availability are still missing.',
+      nextAction: {
+        label: 'Complete verification',
+        to: '/specialist-verification',
+        note: 'That page is now the real file for specialist review.',
+      },
+      activity: {
+        label: 'Current signal',
+        title: 'Your review cannot start without the rest of the file.',
+        detail: 'Until those details are in place, the queue remains unavailable even if the email address is already verified.',
+      },
+    },
+    'needs-more-info': {
+      heading: 'The review desk sent the file back with notes. Strengthen it, then resubmit.',
+      lede: 'Add the missing detail the desk asked for, then send the dossier back for review.',
+      status: 'revision requested',
+      detail: 'Queue access stays locked until the dossier is resubmitted and approved.',
+      nextAction: {
+        label: 'Revise the dossier',
+        to: '/specialist-verification',
+        note: 'That is where the current review note and editable file now live.',
+      },
+      activity: {
+        label: 'Current signal',
+        title: 'Your verification file needs another pass.',
+        detail: 'Use the verification page to answer the desk precisely instead of trying to infer the next move from the dashboard.',
+      },
+    },
     rejected: {
       heading: 'Your verification needs revision. Review the decision and reapply from the specialist workflow.',
       lede: 'Review the decision, revise the application, and reapply from the specialist workflow.',
       status: 'revision needed',
       detail: 'Review the rejection notes and reapply from the specialist workflow.',
       nextAction: {
-        label: 'Review and reapply',
-        to: '/specialist-dashboard',
-        note: 'That is where the verification notes and reapply action already live.',
+        label: 'Review and rebuild',
+        to: '/specialist-verification',
+        note: 'That page now holds the fuller verification file and resubmission path.',
       },
       activity: {
         label: 'Current signal',
         title: 'Your previous verification attempt was not approved.',
-        detail: 'The specialist dashboard is still the right place to review the decision and submit a cleaner application.',
+        detail: 'The verification page is now the right place to review the decision and submit a cleaner application.',
       },
     },
   };

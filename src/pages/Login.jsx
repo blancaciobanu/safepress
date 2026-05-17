@@ -3,6 +3,7 @@ import { AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getPostAuthPath, NEW_USER_SESSION_KEY } from '../features/users/accountRouting';
 import {
   NewsPage, NewsField, NewsButton, NewsNotice,
 } from '../components/editorial/NewsPage';
@@ -33,8 +34,8 @@ const Login = () => {
 
   useEffect(() => {
     if (!user) return;
-    const isNew = sessionStorage.getItem('safepress:new-user') === '1';
-    navigate(isNew ? '/welcome' : '/');
+    const isNew = sessionStorage.getItem(NEW_USER_SESSION_KEY) === '1';
+    navigate(getPostAuthPath(user, { isNew }), { replace: true });
   }, [user, navigate]);
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -125,7 +126,7 @@ const Login = () => {
               Continue with Google
             </button>
             <p className="text-xs text-smoke-dim -mt-4">
-              Journalists only — specialists should use email so verification stays attached to the right account.
+              Google or email both work here. Your sign-in method does not define whether the account is journalist or specialist.
             </p>
 
             <div className="flex items-center gap-4">

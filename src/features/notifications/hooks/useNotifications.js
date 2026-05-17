@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getNotificationCount, getNotifications } from '../services/notificationService';
+import {
+  getCommunityNotificationCount,
+  getNotifications,
+  subscribeToSupportNotificationCount,
+} from '../services/notificationService';
 import { logError } from '../../../utils/logger';
 
 const CACHE_PREFIX = 'notif-count:';
@@ -21,45 +25,54 @@ const writeCache = (uid, count) => {
 export const useNotifications = () => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
+  const [supportCount, setSupportCount] = useState(0);
+  const [communityCount, setCommunityCount] = useState(0);
   const [notifCount, setNotifCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
 
   useEffect(() => {
+    const total = supportCount + communityCount;
+    setNotifCount(total);
+    if (user?.uid) writeCache(user.uid, total);
+  }, [supportCount, communityCount, user?.uid]);
+
+  useEffect(() => {
     if (!user) {
+      setSupportCount(0);
+      setCommunityCount(0);
       setNotifCount(0);
       return;
     }
 
     let cancelled = false;
-    let timeoutId = null;
-    let idleId = null;
 
     const cached = readCache(user.uid);
     if (cached !== null) setNotifCount(cached);
 
-    const loadCount = async () => {
-      try {
-        const count = await getNotificationCount(user);
+    const unsubscribeSupport = subscribeToSupportNotificationCount(
+      user,
+      (supportCount) => {
         if (cancelled) return;
-        setNotifCount(count);
-        writeCache(user.uid, count);
+        setSupportCount(supportCount);
+      },
+      () => {}
+    );
+
+    const loadCommunityCount = async () => {
+      try {
+        const count = await getCommunityNotificationCount(user);
+        if (cancelled) return;
+        setCommunityCount(count);
       } catch {
         // notifications never block navigation
       }
     };
 
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      idleId = window.requestIdleCallback(loadCount, { timeout: 2500 });
-    } else {
-      timeoutId = window.setTimeout(loadCount, 1200);
-    }
+    loadCommunityCount();
 
     return () => {
       cancelled = true;
-      if (timeoutId) window.clearTimeout(timeoutId);
-      if (idleId && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        window.cancelIdleCallback(idleId);
-      }
+      unsubscribeSupport();
     };
   }, [user?.uid]);
 
@@ -69,6 +82,8 @@ export const useNotifications = () => {
     try {
       const notifs = await getNotifications(user);
       setNotifications(notifs);
+      setSupportCount(0);
+      setCommunityCount(0);
       setNotifCount(0);
       writeCache(user.uid, 0);
     } catch (err) {

@@ -2309,6 +2309,437 @@ body::before {
   background: transparent;
 }
 
+.admin-review-desk__header {
+  margin-bottom: 2.35rem;
+}
+
+.admin-review-desk__hero {
+  margin-top: 2.4rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.85fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.admin-review-desk__lede {
+  margin-top: 1rem;
+  max-width: 44rem;
+  color: var(--color-smoke);
+  font-size: 1.04rem;
+  line-height: 1.75;
+}
+
+.admin-review-desk__note {
+  padding: 1.15rem 1.2rem 1.1rem;
+  border-left: 2px solid rgba(138, 109, 44, 0.55);
+  background: rgba(250, 246, 238, 0.76);
+}
+
+.admin-review-desk__stats {
+  margin-top: 1.8rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.admin-review-stat {
+  border: 1px solid rgba(21, 17, 12, 0.1);
+  background: rgba(250, 246, 238, 0.76);
+  padding: 1rem 1rem 0.95rem;
+}
+
+.admin-review-stat__kicker {
+  margin-bottom: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--color-smoke-dim);
+}
+
+.admin-review-stat__value {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 3vw, 2.4rem);
+  font-weight: 700;
+  line-height: 0.95;
+}
+
+.admin-review-stat--brass .admin-review-stat__value {
+  color: var(--color-brass);
+}
+
+.admin-review-stat--olive .admin-review-stat__value {
+  color: var(--color-olive-500);
+}
+
+.admin-review-stat--oxblood .admin-review-stat__value {
+  color: var(--color-oxblood);
+}
+
+.admin-review-desk__tabs {
+  margin-bottom: 1.45rem;
+}
+
+.admin-review-desk__tabrail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.admin-review-desk__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(21, 17, 12, 0.12);
+  background: rgba(250, 246, 238, 0.7);
+  transition: border-color 0.18s ease, background-color 0.18s ease, transform 0.18s ease;
+}
+
+.admin-review-desk__tab:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.admin-review-desk__tab.is-active {
+  border-color: rgba(123, 46, 46, 0.26);
+  background: rgba(123, 46, 46, 0.05);
+}
+
+.admin-review-desk__tablabel {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--color-ink);
+}
+
+.admin-review-desk__tabcount {
+  min-width: 1.45rem;
+  height: 1.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(21, 17, 12, 0.12);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  color: var(--color-smoke);
+}
+
+.admin-review-desk__tabcount.is-active {
+  border-color: rgba(123, 46, 46, 0.22);
+  color: var(--color-oxblood);
+}
+
+.admin-review-panel {
+  border-top: 1px solid rgba(21, 17, 12, 0.12);
+  padding-top: 1.7rem;
+}
+
+.admin-review-panel__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.8fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-bottom: 1.35rem;
+}
+
+.admin-review-empty {
+  border: 1px solid rgba(21, 17, 12, 0.1);
+  background: rgba(250, 246, 238, 0.76);
+  padding: 2rem 1.4rem;
+  text-align: center;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.admin-review-filelist,
+.admin-report-list,
+.admin-review-returned__list {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-review-file,
+.admin-report-file,
+.admin-review-returned__item,
+.admin-internal-note,
+.admin-internal-form {
+  border: 1px solid rgba(21, 17, 12, 0.1);
+  background: rgba(250, 246, 238, 0.92);
+  box-shadow: 0 14px 24px -28px rgba(21, 17, 12, 0.26);
+}
+
+.admin-review-file,
+.admin-report-file {
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-review-file::before,
+.admin-report-file::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: rgba(123, 46, 46, 0.62);
+}
+
+.admin-review-file__topline,
+.admin-report-file__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.8rem 1.1rem 0;
+  flex-wrap: wrap;
+}
+
+.admin-review-file__body,
+.admin-report-file__body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+  gap: 1.1rem;
+  padding: 0.85rem 1.1rem 1rem;
+}
+
+.admin-review-file__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.admin-review-file__monogram,
+.admin-report-file__mark {
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(21, 17, 12, 0.16);
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.admin-review-file__monogram {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  color: var(--color-oxblood);
+}
+
+.admin-review-file__details,
+.admin-review-file__extended {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.admin-review-file__meta {
+  border: 1px solid rgba(21, 17, 12, 0.08);
+  background: rgba(255, 255, 255, 0.18);
+  padding: 0.8rem;
+}
+
+.admin-review-file__meta--wide {
+  grid-column: 1 / -1;
+}
+
+.admin-review-file__credentials,
+.admin-review-file__actions,
+.admin-report-file__actions {
+  padding: 0 1.1rem 1rem;
+}
+
+.admin-review-file__credentials {
+  border-top: 1px solid rgba(21, 17, 12, 0.08);
+  padding-top: 1rem;
+}
+
+.admin-review-file__extended {
+  padding: 0 1.1rem 1rem;
+}
+
+.admin-review-file__actions,
+.admin-report-file__actions,
+.admin-review-file__replyactions,
+.admin-internal-form__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.admin-review-file__actions,
+.admin-report-file__actions {
+  border-top: 1px solid rgba(21, 17, 12, 0.08);
+  padding-top: 1rem;
+}
+
+.admin-review-file__reply {
+  border-top: 1px solid rgba(21, 17, 12, 0.08);
+  margin: 0 1.1rem 1rem;
+  padding-top: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.admin-report-file__excerpt {
+  margin-top: 0.8rem;
+  padding-left: 0.85rem;
+  border-left: 2px solid rgba(21, 17, 12, 0.14);
+  color: var(--color-smoke);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.admin-report-file__note {
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(21, 17, 12, 0.08);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.admin-review-returned {
+  margin-top: 2rem;
+}
+
+.admin-review-returned__item {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+}
+
+.admin-review-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
+}
+
+.admin-review-filter__chip {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(21, 17, 12, 0.12);
+  background: rgba(250, 246, 238, 0.72);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-smoke);
+}
+
+.admin-review-filter__chip.is-active {
+  border-color: rgba(123, 46, 46, 0.22);
+  color: var(--color-oxblood);
+  background: rgba(123, 46, 46, 0.05);
+}
+
+.admin-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.78rem 1rem;
+  border: 1px solid rgba(21, 17, 12, 0.12);
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--color-ink);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background-color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+}
+
+.admin-action:hover {
+  background: rgba(255, 255, 255, 0.36);
+}
+
+.admin-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-action--olive {
+  border-color: rgba(55, 94, 90, 0.24);
+  color: var(--color-olive-500);
+}
+
+.admin-action--oxblood {
+  border-color: rgba(123, 46, 46, 0.22);
+  color: var(--color-oxblood);
+}
+
+.admin-internal-note,
+.admin-internal-form {
+  padding: 1.1rem;
+}
+
+.admin-internal-form {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-internal-form__message {
+  padding: 0.9rem;
+  border: 1px solid rgba(21, 17, 12, 0.1);
+  font-size: 0.9rem;
+}
+
+.admin-internal-form__message.is-success {
+  color: var(--color-olive-500);
+  border-color: rgba(55, 94, 90, 0.18);
+  background: rgba(55, 94, 90, 0.06);
+}
+
+.admin-internal-form__message.is-error {
+  color: var(--color-oxblood);
+  border-color: rgba(123, 46, 46, 0.18);
+  background: rgba(123, 46, 46, 0.05);
+}
+
+@media (max-width: 1080px) {
+  .admin-review-desk__hero,
+  .admin-review-panel__head,
+  .admin-review-file__body,
+  .admin-review-returned__item {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-review-desk__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-review-desk__stats,
+  .admin-review-file__details,
+  .admin-review-file__extended {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-review-file__actions,
+  .admin-report-file__actions,
+  .admin-review-file__replyactions,
+  .admin-internal-form__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-action {
+    width: 100%;
+  }
+}
+
 .specialist-side-rail {
   display: grid;
   gap: 1rem;
@@ -2429,6 +2860,56 @@ body::before {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.5rem;
+}
+
+.specialist-casefile__marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.34rem 0.7rem;
+  border: 1px solid rgba(21, 17, 12, 0.14);
+  background: rgba(250, 246, 238, 0.82);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.15em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.specialist-casefile__marker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.specialist-casefile__marker-button {
+  border: 1px solid rgba(21, 17, 12, 0.12);
+  background: rgba(250, 246, 238, 0.68);
+  color: var(--color-smoke);
+  padding: 0.65rem 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+}
+
+.specialist-casefile__marker-button:hover:not(:disabled) {
+  border-color: rgba(123, 46, 46, 0.26);
+  color: var(--color-ink-soft);
+}
+
+.specialist-casefile__marker-button.is-active {
+  border-color: rgba(123, 46, 46, 0.42);
+  background: rgba(123, 46, 46, 0.07);
+  color: var(--color-oxblood);
+}
+
+.specialist-casefile__marker-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .specialist-casefile__workspace {
@@ -3763,4 +4244,73 @@ body::before {
 .link-handdrawn,
 .link-handdrawn-dark {
   white-space: nowrap;
+}
+
+.login-split {
+  display: grid;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.login-split__editorial {
+  display: grid;
+  gap: 1.25rem;
+  align-content: start;
+  padding-top: 0.25rem;
+}
+
+.login-split__brandline {
+  max-width: 34rem;
+}
+
+.login-split__wordmark {
+  font-size: clamp(4.5rem, 14vw, 8.8rem);
+}
+
+.login-split__lede {
+  max-width: 31rem;
+  color: var(--color-smoke);
+  font-size: 1.1rem;
+  line-height: 1.75;
+}
+
+.login-split__typebox {
+  min-height: 9rem;
+  padding-top: 0.35rem;
+}
+
+.login-split__typecopy {
+  max-width: 30rem;
+  margin-top: 0.9rem;
+  color: var(--color-ink-soft);
+  font-size: clamp(1.25rem, 2vw, 1.7rem);
+  line-height: 1.35;
+  min-height: 4.8rem;
+}
+
+.login-split__formpanel {
+  border: 1px solid rgba(21, 17, 12, 0.12);
+  background: rgba(250, 246, 238, 0.82);
+  box-shadow: 0 18px 32px -30px rgba(21, 17, 12, 0.32);
+  padding: 1.35rem 1.15rem 1.2rem;
+}
+
+.login-split__formhead {
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 980px) {
+  .login-split {
+    grid-template-columns: minmax(0, 1.05fr) minmax(24rem, 0.72fr);
+    gap: 3rem;
+    min-height: calc(100vh - 10rem);
+  }
+
+  .login-split__editorial {
+    padding-top: 1.6rem;
+  }
+
+  .login-split__formpanel {
+    padding: 1.6rem 1.45rem 1.45rem;
+  }
 }

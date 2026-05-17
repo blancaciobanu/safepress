@@ -3,20 +3,23 @@ import {
   AlertCircle, Award, CheckCircle2, Clock, Trash2, Upload, XCircle,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   EmailAuthProvider,
+  GoogleAuthProvider,
   deleteUser,
+  reauthenticateWithPopup,
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
 import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 import { useAuth } from '../contexts/AuthContext';
 import VerifiedBadge from '../components/VerifiedBadge';
 import { db, auth, storage } from '../firebase/config';
 import { createOrUpdatePublicProfile, deletePublicProfile } from '../features/users/services/userService';
+import { SPECIALIST_VERIFICATION_STATUSES } from '../features/users/verification';
 import { COLLECTIONS } from '../config/firebaseCollections';
 import {
   getPasswordRequirementMessage,
@@ -110,7 +113,11 @@ const Settings = () => {
   });
 
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const authProviders = auth.currentUser?.providerData?.map((entry) => entry.providerId) || [];
+  const usesPasswordProvider = authProviders.includes('password');
+  const usesGoogleProvider = authProviders.includes('google.com');
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -154,19 +161,46 @@ const Settings = () => {
       setMessage({ type: 'error', text: 'Please type DELETE to confirm' });
       return;
     }
+    if (usesPasswordProvider && !deletePassword.trim()) {
+      setMessage({ type: 'error', text: 'Enter your current password to delete this account.' });
+      return;
+    }
 
     setLoading(true);
     try {
+      if (usesPasswordProvider) {
+        const credential = EmailAuthProvider.credential(
+          auth.currentUser.email,
+          deletePassword,
+        );
+        await reauthenticateWithCredential(auth.currentUser, credential);
+      } else if (usesGoogleProvider) {
+        await reauthenticateWithPopup(auth.currentUser, new GoogleAuthProvider());
+      }
+
+      if (user.avatarUrl) {
+        try {
+          await deleteObject(ref(storage, `specialist-avatars/${user.uid}`));
+        } catch (storageError) {
+          if (storageError?.code !== 'storage/object-not-found') {
+            throw storageError;
+          }
+        }
+      }
+
       await deleteDoc(doc(db, COLLECTIONS.USERS, user.uid));
       await deletePublicProfile(user.uid);
       await deleteUser(auth.currentUser);
+      sessionStorage.removeItem('safepress:new-user');
       await logout();
       navigate('/');
     } catch (error) {
       logError('Delete account error:', error);
       setMessage({
         type: 'error',
-        text: 'Failed to delete account. Please try logging in again.',
+        text: usesPasswordProvider
+          ? 'Failed to delete account. Check your password and try again.'
+          : 'Failed to delete account. Please try logging in again.',
       });
     } finally {
       setLoading(false);
@@ -176,14 +210,26 @@ const Settings = () => {
   const handleResendVerificationEmail = async () => {
     setSendingVerificationEmail(true);
     try {
-      const sent = await resendVerificationEmail();
+      const result = await resendVerificationEmail();
       setMessage({
-        type: sent ? 'success' : 'error',
-        text: sent ? 'Verification email sent' : 'Your email is already verified',
+        type: result.sent ? 'success' : 'error',
+        text: result.sent
+          ? 'Verification email sent.'
+          : result.reason === 'already-verified'
+            ? 'Your email is already verified.'
+            : result.reason === 'provider-managed'
+              ? 'This account signs in through Google, so it does not use SafePress verification emails.'
+              : 'No signed-in account was found for email verification.',
       });
     } catch (error) {
       logError('Verification email resend error:', error);
-      setMessage({ type: 'error', text: 'Failed to send verification email' });
+      const code = error?.code || error?.cause?.code;
+      const text = code === 'auth/too-many-requests'
+        ? 'Firebase is rate-limiting verification emails right now. Wait a bit, then try again.'
+        : code === 'auth/network-request-failed'
+          ? 'The verification email could not be sent because the network request failed.'
+          : `Failed to send verification email${code ? ` (${code})` : ''}.`;
+      setMessage({ type: 'error', text });
     } finally {
       setSendingVerificationEmail(false);
     }
@@ -372,6 +418,7 @@ const Settings = () => {
           onClick={() => {
             setShowDeleteModal(false);
             setDeleteConfirm('');
+            setDeletePassword('');
           }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50"
         >
@@ -408,12 +455,32 @@ const Settings = () => {
               </NewsField>
             </div>
 
+            {usesPasswordProvider && (
+              <div className="mt-4">
+                <NewsField label="Current password">
+                  <input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="Enter your current password"
+                  />
+                </NewsField>
+              </div>
+            )}
+
+            {usesGoogleProvider && !usesPasswordProvider && (
+              <p className="eyebrow text-[10px] mt-4 normal-case text-smoke-dim">
+                You&apos;ll be asked to confirm with Google before the account is removed.
+              </p>
+            )}
+
             <div className="flex gap-3 mt-7">
               <NewsButton
                 variant="mono"
                 onClick={() => {
                   setShowDeleteModal(false);
                   setDeleteConfirm('');
+                  setDeletePassword('');
                 }}
                 className="flex-1 justify-center"
               >
@@ -471,6 +538,9 @@ const ProfileSection = ({ user, avatarUploading, avatarInputRef, onAvatarUpload,
         <p className="mt-2 text-sm leading-relaxed text-ink-soft">
           You appear as your anonymous codename everywhere on the platform. Your real name is never shown.
         </p>
+        <Link to="/specialist-verification" className="inline-block mt-3 text-sm text-oxblood hover:text-ink transition-colors">
+          Apply as specialist →
+        </Link>
       </NewsNotice>
     ) : (
       <NewsNotice tone="brass">
@@ -555,7 +625,19 @@ const ProfileSection = ({ user, avatarUploading, avatarInputRef, onAvatarUpload,
       <div className="flex flex-col gap-3">
         <p className="eyebrow sm">Verification status</p>
 
-        {user.verificationStatus === 'pending' && (
+        {user.verificationStatus === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS && (
+          <NewsNotice tone="brass" icon={Clock}>
+            <p className="eyebrow sm text-brass">Verification file incomplete</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
+              Your basic application is saved, but the review desk still needs a fuller verification dossier before it can assess case readiness.
+            </p>
+            <Link to="/specialist-verification" className="inline-block mt-3 text-sm text-oxblood hover:text-ink transition-colors">
+              Complete verification →
+            </Link>
+          </NewsNotice>
+        )}
+
+        {user.verificationStatus === SPECIALIST_VERIFICATION_STATUSES.PENDING_REVIEW && (
           <NewsNotice tone="brass" icon={Clock}>
             <p className="eyebrow sm text-brass">Verification pending</p>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
@@ -565,7 +647,19 @@ const ProfileSection = ({ user, avatarUploading, avatarInputRef, onAvatarUpload,
           </NewsNotice>
         )}
 
-        {user.verificationStatus === 'approved' && (
+        {user.verificationStatus === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO && (
+          <NewsNotice tone="danger" icon={AlertCircle}>
+            <p className="eyebrow sm text-oxblood">More detail requested</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
+              {user.verificationReviewNote || 'The review desk asked for a stronger verification file before it can approve your account.'}
+            </p>
+            <Link to="/specialist-verification" className="inline-block mt-3 text-sm text-oxblood hover:text-ink transition-colors">
+              Revise verification →
+            </Link>
+          </NewsNotice>
+        )}
+
+        {user.verificationStatus === SPECIALIST_VERIFICATION_STATUSES.APPROVED && (
           <NewsNotice tone="brass" icon={Award}>
             <p className="eyebrow sm text-brass">Verified specialist</p>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
@@ -585,13 +679,15 @@ const ProfileSection = ({ user, avatarUploading, avatarInputRef, onAvatarUpload,
           </NewsNotice>
         )}
 
-        {user.verificationStatus === 'rejected' && (
+        {user.verificationStatus === SPECIALIST_VERIFICATION_STATUSES.REJECTED && (
           <NewsNotice tone="danger" icon={XCircle}>
             <p className="eyebrow sm text-oxblood">Verification not approved</p>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-              Your specialist application was not approved. Please contact
-              support for more information.
+              {user.verificationRejectionReason || 'Your specialist application was not approved.'}
             </p>
+            <Link to="/specialist-verification" className="inline-block mt-3 text-sm text-oxblood hover:text-ink transition-colors">
+              Build a new file →
+            </Link>
           </NewsNotice>
         )}
       </div>

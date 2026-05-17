@@ -1,6 +1,13 @@
 import { motion } from 'framer-motion';
-import { Shield, CheckCircle2, XCircle, ExternalLink, AlertCircle, Award, Users, Flag, MessageSquare, Trash2, KeyRound } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import {
+  CheckCircle2,
+  ExternalLink,
+  Flag,
+  MessageSquare,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
   approveSpecialist,
   deleteCommunityReport,
@@ -8,25 +15,38 @@ import {
   getCommunityReports,
   getVerificationDashboardData,
   markCommunityReportReviewed,
+  requestSpecialistMoreInfo,
   rejectSpecialist,
   setAdminClaim,
 } from '../features/admin/services/adminService';
 import { isSafeLinkedInUrl } from '../utils/externalLinks';
 import { logError } from '../utils/logger';
-import { NewsPage } from '../components/editorial/NewsPage';
+import { NewsPage, NewsRule } from '../components/editorial/NewsPage';
 import PageLoader from '../components/PageLoader';
 import { useAuth } from '../contexts/AuthContext';
 import { getInitials } from '../utils/userUtils';
 
+const FILTERS = [
+  { id: 'open', label: 'open' },
+  { id: 'reviewed', label: 'reviewed' },
+  { id: 'all', label: 'all' },
+];
+
 const AdminDashboard = () => {
   const { refreshUser } = useAuth();
+  const [pendingDetailsVerifications, setPendingDetailsVerifications] = useState([]);
   const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [needsMoreInfoVerifications, setNeedsMoreInfoVerifications] = useState([]);
+  const [pendingDetailsCount, setPendingDetailsCount] = useState(0);
   const [approvedCount, setApprovedCount] = useState(0);
+  const [needsMoreInfoCount, setNeedsMoreInfoCount] = useState(0);
   const [rejectedCount, setRejectedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
+  const [moreInfoId, setMoreInfoId] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [reviewNote, setReviewNote] = useState('');
   const [activeTab, setActiveTab] = useState('verifications');
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
@@ -35,11 +55,47 @@ const AdminDashboard = () => {
   const [grantSubmitting, setGrantSubmitting] = useState(false);
   const [grantMessage, setGrantMessage] = useState(null);
 
+  useEffect(() => {
+    fetchVerifications();
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    setReportsLoading(true);
+    try {
+      const rows = await getCommunityReports();
+      setReports(rows);
+    } catch (error) {
+      logError('Error fetching reports:', error);
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const fetchVerifications = async () => {
+    try {
+      setLoading(true);
+      const dashboardData = await getVerificationDashboardData();
+      setPendingDetailsVerifications(dashboardData.pendingDetailsVerifications);
+      setPendingVerifications(dashboardData.pendingVerifications);
+      setNeedsMoreInfoVerifications(dashboardData.needsMoreInfoVerifications);
+      setPendingDetailsCount(dashboardData.pendingDetailsCount);
+      setApprovedCount(dashboardData.approvedCount);
+      setNeedsMoreInfoCount(dashboardData.needsMoreInfoCount);
+      setRejectedCount(dashboardData.rejectedCount);
+    } catch (error) {
+      logError('Error fetching verifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGrantAdmin = async (admin) => {
     if (!grantTargetUid.trim()) {
       setGrantMessage({ type: 'error', text: 'enter a user uid' });
       return;
     }
+
     setGrantSubmitting(true);
     setGrantMessage(null);
     try {
@@ -63,66 +119,6 @@ const AdminDashboard = () => {
     }
   };
 
-  useEffect(() => {
-    fetchVerifications();
-    fetchReports();
-  }, []);
-
-  const fetchReports = async () => {
-    setReportsLoading(true);
-    try {
-      const rows = await getCommunityReports();
-      setReports(rows);
-    } catch (err) {
-      logError('Error fetching reports:', err);
-    } finally {
-      setReportsLoading(false);
-    }
-  };
-
-  const markReportReviewed = async (reportId) => {
-    try {
-      const reviewedAt = await markCommunityReportReviewed(reportId);
-      setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'reviewed', reviewedAt } : r));
-    } catch (err) {
-      logError('Error updating report:', err);
-    }
-  };
-
-  const deleteReport = async (reportId) => {
-    try {
-      await deleteCommunityReport(reportId);
-      setReports(prev => prev.filter(r => r.id !== reportId));
-    } catch (err) {
-      logError('Error deleting report:', err);
-    }
-  };
-
-  const deleteReportedPost = async (postId, reportId) => {
-    try {
-      const reviewedAt = await deleteReportedCommunityPost(postId, reportId);
-      if (reportId) {
-        setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: 'reviewed', reviewedAt, actionTaken: 'post-deleted' } : r));
-      }
-    } catch (err) {
-      logError('Error deleting reported post:', err);
-    }
-  };
-
-  const fetchVerifications = async () => {
-    try {
-      setLoading(true);
-      const dashboardData = await getVerificationDashboardData();
-      setPendingVerifications(dashboardData.pendingVerifications);
-      setApprovedCount(dashboardData.approvedCount);
-      setRejectedCount(dashboardData.rejectedCount);
-    } catch (error) {
-      logError('Error fetching verifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleApprove = async (userId) => {
     try {
       setProcessingId(userId);
@@ -131,6 +127,21 @@ const AdminDashboard = () => {
     } catch (error) {
       logError('Error approving verification:', error);
       alert('Failed to approve verification. Please try again.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRequestMoreInfo = async (userId) => {
+    try {
+      setProcessingId(userId);
+      await requestSpecialistMoreInfo(userId, reviewNote);
+      setMoreInfoId(null);
+      setReviewNote('');
+      await fetchVerifications();
+    } catch (error) {
+      logError('Error requesting more specialist info:', error);
+      alert('Failed to request more information. Please try again.');
     } finally {
       setProcessingId(null);
     }
@@ -151,9 +162,45 @@ const AdminDashboard = () => {
     }
   };
 
+  const markReportReviewed = async (reportId) => {
+    try {
+      const reviewedAt = await markCommunityReportReviewed(reportId);
+      setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, status: 'reviewed', reviewedAt } : r)));
+    } catch (error) {
+      logError('Error updating report:', error);
+    }
+  };
+
+  const deleteReport = async (reportId) => {
+    try {
+      await deleteCommunityReport(reportId);
+      setReports((prev) => prev.filter((r) => r.id !== reportId));
+    } catch (error) {
+      logError('Error deleting report:', error);
+    }
+  };
+
+  const deleteReportedPost = async (postId, reportId) => {
+    try {
+      const reviewedAt = await deleteReportedCommunityPost(postId, reportId);
+      if (reportId) {
+        setReports((prev) => prev.map((r) => (r.id === reportId ? {
+          ...r,
+          status: 'reviewed',
+          reviewedAt,
+          actionTaken: 'post-deleted',
+        } : r)));
+      }
+    } catch (error) {
+      logError('Error deleting reported post:', error);
+    }
+  };
+
   const openReject = (userId) => {
     setRejectingId(userId);
     setRejectionReason('');
+    setMoreInfoId(null);
+    setReviewNote('');
   };
 
   const cancelReject = () => {
@@ -161,408 +208,360 @@ const AdminDashboard = () => {
     setRejectionReason('');
   };
 
+  const openMoreInfo = (userId, initialNote = '') => {
+    setMoreInfoId(userId);
+    setReviewNote(initialNote);
+    setRejectingId(null);
+    setRejectionReason('');
+  };
+
+  const cancelMoreInfo = () => {
+    setMoreInfoId(null);
+    setReviewNote('');
+  };
+
+  const openReportCount = reports.filter((report) => report.status === 'open').length;
+  const verificationQueueCount = pendingDetailsVerifications.length + pendingVerifications.length + needsMoreInfoVerifications.length;
+  const filteredReports = reports.filter((report) => (reportFilter === 'all' ? true : report.status === reportFilter));
+
   if (loading) {
     return (
       <NewsPage>
-        <PageLoader text="Loading admin dashboard…" />
+        <PageLoader text="Loading admin review desk…" />
       </NewsPage>
     );
   }
 
   return (
-    <NewsPage>
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-12"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-full bg-ink/20 flex items-center justify-center">
-              <Shield className="w-6 h-6 text-oxblood" />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-display font-bold">
-              admin dashboard
+    <NewsPage className="admin-review-desk">
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="admin-review-desk__header"
+      >
+        <div className="flex items-baseline justify-between pb-3">
+          <span className="eyebrow sm text-oxblood">Admin review desk · verification and moderation</span>
+          <span className="eyebrow sm">{verificationQueueCount + openReportCount} live items</span>
+        </div>
+        <NewsRule />
+
+        <div className="admin-review-desk__hero">
+          <div>
+            <h1 className="display text-4xl md:text-6xl leading-none">
+              Review desk<span className="italic-ox">.</span>
             </h1>
-          </div>
-          <p className="text-lg text-smoke leading-relaxed">
-            manage specialist verification requests
-          </p>
-        </motion.div>
-
-        {/* Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
-        >
-          <div className="bg-paper-soft border border-ink/12 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
-              <h3 className="text-sm font-semibold text-smoke uppercase tracking-wider">
-                pending
-              </h3>
-            </div>
-            <p className="text-4xl font-display font-bold text-amber-500">
-              {pendingVerifications.length}
+            <p className="admin-review-desk__lede">
+              Approve specialists, send files back for stronger detail, and keep the community queue clean without falling back into a generic dashboard mood.
             </p>
           </div>
 
-          <div className="bg-paper-soft border border-ink/12 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <CheckCircle2 className="w-5 h-5 text-brass" />
-              <h3 className="text-sm font-semibold text-smoke uppercase tracking-wider">
-                approved
-              </h3>
-            </div>
-            <p className="text-4xl font-display font-bold text-brass">
-              {approvedCount}
+          <div className="admin-review-desk__note">
+            <p className="eyebrow sm text-brass">How this desk works</p>
+            <p className="news-card-copy mt-3">
+              Read each verification like a filed packet. Approve when the casework identity is trustworthy, request more detail when the file is thin, and reject only when the route should fully stop.
             </p>
           </div>
-
-          <div className="bg-paper-soft border border-ink/12 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <XCircle className="w-5 h-5 text-oxblood" />
-              <h3 className="text-sm font-semibold text-smoke uppercase tracking-wider">
-                rejected
-              </h3>
-            </div>
-            <p className="text-4xl font-display font-bold text-oxblood">
-              {rejectedCount}
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Tab switcher */}
-        <div className="flex gap-1 bg-paper-soft/60 border border-white/[0.07]  p-1 mb-6 w-fit">
-          {[
-            { id: 'verifications', label: 'verifications', icon: Shield, count: pendingVerifications.length },
-            { id: 'reports', label: 'reports', icon: Flag, count: reports.filter(r => r.status === 'open').length },
-            { id: 'internal', label: 'internal', icon: KeyRound, count: 0 },
-          ].map(tab => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2  text-sm font-medium transition-all ${
-                  active ? 'bg-white/[0.08] text-ink' : 'text-smoke hover:text-ink-soft'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-                {tab.count > 0 && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
-                    active ? 'bg-amber-500/25 text-brass' : 'bg-paper-dim text-smoke'
-                  }`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
         </div>
 
-        {activeTab === 'reports' && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="mb-8"
-          >
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-              <h2 className="text-2xl font-display font-bold">
-                community reports
-              </h2>
-              <div className="flex gap-1 bg-paper-soft/60 border border-white/[0.07]  p-1">
-                {[
-                  { id: 'open', label: 'open' },
-                  { id: 'reviewed', label: 'reviewed' },
-                  { id: 'all', label: 'all' },
-                ].map(f => {
-                  const active = reportFilter === f.id;
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => setReportFilter(f.id)}
-                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                        active ? 'bg-white/[0.08] text-ink' : 'text-smoke hover:text-ink-soft'
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        <div className="admin-review-desk__stats">
+          <article className="admin-review-stat">
+            <p className="admin-review-stat__kicker">awaiting dossier</p>
+            <p className="admin-review-stat__value">{pendingDetailsCount}</p>
+          </article>
+          <article className="admin-review-stat admin-review-stat--brass">
+            <p className="admin-review-stat__kicker">pending review</p>
+            <p className="admin-review-stat__value">{pendingVerifications.length}</p>
+          </article>
+          <article className="admin-review-stat">
+            <p className="admin-review-stat__kicker">needs detail</p>
+            <p className="admin-review-stat__value">{needsMoreInfoCount}</p>
+          </article>
+          <article className="admin-review-stat admin-review-stat--olive">
+            <p className="admin-review-stat__kicker">approved</p>
+            <p className="admin-review-stat__value">{approvedCount}</p>
+          </article>
+          <article className="admin-review-stat admin-review-stat--oxblood">
+            <p className="admin-review-stat__kicker">rejected</p>
+            <p className="admin-review-stat__value">{rejectedCount}</p>
+          </article>
+        </div>
+      </motion.div>
 
-            {reportsLoading ? (
-              <div className="bg-paper-soft border border-ink/12 p-12 text-center">
-                <div className="w-5 h-5 border-2 border-ink border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="eyebrow sm text-smoke-dim">Loading reports…</p>
-              </div>
-            ) : (() => {
-              const filtered = reports.filter(r =>
-                reportFilter === 'all' ? true : r.status === reportFilter
-              );
-              if (filtered.length === 0) {
-                return (
-                  <div className="bg-paper-soft border border-ink/12 p-12 text-center">
-                    <Flag className="w-16 h-16 text-smoke mx-auto mb-4" />
-                    <h3 className="text-xl font-display font-bold mb-2">
-                      no {reportFilter === 'all' ? '' : reportFilter} reports
-                    </h3>
-                    <p className="text-smoke">
-                      {reportFilter === 'open' ? 'the community is behaving.' : 'nothing to show here.'}
-                    </p>
-                  </div>
-                );
-              }
-              return (
-                <div className="space-y-4">
-                  {filtered.map((r) => (
-                    <div key={r.id} className="bg-paper-soft border border-ink/12 p-5">
-                      <div className="flex items-start gap-4 mb-3 flex-wrap">
-                        <div className={`w-10 h-10  flex items-center justify-center flex-shrink-0 ${
-                          r.status === 'open' ? 'bg-amber-500/15 border border-amber-500/25' : 'bg-paper-dim border border-ink/10'
-                        }`}>
-                          <Flag className={`w-5 h-5 ${r.status === 'open' ? 'text-brass' : 'text-smoke'}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className={`text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
-                              r.status === 'open' ? 'bg-amber-500/15 text-brass' : 'bg-paper-dim text-smoke'
-                            }`}>
-                              {r.status}
-                            </span>
-                            <span className="text-[10px] font-bold tracking-widest uppercase text-smoke">{r.reason}</span>
-                            {r.commentId !== null && r.commentId !== undefined && (
-                              <span className="text-[10px] font-bold tracking-widest uppercase text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded">
-                                comment
-                              </span>
-                            )}
-                            <span className="text-xs text-smoke-dim ml-auto">
-                              {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}
-                            </span>
-                          </div>
-                          {r.postMissing ? (
-                            <p className="text-sm text-smoke italic">original post has been deleted</p>
-                          ) : (
-                            <>
-                              <p className="text-sm font-semibold text-ink mb-1">{r.postTitle || 'untitled'}</p>
-                              <p className="text-xs text-smoke">
-                                by {r.postAuthor} · {r.postType === 'question' ? 'q&a' : 'discussion'}
-                              </p>
-                              {r.commentContent && (
-                                <p className="text-xs text-smoke mt-2 italic line-clamp-2 border-l-2 border-ink/12 pl-2">
-                                  "{r.commentContent}"
-                                </p>
-                              )}
-                            </>
-                          )}
-                          {r.note && (
-                            <div className="mt-3 p-3  bg-paper-soft/60 border border-ink/8">
-                              <p className="text-[10px] font-bold tracking-widest uppercase text-smoke mb-1">reporter note</p>
-                              <p className="text-xs text-ink-soft leading-relaxed">{r.note}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 flex-wrap pt-3 border-t border-ink/8">
-                        {r.status === 'open' && (
-                          <button
-                            onClick={() => markReportReviewed(r.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-brass/20 border border-olive-500/30  text-xs text-brass hover:bg-brass/30 transition-all"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            mark reviewed
-                          </button>
-                        )}
-                        {!r.postMissing && (r.commentId === null || r.commentId === undefined) && r.status === 'open' && (
-                          <button
-                            onClick={() => deleteReportedPost(r.postId, r.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-oxblood/20 border border-oxblood/30  text-xs text-oxblood hover:bg-oxblood/30 transition-all"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            delete post
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteReport(r.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-paper-dim border border-ink/10 hover:bg-white/[0.08] text-smoke  text-xs transition-all ml-auto"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          discard report
-                        </button>
-                      </div>
-                      {r.actionTaken && (
-                        <p className="text-[10px] text-smoke-dim mt-2">action: {r.actionTaken}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </motion.div>
-        )}
+      <div className="admin-review-desk__tabs">
+        {[
+          { id: 'verifications', label: 'verification files', count: verificationQueueCount },
+          { id: 'reports', label: 'community reports', count: openReportCount },
+          { id: 'internal', label: 'internal controls', count: 0 },
+        ].map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`admin-review-desk__tab ${active ? 'is-active' : ''}`}
+            >
+              <span className="admin-review-desk__tablabel">{tab.label}</span>
+              {tab.count > 0 && (
+                <span className={`admin-review-desk__tabcount ${active ? 'is-active' : ''}`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-        {/* Pending Verifications */}
-        {activeTab === 'verifications' && (
-        <motion.div
+      {activeTab === 'verifications' && (
+        <motion.section
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="admin-review-panel"
         >
-          <h2 className="text-2xl font-display font-bold mb-6">
-            pending verification requests
-          </h2>
+          <div className="admin-review-panel__head">
+            <div>
+              <p className="eyebrow sm text-oxblood">Review queue</p>
+              <h2 className="display-soft text-3xl leading-none mt-3">Specialist verification files</h2>
+            </div>
+            <p className="text-sm text-smoke max-w-md leading-relaxed">
+              Read for judgment, not just completion. The goal is a casework identity a journalist can trust under pressure.
+            </p>
+          </div>
+
+          {pendingDetailsVerifications.length > 0 && (
+            <div className="admin-review-returned">
+              <div className="admin-review-panel__head">
+                <div>
+                  <p className="eyebrow sm text-oxblood">Awaiting dossier</p>
+                  <h3 className="display-soft text-2xl leading-none mt-3">Specialists who still need to complete their file</h3>
+                </div>
+              </div>
+              <div className="admin-review-returned__list">
+                {pendingDetailsVerifications.map((verification) => (
+                  <article key={verification.id} className="admin-review-returned__item">
+                    <div>
+                      <p className="eyebrow sm text-oxblood mb-2">{verification.username}</p>
+                      <p className="display-soft text-xl leading-tight">{verification.realName}</p>
+                      <p className="text-sm text-smoke mt-2">{verification.email}</p>
+                    </div>
+                    <div>
+                      <p className="eyebrow sm text-smoke mb-2">Status</p>
+                      <p className="text-sm text-ink-soft leading-relaxed">
+                        Email verified, but not yet reviewable. The specialist still needs to submit the fuller verification dossier.
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
 
           {pendingVerifications.length === 0 ? (
-            <div className="bg-paper-soft border border-ink/12 p-12 text-center">
-              <Users className="w-16 h-16 text-smoke mx-auto mb-4" />
-              <h3 className="text-xl font-display font-bold mb-2">
-                no pending verifications
-              </h3>
-              <p className="text-smoke">
-                all specialist applications have been reviewed
-              </p>
+            <div className="admin-review-empty">
+              <p className="display-soft text-xl leading-tight">No pending verifications.</p>
+              <p className="text-sm text-smoke">Everything reviewable is already filed or waiting on the specialist.</p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="admin-review-filelist">
               {pendingVerifications.map((verification, index) => (
-                <motion.div
+                <motion.article
                   key={verification.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-                  className="bg-paper-soft border border-ink/12 p-6"
+                  transition={{ duration: 0.45, delay: 0.2 + index * 0.05 }}
+                  className="admin-review-file"
                 >
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    {/* User Info */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 bg-paper border border-ink/15 flex items-center justify-center font-display font-bold text-base text-ink flex-shrink-0">
-                          {getInitials(verification.realName || verification.username || '')}
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-display font-bold">
-                            {verification.username}
-                          </h3>
-                          <p className="text-sm text-smoke">
-                            {verification.realName}
-                          </p>
-                        </div>
+                  <div className="admin-review-file__topline">
+                    <span className="eyebrow sm text-oxblood">verification file</span>
+                    <span className="eyebrow sm">
+                      submitted {new Date(verification.verificationData.submittedAt).toLocaleDateString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="admin-review-file__body">
+                    <div className="admin-review-file__identity">
+                      <div className="admin-review-file__monogram">
+                        {getInitials(verification.realName || verification.username || '')}
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                          <p className="text-xs text-smoke uppercase tracking-wider mb-1">
-                            email
-                          </p>
-                          <p className="text-sm text-ink">{verification.email}</p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-smoke uppercase tracking-wider mb-1">
-                            submitted
-                          </p>
-                          <p className="text-sm text-ink">
-                            {new Date(verification.verificationData.submittedAt).toLocaleDateString('en-US', {
-                              month: 'long',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-smoke uppercase tracking-wider mb-1">
-                            organization
-                          </p>
-                          <p className="text-sm text-ink">
-                            {verification.verificationData.organization}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-smoke uppercase tracking-wider mb-1">
-                            expertise
-                          </p>
-                          <p className="text-sm text-ink">
-                            {verification.verificationData.expertise}
-                          </p>
-                        </div>
+                      <div>
+                        <p className="display-soft text-2xl leading-tight">{verification.realName}</p>
+                        <p className="eyebrow sm text-oxblood mt-2">{verification.username}</p>
+                        <p className="text-sm text-smoke mt-2 break-all">{verification.email}</p>
                       </div>
-
-                      <div className="mb-4">
-                        <p className="text-xs text-smoke uppercase tracking-wider mb-1">
-                          credentials
-                        </p>
-                        <p className="text-sm text-ink-soft leading-relaxed">
-                          {verification.verificationData.credentials}
-                        </p>
-                      </div>
-
-                      {verification.verificationData.linkedinUrl && isSafeLinkedInUrl(verification.verificationData.linkedinUrl) && (
-                        <a
-                          href={verification.verificationData.linkedinUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-oxblood hover:text-ink transition-colors"
-                        >
-                          view linkedin profile
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex lg:flex-col gap-3">
-                      <button
-                        onClick={() => handleApprove(verification.id)}
-                        disabled={processingId === verification.id || rejectingId === verification.id}
-                        className="flex-1 lg:flex-none px-6 py-3 bg-brass hover:bg-olive-600 text-ink  font-semibold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        <CheckCircle2 className="w-5 h-5" />
-                        {processingId === verification.id ? 'processing...' : 'approve'}
-                      </button>
-
-                      <button
-                        onClick={() => openReject(verification.id)}
-                        disabled={processingId === verification.id || rejectingId === verification.id}
-                        className="flex-1 lg:flex-none px-6 py-3 bg-oxblood hover:bg-crimson-600 text-ink  font-semibold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        <XCircle className="w-5 h-5" />
-                        reject
-                      </button>
+                    <div className="admin-review-file__details">
+                      <div className="admin-review-file__meta">
+                        <p className="eyebrow sm text-smoke mb-2">Organization</p>
+                        <p className="text-sm text-ink">{verification.verificationData.organization}</p>
+                      </div>
+                      <div className="admin-review-file__meta">
+                        <p className="eyebrow sm text-smoke mb-2">Expertise</p>
+                        <p className="text-sm text-ink">{verification.verificationData.expertise}</p>
+                      </div>
+                      {verification.verificationData.region && (
+                        <div className="admin-review-file__meta">
+                          <p className="eyebrow sm text-smoke mb-2">Region</p>
+                          <p className="text-sm text-ink">{verification.verificationData.region}</p>
+                        </div>
+                      )}
+                      {verification.verificationData.languages && (
+                        <div className="admin-review-file__meta">
+                          <p className="eyebrow sm text-smoke mb-2">Languages</p>
+                          <p className="text-sm text-ink">{verification.verificationData.languages}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Reject reason form */}
+                  <div className="admin-review-file__credentials">
+                    <p className="eyebrow sm text-smoke mb-2">Credentials and training</p>
+                    <p className="text-sm text-ink-soft leading-relaxed">{verification.verificationData.credentials}</p>
+                  </div>
+
+                  {(verification.verificationData.portfolioUrl
+                    || verification.verificationData.secureContactHandle
+                    || verification.verificationData.availability
+                    || verification.verificationData.supportAreas?.length
+                    || verification.verificationData.linkedinUrl) && (
+                    <div className="admin-review-file__extended">
+                      {verification.verificationData.portfolioUrl && (
+                        <div className="admin-review-file__meta">
+                          <p className="eyebrow sm text-smoke mb-2">Portfolio</p>
+                          <a
+                            href={verification.verificationData.portfolioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-oxblood hover:text-ink transition-colors break-all"
+                          >
+                            {verification.verificationData.portfolioUrl}
+                          </a>
+                        </div>
+                      )}
+                      {verification.verificationData.linkedinUrl && isSafeLinkedInUrl(verification.verificationData.linkedinUrl) && (
+                        <div className="admin-review-file__meta">
+                          <p className="eyebrow sm text-smoke mb-2">LinkedIn</p>
+                          <a
+                            href={verification.verificationData.linkedinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-sm text-oxblood hover:text-ink transition-colors"
+                          >
+                            view profile
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
+                      )}
+                      {verification.verificationData.secureContactHandle && (
+                        <div className="admin-review-file__meta">
+                          <p className="eyebrow sm text-smoke mb-2">Secure contact</p>
+                          <p className="text-sm text-ink">
+                            {verification.verificationData.secureContactMethod || 'secure'} · {verification.verificationData.secureContactHandle}
+                          </p>
+                        </div>
+                      )}
+                      {verification.verificationData.availability && (
+                        <div className="admin-review-file__meta">
+                          <p className="eyebrow sm text-smoke mb-2">Availability</p>
+                          <p className="text-sm text-ink">{verification.verificationData.availability}</p>
+                        </div>
+                      )}
+                      {verification.verificationData.supportAreas?.length > 0 && (
+                        <div className="admin-review-file__meta admin-review-file__meta--wide">
+                          <p className="eyebrow sm text-smoke mb-2">Coverage</p>
+                          <p className="text-sm text-ink">{verification.verificationData.supportAreas.join(', ')}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="admin-review-file__actions">
+                    <button
+                      onClick={() => handleApprove(verification.id)}
+                      disabled={processingId === verification.id || rejectingId === verification.id || moreInfoId === verification.id}
+                      className="admin-action admin-action--olive"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      {processingId === verification.id ? 'processing...' : 'approve'}
+                    </button>
+
+                    <button
+                      onClick={() => openMoreInfo(verification.id)}
+                      disabled={processingId === verification.id || rejectingId === verification.id}
+                      className="admin-action"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      request more info
+                    </button>
+
+                    <button
+                      onClick={() => openReject(verification.id)}
+                      disabled={processingId === verification.id || rejectingId === verification.id || moreInfoId === verification.id}
+                      className="admin-action admin-action--oxblood"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      reject
+                    </button>
+                  </div>
+
+                  {moreInfoId === verification.id && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="admin-review-file__reply"
+                    >
+                      <p className="eyebrow sm text-smoke mb-2">Request for revision</p>
+                      <textarea
+                        value={reviewNote}
+                        onChange={(e) => setReviewNote(e.target.value)}
+                        rows="4"
+                        placeholder="Ask for the specific missing proof, coverage detail, secure contact method, or language/availability context you still need."
+                        className="w-full px-3 py-2 bg-paper-soft border border-ink/12 text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood transition-colors resize-none"
+                      />
+                      <div className="admin-review-file__replyactions">
+                        <button
+                          onClick={() => handleRequestMoreInfo(verification.id)}
+                          disabled={processingId === verification.id || !reviewNote.trim()}
+                          className="admin-action"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          {processingId === verification.id ? 'sending...' : 'send back for detail'}
+                        </button>
+                        <button
+                          onClick={cancelMoreInfo}
+                          disabled={processingId === verification.id}
+                          className="admin-action"
+                        >
+                          cancel
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {rejectingId === verification.id && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-6 pt-6 border-t border-ink/10"
+                      className="admin-review-file__reply"
                     >
-                      <p className="text-xs text-smoke uppercase tracking-wider mb-2">
-                        rejection reason (optional)
-                      </p>
+                      <p className="eyebrow sm text-smoke mb-2">Rejection note</p>
                       <textarea
                         value={rejectionReason}
                         onChange={(e) => setRejectionReason(e.target.value)}
                         rows="3"
-                        placeholder="explain what's missing so the applicant can improve and reapply..."
-                        className="w-full px-3 py-2 bg-paper-soft border border-ink/12  text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood transition-colors resize-none"
+                        placeholder="Explain why this file should stop here."
+                        className="w-full px-3 py-2 bg-paper-soft border border-ink/12 text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood transition-colors resize-none"
                       />
-                      <div className="flex gap-2 mt-3">
+                      <div className="admin-review-file__replyactions">
                         <button
                           onClick={() => handleReject(verification.id)}
                           disabled={processingId === verification.id}
-                          className="px-4 py-2 bg-oxblood hover:bg-crimson-600 text-ink  text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                          className="admin-action admin-action--oxblood"
                         >
                           <XCircle className="w-4 h-4" />
                           {processingId === verification.id ? 'rejecting...' : 'confirm rejection'}
@@ -570,79 +569,227 @@ const AdminDashboard = () => {
                         <button
                           onClick={cancelReject}
                           disabled={processingId === verification.id}
-                          className="px-4 py-2 bg-paper-dim border border-ink/10 hover:bg-white/[0.08] text-ink-soft  text-sm transition-all disabled:opacity-50"
+                          className="admin-action"
                         >
                           cancel
                         </button>
                       </div>
                     </motion.div>
                   )}
-                </motion.div>
+                </motion.article>
               ))}
             </div>
           )}
-        </motion.div>
-        )}
 
-        {activeTab === 'internal' && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="bg-paper-soft border border-ink/12 p-6"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <KeyRound className="w-5 h-5 text-amber-500" />
-              <h2 className="text-xl font-semibold">grant or revoke admin</h2>
+          {needsMoreInfoVerifications.length > 0 && (
+            <div className="admin-review-returned">
+              <div className="admin-review-panel__head">
+                <div>
+                  <p className="eyebrow sm text-oxblood">Returned files</p>
+                  <h3 className="display-soft text-2xl leading-none mt-3">Waiting on specialist revision</h3>
+                </div>
+              </div>
+              <div className="admin-review-returned__list">
+                {needsMoreInfoVerifications.map((verification) => (
+                  <article key={verification.id} className="admin-review-returned__item">
+                    <div>
+                      <p className="eyebrow sm text-oxblood mb-2">{verification.username}</p>
+                      <p className="display-soft text-xl leading-tight">{verification.realName}</p>
+                      <p className="text-sm text-smoke mt-2">{verification.email}</p>
+                    </div>
+                    <div>
+                      <p className="eyebrow sm text-smoke mb-2">Review note</p>
+                      <p className="text-sm text-ink-soft leading-relaxed">
+                        {verification.verificationReviewNote || 'Waiting for updated detail from the specialist.'}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
-            <p className="text-sm text-smoke mb-6 leading-relaxed">
-              sets the `admin` custom claim on the target user. once set, they keep admin access until revoked here. user must reload the app for the claim to apply.
-            </p>
+          )}
+        </motion.section>
+      )}
 
-            <label className="block text-xs text-smoke mb-1.5">target user uid</label>
+      {activeTab === 'reports' && (
+        <motion.section
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="admin-review-panel"
+        >
+          <div className="admin-review-panel__head">
+            <div>
+              <p className="eyebrow sm text-oxblood">Moderation queue</p>
+              <h2 className="display-soft text-3xl leading-none mt-3">Community reports</h2>
+            </div>
+            <div className="admin-review-filter">
+              {FILTERS.map((filter) => {
+                const active = reportFilter === filter.id;
+                return (
+                  <button
+                    key={filter.id}
+                    onClick={() => setReportFilter(filter.id)}
+                    className={`admin-review-filter__chip ${active ? 'is-active' : ''}`}
+                  >
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {reportsLoading ? (
+            <div className="admin-review-empty">
+              <div className="w-5 h-5 border-2 border-ink border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="eyebrow sm text-smoke-dim">Loading reports…</p>
+            </div>
+          ) : filteredReports.length === 0 ? (
+            <div className="admin-review-empty">
+              <p className="display-soft text-xl leading-tight">No {reportFilter === 'all' ? '' : reportFilter} reports.</p>
+              <p className="text-sm text-smoke">
+                {reportFilter === 'open' ? 'The moderation queue is clear for now.' : 'Nothing is filed in this view.'}
+              </p>
+            </div>
+          ) : (
+            <div className="admin-report-list">
+              {filteredReports.map((report) => (
+                <article key={report.id} className="admin-report-file">
+                  <div className="admin-report-file__topline">
+                    <span className="eyebrow sm text-oxblood">{report.status}</span>
+                    <span className="eyebrow sm">{report.reason}</span>
+                    <span className="eyebrow sm">{report.createdAt ? new Date(report.createdAt).toLocaleDateString() : '—'}</span>
+                  </div>
+
+                  <div className="admin-report-file__body">
+                    <div className="admin-report-file__mark">
+                      <Flag className="w-5 h-5 text-oxblood" />
+                    </div>
+                    <div className="min-w-0">
+                      {report.postMissing ? (
+                        <p className="text-sm text-smoke italic">original post has been deleted</p>
+                      ) : (
+                        <>
+                          <p className="display-soft text-xl leading-tight">{report.postTitle || 'untitled'}</p>
+                          <p className="text-sm text-smoke mt-2">
+                            by {report.postAuthor} · {report.postType === 'question' ? 'q&a' : 'discussion'}
+                          </p>
+                          {report.commentContent && (
+                            <p className="admin-report-file__excerpt">
+                              "{report.commentContent}"
+                            </p>
+                          )}
+                        </>
+                      )}
+
+                      {report.note && (
+                        <div className="admin-report-file__note">
+                          <p className="eyebrow sm text-smoke mb-2">Reporter note</p>
+                          <p className="text-sm text-ink-soft leading-relaxed">{report.note}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="admin-report-file__actions">
+                    {report.status === 'open' && (
+                      <button
+                        onClick={() => markReportReviewed(report.id)}
+                        className="admin-action admin-action--olive"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        mark reviewed
+                      </button>
+                    )}
+                    {!report.postMissing && (report.commentId === null || report.commentId === undefined) && report.status === 'open' && (
+                      <button
+                        onClick={() => deleteReportedPost(report.postId, report.id)}
+                        className="admin-action admin-action--oxblood"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        delete post
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteReport(report.id)}
+                      className="admin-action ml-auto"
+                    >
+                      discard report
+                    </button>
+                  </div>
+
+                  {report.actionTaken && (
+                    <p className="eyebrow sm text-smoke-dim mt-3 normal-case">action: {report.actionTaken}</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </motion.section>
+      )}
+
+      {activeTab === 'internal' && (
+        <motion.section
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="admin-review-panel"
+        >
+          <div className="admin-review-panel__head">
+            <div>
+              <p className="eyebrow sm text-oxblood">Internal controls</p>
+              <h2 className="display-soft text-3xl leading-none mt-3">Admin claims</h2>
+            </div>
+            <p className="text-sm text-smoke max-w-md leading-relaxed">
+              Use sparingly. This is the manual override that changes who can see the rest of the desk.
+            </p>
+          </div>
+
+          <div className="admin-internal-note">
+            <p className="eyebrow sm text-brass">Control note</p>
+            <p className="news-card-copy mt-3">
+              A granted admin claim stays attached to the account until it is revoked here. The target user must reload the app before the permission shift appears in their session.
+            </p>
+          </div>
+
+          <div className="admin-internal-form">
+            <label className="eyebrow sm text-smoke">Target user UID</label>
             <input
               type="text"
               value={grantTargetUid}
               onChange={(e) => setGrantTargetUid(e.target.value)}
               placeholder="firebase auth uid"
               disabled={grantSubmitting}
-              className="w-full px-4 py-3 bg-paper-soft border border-ink/12  text-ink placeholder-gray-600 text-sm focus:outline-none focus:border-ink/60 transition-colors mb-4 font-mono"
+              className="w-full px-4 py-3 bg-paper-soft border border-ink/12 text-ink placeholder-gray-600 text-sm focus:outline-none focus:border-ink/60 transition-colors font-mono"
             />
 
-            <div className="flex gap-2">
+            <div className="admin-internal-form__actions">
               <button
                 type="button"
                 onClick={() => handleGrantAdmin(true)}
                 disabled={grantSubmitting}
-                className="px-4 py-2 bg-brass hover:bg-olive-600 text-ink  text-sm font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
+                className="admin-action admin-action--olive"
               >
-                <CheckCircle2 className="w-4 h-4" />
                 grant admin
               </button>
               <button
                 type="button"
                 onClick={() => handleGrantAdmin(false)}
                 disabled={grantSubmitting}
-                className="px-4 py-2 bg-oxblood hover:bg-crimson-600 text-ink  text-sm font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
+                className="admin-action admin-action--oxblood"
               >
-                <XCircle className="w-4 h-4" />
                 revoke admin
               </button>
             </div>
 
             {grantMessage && (
-              <div
-                className={`mt-4 p-3  text-sm ${
-                  grantMessage.type === 'success'
-                    ? 'bg-brass/10 border border-olive-500/20 text-brass'
-                    : 'bg-oxblood/10 border border-oxblood/20 text-oxblood'
-                }`}
-              >
+              <div className={`admin-internal-form__message ${grantMessage.type === 'success' ? 'is-success' : 'is-error'}`}>
                 {grantMessage.text}
               </div>
             )}
-          </motion.div>
-        )}
+          </div>
+        </motion.section>
+      )}
     </NewsPage>
   );
 };

@@ -20,10 +20,20 @@ const POSTS_COLLECTION = COLLECTIONS.COMMUNITY_POSTS;
 const REPORTS_COLLECTION = COLLECTIONS.COMMUNITY_REPORTS;
 
 export const getVerificationDashboardData = async () => {
+  const pendingDetailsQuery = query(
+    collection(db, USERS_COLLECTION),
+    where('accountType', '==', 'specialist'),
+    where('verificationStatus', '==', 'pending-details')
+  );
   const pendingQuery = query(
     collection(db, USERS_COLLECTION),
     where('accountType', '==', 'specialist'),
     where('verificationStatus', '==', 'pending')
+  );
+  const needsMoreInfoQuery = query(
+    collection(db, USERS_COLLECTION),
+    where('accountType', '==', 'specialist'),
+    where('verificationStatus', '==', 'needs-more-info')
   );
   const approvedQuery = query(
     collection(db, USERS_COLLECTION),
@@ -36,18 +46,30 @@ export const getVerificationDashboardData = async () => {
     where('verificationStatus', '==', 'rejected')
   );
 
-  const [pendingSnapshot, approvedSnapshot, rejectedSnapshot] = await Promise.all([
+  const [pendingDetailsSnapshot, pendingSnapshot, needsMoreInfoSnapshot, approvedSnapshot, rejectedSnapshot] = await Promise.all([
+    getDocs(pendingDetailsQuery),
     getDocs(pendingQuery),
+    getDocs(needsMoreInfoQuery),
     getDocs(approvedQuery),
     getDocs(rejectedQuery),
   ]);
 
   return {
+    pendingDetailsVerifications: pendingDetailsSnapshot.docs.map((entry) => ({
+      id: entry.id,
+      ...entry.data(),
+    })),
     pendingVerifications: pendingSnapshot.docs.map((entry) => ({
       id: entry.id,
       ...entry.data(),
     })),
+    needsMoreInfoVerifications: needsMoreInfoSnapshot.docs.map((entry) => ({
+      id: entry.id,
+      ...entry.data(),
+    })),
+    pendingDetailsCount: pendingDetailsSnapshot.size,
     approvedCount: approvedSnapshot.size,
+    needsMoreInfoCount: needsMoreInfoSnapshot.size,
     rejectedCount: rejectedSnapshot.size,
   };
 };
@@ -93,12 +115,28 @@ export const approveSpecialist = async (userId) => {
   await updateDoc(doc(db, USERS_COLLECTION, userId), {
     verificationStatus: 'approved',
     verificationDate,
+    verificationReviewNote: null,
+    verificationRejectionReason: null,
   });
   await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), {
     ...buildPublicProfile({ ...(userSnapshot.data() || {}), verificationStatus: 'approved' }),
   });
 
   return verificationDate;
+};
+
+export const requestSpecialistMoreInfo = async (userId, reviewNote) => {
+  const userSnapshot = await getDoc(doc(db, USERS_COLLECTION, userId));
+
+  await updateDoc(doc(db, USERS_COLLECTION, userId), {
+    verificationStatus: 'needs-more-info',
+    verificationDate: null,
+    verificationReviewNote: reviewNote.trim(),
+    verificationRejectionReason: null,
+  });
+  await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), {
+    ...buildPublicProfile({ ...(userSnapshot.data() || {}), verificationStatus: 'needs-more-info' }),
+  });
 };
 
 export const rejectSpecialist = async (userId, rejectionReason) => {
@@ -108,6 +146,7 @@ export const rejectSpecialist = async (userId, rejectionReason) => {
   await updateDoc(doc(db, USERS_COLLECTION, userId), {
     verificationStatus: 'rejected',
     verificationDate,
+    verificationReviewNote: null,
     verificationRejectionReason: rejectionReason.trim() || null,
   });
   await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), {
