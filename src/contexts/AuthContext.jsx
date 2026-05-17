@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
+  getAdditionalUserInfo,
   getIdTokenResult,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -107,45 +108,56 @@ export const AuthProvider = ({ children }) => {
 
   /* ── Email / password signup ─────────────────────────────────────────── */
   const signup = async (email, password, userData) => {
-    const result = await createUserWithEmailAndPassword(auth, email, password);
-    const { username } = generateUserIdentity();
+    sessionStorage.setItem('safepress:new-user', '1');
 
-    const accountType = ['journalist', 'specialist'].includes(userData?.accountType)
-      ? userData.accountType
-      : 'journalist';
-
-    const profile = {
-      email,
-      username,
-      createdAt: new Date().toISOString(),
-      securityScores: [],
-      accountType,
-    };
-
-    if (accountType === 'specialist') {
-      profile.realName = userData.realName;
-      profile.verificationStatus = 'pending-email-verification';
-      profile.verificationData = {
-        expertise: userData.expertise,
-        credentials: userData.credentials,
-        linkedinUrl: userData.linkedinUrl,
-        organization: userData.organization,
-        submittedAt: new Date().toISOString(),
-      };
-      profile.verificationDate = null;
-      profile.verificationRejectionReason = null;
-      profile.specialistProfile = { bio: '', expertiseAreas: [], certifications: [] };
-    }
-
-    await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), profile);
     try {
-      await createOrUpdatePublicProfile(result.user.uid, profile);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      const { username } = generateUserIdentity();
+
+      const accountType = ['journalist', 'specialist'].includes(userData?.accountType)
+        ? userData.accountType
+        : 'journalist';
+
+      const profile = {
+        email,
+        username,
+        createdAt: new Date().toISOString(),
+        securityScores: [],
+        accountType,
+      };
+
+      if (accountType === 'specialist') {
+        profile.realName = userData.realName;
+        profile.verificationStatus = 'pending-email-verification';
+        profile.verificationData = {
+          expertise: userData.expertise,
+          credentials: userData.credentials,
+          linkedinUrl: userData.linkedinUrl,
+          organization: userData.organization,
+          submittedAt: new Date().toISOString(),
+        };
+        profile.verificationDate = null;
+        profile.verificationRejectionReason = null;
+        profile.specialistProfile = { bio: '', expertiseAreas: [], certifications: [] };
+      }
+
+      await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), profile);
+      try {
+        await createOrUpdatePublicProfile(result.user.uid, profile);
+      } catch (error) {
+        logError('Public profile sync failed after signup:', error);
+      }
+      try {
+        await sendEmailVerification(result.user);
+      } catch (error) {
+        logError('Verification email failed to send after signup:', error);
+      }
+      await refreshUser();
+      return result;
     } catch (error) {
-      logError('Public profile sync failed after signup:', error);
+      sessionStorage.removeItem('safepress:new-user');
+      throw error;
     }
-    await sendEmailVerification(result.user);
-    await refreshUser();
-    return result;
   };
 
   /* ── Google sign-in ──────────────────────────────────────────────────── */
@@ -153,7 +165,12 @@ export const AuthProvider = ({ children }) => {
     const provider = new GoogleAuthProvider();
     const result   = await signInWithPopup(auth, provider);
 
-    // First time with Google? Create a Firestore profile automatically.
+    // Set the new-user flag immediately — before any further awaits — so the
+    // onAuthStateChanged handler (which runs concurrently) sees it in time.
+    if (getAdditionalUserInfo(result)?.isNewUser) {
+      sessionStorage.setItem('safepress:new-user', '1');
+    }
+
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, result.user.uid));
     if (!userDoc.exists()) {
       const { username } = generateUserIdentity();
@@ -170,7 +187,6 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         logError('Public profile sync failed after Google signup:', error);
       }
-      sessionStorage.setItem('safepress:new-user', '1');
     } else {
       try {
         await createOrUpdatePublicProfile(result.user.uid, userDoc.data());

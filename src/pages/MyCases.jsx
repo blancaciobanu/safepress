@@ -3,9 +3,13 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getSupportRequestsByRequester } from '../features/support/services/supportService';
+import {
+  listenToSupportRequestsByRequester,
+  SUPPORT_CASE_MARKERS,
+} from '../features/support/services/supportService';
 import { logError } from '../utils/logger';
 import { NewsNotice, NewsPage, NewsRule } from '../components/editorial/NewsPage';
+import PageLoader from '../components/PageLoader';
 
 const CRISIS_LABELS = {
   hacked: 'hacked account',
@@ -27,6 +31,13 @@ const URGENCY_LABELS = {
   normal: 'normal',
 };
 
+const CASE_MARKER_LABELS = {
+  [SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST]: 'awaiting specialist',
+  [SUPPORT_CASE_MARKERS.AWAITING_REPORTER]: 'awaiting you',
+  [SUPPORT_CASE_MARKERS.MONITORING]: 'monitoring',
+  [SUPPORT_CASE_MARKERS.READY_TO_FILE]: 'ready to file',
+};
+
 const MyCases = () => {
   const { user } = useAuth();
 
@@ -39,35 +50,32 @@ const MyCases = () => {
 
     let cancelled = false;
 
-    const fetch = async () => {
-      setLoading(true);
-      try {
-        const result = await getSupportRequestsByRequester(user.uid);
-        if (!cancelled) setCases(result);
-      } catch (err) {
+    const unsubscribe = listenToSupportRequestsByRequester({
+      requesterId: user.uid,
+      onData: (result) => {
+        if (cancelled) return;
+        setCases(result);
+        setLoading(false);
+      },
+      onError: (err) => {
         logError('Error loading my cases:', err);
-        if (!cancelled) setError('Could not load your cases right now.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetch();
+        if (!cancelled) {
+          setError('Could not load your cases right now.');
+          setLoading(false);
+        }
+      },
+    });
 
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, [user]);
 
   if (loading) {
     return (
       <NewsPage className="specialist-casefile" max="reading">
-        <div className="flex items-center justify-center py-32">
-          <div className="text-center">
-            <div className="w-6 h-6 border-2 border-ink border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="eyebrow sm">Loading your cases…</p>
-          </div>
-        </div>
+        <PageLoader text="Loading your cases…" />
       </NewsPage>
     );
   }
@@ -89,21 +97,21 @@ const MyCases = () => {
           <h1 className="display text-4xl md:text-6xl leading-none">
             Your support cases<span className="italic-ox">.</span>
           </h1>
-          <p className="mt-5 text-base text-smoke lowercase leading-relaxed">
+          <p className="mt-5 text-base text-smoke leading-relaxed">
             Open a desk to follow the thread, answer specialist questions, and read the final report.
           </p>
         </div>
 
         {error && (
           <NewsNotice tone="danger" icon={AlertTriangle} className="mt-8">
-            <p className="text-sm text-ink-soft lowercase">{error}</p>
+            <p className="text-sm text-ink-soft">{error}</p>
           </NewsNotice>
         )}
 
         {!error && cases.length === 0 && (
           <div className="mt-16 text-center">
             <p className="eyebrow sm text-smoke-dim mb-4">no cases on file</p>
-            <p className="text-sm text-smoke lowercase mb-8">
+            <p className="text-sm text-smoke mb-8">
               You haven't filed a support request yet. If you're facing a security incident, open one now.
             </p>
             <Link to="/request-support" className="link-handdrawn">
@@ -118,6 +126,7 @@ const MyCases = () => {
               const status = STATUS_CONFIG[caseItem.status] || STATUS_CONFIG.open;
               const urgency = URGENCY_LABELS[caseItem.urgency] || caseItem.urgency;
               const crisisLabel = CRISIS_LABELS[caseItem.crisisType] || caseItem.crisisType;
+              const markerLabel = CASE_MARKER_LABELS[caseItem.caseMarker];
               const date = new Date(caseItem.createdAt).toLocaleDateString('en-US', {
                 month: 'long',
                 day: 'numeric',
@@ -141,6 +150,11 @@ const MyCases = () => {
                         <span className="text-[10px] text-smoke-dim uppercase tracking-widest">
                           {urgency}
                         </span>
+                        {markerLabel && (
+                          <span className="text-[10px] text-ink-soft uppercase tracking-widest">
+                            {markerLabel}
+                          </span>
+                        )}
                         {caseItem.feedback && (
                           <span className="text-[10px] text-[#375E5A] uppercase tracking-widest">
                             feedback filed
@@ -148,12 +162,12 @@ const MyCases = () => {
                         )}
                       </div>
 
-                      <h2 className="text-xl font-display font-bold text-ink lowercase leading-snug mb-2">
+                      <h2 className="text-xl font-display font-bold text-ink leading-snug mb-2">
                         {crisisLabel}<span className="italic-ox">.</span>
                       </h2>
 
                       {caseItem.description && (
-                        <p className="text-sm text-smoke lowercase leading-relaxed line-clamp-2 mb-3">
+                        <p className="text-sm text-smoke leading-relaxed line-clamp-2 mb-3">
                           {caseItem.description}
                         </p>
                       )}

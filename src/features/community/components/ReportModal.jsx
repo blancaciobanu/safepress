@@ -71,10 +71,10 @@ export const ReportModal = ({ target, onSubmit, onClose }) => {
                 <Flag className="w-5 h-5 text-brass" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-ink lowercase">
+                <h3 className="text-base font-semibold text-ink">
                   report {target.type}
                 </h3>
-                <p className="text-[11px] text-smoke lowercase">
+                <p className="text-[11px] text-smoke">
                   an admin will review your report
                 </p>
               </div>
@@ -83,7 +83,7 @@ export const ReportModal = ({ target, onSubmit, onClose }) => {
             {success ? (
               <div className="py-6 text-center">
                 <CheckCircle2 className="w-10 h-10 text-brass mx-auto mb-2" />
-                <p className="text-sm text-ink lowercase">report filed — thank you</p>
+                <p className="text-sm text-ink">report filed — thank you</p>
               </div>
             ) : (
               <>
@@ -108,7 +108,7 @@ export const ReportModal = ({ target, onSubmit, onClose }) => {
                         onChange={() => setReason(r.id)}
                         className="accent-brass"
                       />
-                      <span className="text-sm text-ink-soft lowercase">{r.label}</span>
+                      <span className="text-sm text-ink-soft">{r.label}</span>
                     </label>
                   ))}
                 </div>
@@ -117,7 +117,7 @@ export const ReportModal = ({ target, onSubmit, onClose }) => {
                   onChange={(e) => setNote(e.target.value)}
                   rows="2"
                   placeholder="optional: add context..."
-                  className="lowercase mb-4"
+                  className="mb-4"
                 />
                 <div className="flex gap-2 justify-end">
                   <button

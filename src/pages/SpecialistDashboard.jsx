@@ -15,6 +15,7 @@ import {
   getOpenSupportQueueRequests,
   getResolvedSupportRequestsBySpecialist,
   resolveSupportRequest,
+  SUPPORT_CASE_MARKERS,
 } from '../features/support/services/supportService';
 import { logError } from '../utils/logger';
 import { NewsPage, NewsRule } from '../components/editorial/NewsPage';
@@ -42,6 +43,13 @@ const URGENCY_CONFIG = {
   emergency: { label: 'emergency', bg: 'bg-oxblood/12', text: 'text-oxblood', border: 'border-oxblood/30' },
   urgent:    { label: 'urgent',    bg: 'bg-brass/12',   text: 'text-brass',   border: 'border-brass/30' },
   normal:    { label: 'normal',    bg: 'bg-paper-soft/80',   text: 'text-smoke',    border: 'border-ink/10' },
+};
+
+const CASE_MARKER_LABELS = {
+  [SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST]: 'awaiting specialist',
+  [SUPPORT_CASE_MARKERS.AWAITING_REPORTER]: 'awaiting reporter',
+  [SUPPORT_CASE_MARKERS.MONITORING]: 'monitoring',
+  [SUPPORT_CASE_MARKERS.READY_TO_FILE]: 'ready to file',
 };
 
 const loadSpecialistRequests = async (specialistId) => {
@@ -82,6 +90,7 @@ const RequestCard = ({
     req.caseReport?.actionsTaken?.trim() &&
     req.caseReport?.nextSteps?.trim()
   );
+  const markerLabel = CASE_MARKER_LABELS[req.caseMarker];
 
   return (
     <motion.div
@@ -111,12 +120,17 @@ const RequestCard = ({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <p className="text-base font-medium text-ink lowercase">
+            <p className="text-base font-medium text-ink">
               {CRISIS_LABELS[req.crisisType] || req.crisisType}
             </p>
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${urgency.bg} ${urgency.text} ${urgency.border}`}>
               {urgency.label}
             </span>
+            {markerLabel && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-paper-soft/80 text-ink-soft border border-ink/12">
+                {markerLabel}
+              </span>
+            )}
             {req.status === 'claimed' && isMine && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-ink/[0.06] text-oxblood border border-ink/30">
                 active
@@ -128,10 +142,10 @@ const RequestCard = ({
               </span>
             )}
           </div>
-          <p className="text-sm text-smoke lowercase line-clamp-1">
+          <p className="text-sm text-smoke line-clamp-1">
             {req.description}
           </p>
-          <p className="text-[10px] text-smoke lowercase mt-1">
+          <p className="text-[10px] text-smoke mt-1">
             {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             {req.claimedByName && req.claimedBy !== userId && ` · claimed by ${req.claimedByName}`}
           </p>
@@ -148,7 +162,7 @@ const RequestCard = ({
             <button
               onClick={() => onClaim(req.id)}
               disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 bg-ink/[0.08] border border-ink/30  text-sm text-oxblood hover:bg-ink/[0.10] transition-all lowercase font-medium"
+              className="flex items-center gap-1.5 px-4 py-2 bg-ink/[0.08] border border-ink/30  text-sm text-oxblood hover:bg-ink/[0.10] transition-all font-medium"
             >
               <User className="w-3.5 h-3.5" />
               {busy ? 'routing...' : 'claim this request'}
@@ -160,13 +174,13 @@ const RequestCard = ({
                 onClick={() => onResolve(req.id)}
                 disabled={busy || !canResolveFromDesk}
                 title={canResolveFromDesk ? undefined : 'Save the resolution report in the case file before filing'}
-                className="flex items-center gap-1.5 px-4 py-2 bg-olive-500/20 border border-olive-500/30  text-sm text-olive-500 hover:bg-olive-500/30 transition-all lowercase font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-4 py-2 bg-olive-500/20 border border-olive-500/30  text-sm text-olive-500 hover:bg-olive-500/30 transition-all font-medium disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 {busy ? 'filing...' : 'mark as resolved'}
               </button>
               {!canResolveFromDesk && (
-                <p className="text-[10px] text-smoke lowercase">open case file to write the report first</p>
+                <p className="text-[10px] text-smoke">open case file to write the report first</p>
               )}
             </div>
           )}
@@ -177,13 +191,13 @@ const RequestCard = ({
         <div className="specialist-request-card__details">
           <div className="specialist-request-card__meta-block">
             <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1">name</p>
-            <p className="text-sm text-ink lowercase">{req.requesterName}</p>
+            <p className="text-sm text-ink">{req.requesterName}</p>
           </div>
           <div className="specialist-request-card__meta-block">
             <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1">
               {req.contactMethod || 'email'}
             </p>
-            <p className="text-sm text-ink lowercase break-all">{req.requesterEmail}</p>
+            <p className="text-sm text-ink break-all">{req.requesterEmail}</p>
           </div>
         </div>
       )}
@@ -351,7 +365,7 @@ const SpecialistDashboard = () => {
               )}
             </div>
 
-            <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 lowercase">
+            <h1 className="text-4xl md:text-5xl font-display font-bold mb-3">
               {status === 'rejected'
                 ? 'application not approved'
                 : status === 'pending-email-verification'
@@ -359,7 +373,7 @@ const SpecialistDashboard = () => {
                   : 'verification in review'}
             </h1>
 
-            <p className="text-base text-smoke lowercase max-w-md mx-auto leading-relaxed" style={{ letterSpacing: '0.03em' }}>
+            <p className="text-base text-smoke max-w-md mx-auto leading-relaxed" style={{ letterSpacing: '0.03em' }}>
               {status === 'rejected'
                 ? 'your specialist application was not approved. you can update your credentials and reapply.'
                 : status === 'pending-email-verification'
@@ -377,14 +391,14 @@ const SpecialistDashboard = () => {
             {status === 'rejected' && rejectionReason && (
               <div className="bg-crimson-500/5 border border-oxblood/20  p-4">
                 <p className="text-[10px] text-oxblood uppercase tracking-widest font-bold mb-2">reason for rejection</p>
-                <p className="text-sm text-ink-soft lowercase leading-relaxed">{rejectionReason}</p>
+                <p className="text-sm text-ink-soft leading-relaxed">{rejectionReason}</p>
               </div>
             )}
 
             {status === 'pending' && (
               <div className="bg-amber-500/5 border border-amber-500/20  p-4">
                 <p className="text-[10px] text-brass uppercase tracking-widest font-bold mb-2">expected timeline</p>
-                <p className="text-sm text-ink-soft lowercase leading-relaxed">
+                <p className="text-sm text-ink-soft leading-relaxed">
                   applications are typically reviewed within 2–3 business days. you'll be notified by email once a decision is made.
                 </p>
               </div>
@@ -393,7 +407,7 @@ const SpecialistDashboard = () => {
             {status === 'pending-email-verification' && (
               <div className="bg-amber-500/5 border border-amber-500/20  p-4">
                 <p className="text-[10px] text-brass uppercase tracking-widest font-bold mb-2">next step</p>
-                <p className="text-sm text-ink-soft lowercase leading-relaxed">
+                <p className="text-sm text-ink-soft leading-relaxed">
                   open the verification email we sent you, confirm your address, then sign back in. your application will automatically move into the review queue.
                 </p>
               </div>
@@ -401,7 +415,7 @@ const SpecialistDashboard = () => {
 
             <div>
               <p className="text-[10px] text-smoke-dim uppercase tracking-widest font-bold mb-3">your submission</p>
-              <div className="space-y-3 text-sm lowercase">
+              <div className="space-y-3 text-sm">
                 {vd.expertise && (
                   <div>
                     <span className="text-smoke-dim">expertise: </span>
@@ -434,18 +448,18 @@ const SpecialistDashboard = () => {
                 <button
                   onClick={handleReapply}
                   disabled={reapplying}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-ink hover:bg-ink-soft disabled:opacity-50 text-ink  font-semibold transition-all lowercase"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-ink hover:bg-ink-soft disabled:opacity-50 text-ink  font-semibold transition-all"
                 >
                   <Shield className="w-4 h-4" />
                   {reapplying ? 'resubmitting...' : 'resubmit for review'}
                 </button>
-                <p className="text-xs text-smoke-dim text-center mt-3 lowercase">
+                <p className="text-xs text-smoke-dim text-center mt-3">
                   update your credentials in settings, then click resubmit
                 </p>
               </div>
             )}
 
-            <div className="flex items-center gap-3 text-xs text-smoke-dim lowercase pt-3 border-t border-ink/8">
+            <div className="flex items-center gap-3 text-xs text-smoke-dim pt-3 border-t border-ink/8">
               <span>while you wait, explore the app:</span>
               <Link to="/resources" className="text-oxblood hover:text-ink transition-colors">resources →</Link>
               <span>·</span>
@@ -567,7 +581,7 @@ const SpecialistDashboard = () => {
                   </h1>
                   <VerifiedBadge size="md" />
                 </div>
-                <p className="text-smoke lowercase text-sm mb-3">
+                <p className="text-smoke text-sm mb-3">
                   security specialist
                   {vd.organization && (
                     <> · <span className="text-smoke">{vd.organization}</span></>
@@ -672,7 +686,7 @@ const SpecialistDashboard = () => {
 	                        <div className="specialist-empty-state__icon bg-ink/8 border border-ink/20">
 	                          <div className="w-4 h-4 border-2 border-ink border-t-transparent rounded-full animate-spin" />
 	                        </div>
-	                        <p className="text-sm text-smoke lowercase">loading the desk...</p>
+	                        <p className="text-sm text-smoke">loading the desk...</p>
 	                      </div>
 	                    ) : lane.requests.length > 0 ? (
 	                      <div className="specialist-request-list">
@@ -694,7 +708,7 @@ const SpecialistDashboard = () => {
 	                    ) : (
 	                      <div className="specialist-empty-state">
 	                        <p className="eyebrow sm text-smoke-dim">tray clear</p>
-	                        <p className="text-sm text-smoke lowercase">{lane.empty}</p>
+	                        <p className="text-sm text-smoke">{lane.empty}</p>
 	                      </div>
 	                    )}
 	                  </div>
@@ -713,7 +727,7 @@ const SpecialistDashboard = () => {
 	            <div className="specialist-side-note">
 	              <span className="specialist-side-note__pin" aria-hidden="true" />
 	              <p className="eyebrow sm text-oxblood">Pinned note</p>
-	              <p className="mt-3 text-sm text-ink-soft lowercase leading-relaxed">
+	              <p className="mt-3 text-sm text-ink-soft leading-relaxed">
 	                Keep only live risks in the active folio. Once a reporter is stabilized, file the case and let the desk breathe again.
 	              </p>
 	            </div>
@@ -723,16 +737,16 @@ const SpecialistDashboard = () => {
 	                <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim">field credentials</p>
 	                <Link
 	                  to="/settings"
-	                  className="text-[10px] text-smoke-dim hover:text-smoke transition-colors lowercase"
+	                  className="text-[10px] text-smoke-dim hover:text-smoke transition-colors"
                 >
                   edit →
                 </Link>
               </div>
 
               {sp.bio ? (
-                <p className="text-sm text-smoke lowercase leading-relaxed mb-4">{sp.bio}</p>
+                <p className="text-sm text-smoke leading-relaxed mb-4">{sp.bio}</p>
               ) : (
-                <p className="text-sm text-smoke lowercase italic mb-4">no bio yet — add one in settings</p>
+                <p className="text-sm text-smoke italic mb-4">no bio yet — add one in settings</p>
               )}
 
               {/* Certifications */}
@@ -743,7 +757,7 @@ const SpecialistDashboard = () => {
                     {sp.certifications.map((cert, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <Award className="w-3.5 h-3.5 text-olive-500 flex-shrink-0" />
-                        <span className="text-xs text-smoke lowercase">{cert}</span>
+                        <span className="text-xs text-smoke">{cert}</span>
                       </div>
                     ))}
                   </div>
@@ -754,7 +768,7 @@ const SpecialistDashboard = () => {
               {vd.credentials && (
                 <div>
                   <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1.5">credentials</p>
-                  <p className="text-xs text-smoke lowercase leading-relaxed">{vd.credentials}</p>
+                  <p className="text-xs text-smoke leading-relaxed">{vd.credentials}</p>
                 </div>
               )}
             </div>
@@ -783,11 +797,11 @@ const SpecialistDashboard = () => {
                         ))}
                       </div>
                       {req.feedback.comment ? (
-                        <p className="text-xs text-smoke lowercase leading-relaxed">{req.feedback.comment}</p>
+                        <p className="text-xs text-smoke leading-relaxed">{req.feedback.comment}</p>
                       ) : (
-                        <p className="text-xs text-smoke lowercase italic">no comment</p>
+                        <p className="text-xs text-smoke italic">no comment</p>
                       )}
-                      <p className="text-[10px] text-smoke lowercase mt-1">
+                      <p className="text-[10px] text-smoke mt-1">
                         {CRISIS_LABELS[req.crisisType] || req.crisisType} · {new Date(req.feedback.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </p>
                     </div>
@@ -810,7 +824,7 @@ const SpecialistDashboard = () => {
                       to={item.to}
                       className="specialist-sidecard__link"
                     >
-                      <span className="text-sm lowercase flex-1">{item.label}</span>
+                      <span className="text-sm flex-1">{item.label}</span>
                       <span className="specialist-sidecard__link-arrow">→</span>
                     </Link>
                   );

@@ -26,7 +26,7 @@ export const AuthorLine = ({ item, onOpenProfile, className = '' }) => {
 
   const inner = (
     <>
-      <span className={`text-xs font-semibold lowercase ${nameColor}`}>{a.name}</span>
+      <span className={`text-xs font-semibold ${nameColor}`}>{a.name}</span>
 
       {a.type === 'specialist' && a.verified && <VerifiedBadge size="xs" />}
 

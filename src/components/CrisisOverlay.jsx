@@ -425,11 +425,11 @@ const CrisisOverlay = () => {
                       Crisis Mode
                     </span>
                   </div>
-                  <h1 className="text-5xl md:text-6xl font-display font-bold text-[var(--color-ink)] mb-4 tracking-tight lowercase leading-none">
+                  <h1 className="text-5xl md:text-6xl font-display font-bold text-[var(--color-ink)] mb-4 tracking-tight leading-none">
                     you're going to be{' '}
                     <span style={{ color: 'var(--color-oxblood)' }}>okay.</span>
                   </h1>
-                  <p className="text-[var(--color-smoke)] max-w-xs mx-auto leading-relaxed text-sm lowercase">
+                  <p className="text-[var(--color-smoke)] max-w-xs mx-auto leading-relaxed text-sm">
                     what's happening right now?
                   </p>
                 </motion.div>

@@ -40,7 +40,7 @@ export const NewsSidebar = ({ className = '' }) => {
         ) : articles.length === 0 ? (
           <div className="text-center py-6">
             <AlertTriangle className="w-5 h-5 text-smoke-dim mx-auto mb-2" />
-            <p className="text-xs text-smoke-dim lowercase">couldn't load news feed</p>
+            <p className="text-xs text-smoke-dim">couldn't load news feed</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -56,9 +56,9 @@ export const NewsSidebar = ({ className = '' }) => {
                   {article.title}
                 </p>
                 <div className="flex items-center gap-2 text-[10px] text-smoke-dim">
-                  <span className="lowercase">{article.source}</span>
+                  <span>{article.source}</span>
                   <span>·</span>
-                  <span className="lowercase">{timeAgo(article.pubDate)}</span>
+                  <span>{timeAgo(article.pubDate)}</span>
                   <ExternalLink className="w-2.5 h-2.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-smoke" />
                 </div>
               </a>
@@ -67,7 +67,7 @@ export const NewsSidebar = ({ className = '' }) => {
         )}
 
         <div className="mt-5 pt-4 border-t border-ink/8">
-          <p className="text-[10px] text-smoke-dim lowercase leading-relaxed">
+          <p className="text-[10px] text-smoke-dim leading-relaxed">
             powered by the hacker news & bleepingcomputer rss feeds
           </p>
         </div>

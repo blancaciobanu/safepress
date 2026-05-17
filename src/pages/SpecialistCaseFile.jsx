@@ -8,8 +8,11 @@ import {
   claimSupportRequest,
   listenToSupportCaseFile,
   listenToSupportCaseMessages,
+  listenToSupportQueueEntry,
   resolveSupportRequest,
   saveSupportCaseReport,
+  SUPPORT_CASE_MARKERS,
+  updateSupportCaseMarker,
 } from '../features/support/services/supportService';
 import { logError } from '../utils/logger';
 import {
@@ -38,6 +41,29 @@ const URGENCY_LABELS = {
   emergency: 'emergency',
   urgent: 'urgent',
   normal: 'normal',
+};
+
+const CASE_MARKER_META = {
+  [SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST]: {
+    label: 'awaiting specialist',
+    tone: 'text-oxblood',
+    accent: '#7B2E2E',
+  },
+  [SUPPORT_CASE_MARKERS.AWAITING_REPORTER]: {
+    label: 'awaiting reporter',
+    tone: 'text-brass',
+    accent: '#8A6D2C',
+  },
+  [SUPPORT_CASE_MARKERS.MONITORING]: {
+    label: 'monitoring',
+    tone: 'text-[#375E5A]',
+    accent: '#375E5A',
+  },
+  [SUPPORT_CASE_MARKERS.READY_TO_FILE]: {
+    label: 'ready to file',
+    tone: 'text-ink',
+    accent: '#15110C',
+  },
 };
 
 const buildSpecialistView = (rawCase, specialistId) => {
@@ -83,28 +109,57 @@ const SpecialistCaseFile = () => {
 
     setLoading(true);
     setError('');
+    let privateUnsubscribe = null;
 
-    const unsubscribe = listenToSupportCaseFile({
+    const queueUnsubscribe = listenToSupportQueueEntry({
       requestId,
-      onData: (rawCase) => {
-        try {
-          const visibleCase = buildSpecialistView(rawCase, user.uid);
-          setCaseFile(visibleCase);
+      onData: (queueCase) => {
+        if (queueCase.status === 'open' || queueCase.claimedBy !== user.uid) {
+          setCaseFile({
+            ...queueCase,
+            queueOnly: true,
+            description: 'confidential details unlock after you claim this request',
+            requesterName: 'confidential until claimed',
+            requesterEmail: 'claim to view contact details',
+            requesterPhone: null,
+          });
           setLoading(false);
-        } catch (err) {
-          logError('Error normalizing specialist case file:', err);
-          setError('This case file is unavailable right now.');
-          setLoading(false);
+          return;
+        }
+
+        if (!privateUnsubscribe) {
+          privateUnsubscribe = listenToSupportCaseFile({
+            requestId,
+            onData: (rawCase) => {
+              try {
+                const visibleCase = buildSpecialistView(rawCase, user.uid);
+                setCaseFile(visibleCase);
+                setLoading(false);
+              } catch (err) {
+                logError('Error normalizing specialist case file:', err);
+                setError('This case file is unavailable right now.');
+                setLoading(false);
+              }
+            },
+            onError: (err) => {
+              logError('Error loading specialist case file:', err);
+              setError('This case file is unavailable right now.');
+              setLoading(false);
+            },
+          });
         }
       },
       onError: (err) => {
-        logError('Error loading specialist case file:', err);
+        logError('Error loading support queue entry:', err);
         setError('This case file is unavailable right now.');
         setLoading(false);
       },
     });
 
-    return unsubscribe;
+    return () => {
+      queueUnsubscribe?.();
+      privateUnsubscribe?.();
+    };
   }, [requestId, user]);
 
   useEffect(() => {
@@ -207,6 +262,22 @@ const SpecialistCaseFile = () => {
     }
   };
 
+  const handleSetMarker = async (marker) => {
+    if (!caseFile || actionBusy || caseFile.status !== 'claimed') return;
+    setActionBusy(true);
+    try {
+      await updateSupportCaseMarker({
+        requestId: caseFile.id,
+        marker,
+      });
+    } catch (err) {
+      logError('Error updating case marker:', err);
+      setError('The case marker could not be updated right now.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <NewsPage className="specialist-casefile" max="reading">
@@ -232,7 +303,7 @@ const SpecialistCaseFile = () => {
           </div>
           <NewsRule />
           <NewsNotice tone="danger" icon={AlertTriangle}>
-            <p className="text-sm text-ink-soft lowercase">{error || 'This case file could not be opened.'}</p>
+            <p className="text-sm text-ink-soft">{error || 'This case file could not be opened.'}</p>
           </NewsNotice>
         </div>
       </NewsPage>
@@ -240,7 +311,13 @@ const SpecialistCaseFile = () => {
   }
 
   const redacted = caseFile.queueOnly && caseFile.status === 'open';
-  const canResolve = reportDraft.summary.trim() && reportDraft.actionsTaken.trim() && reportDraft.nextSteps.trim();
+  const markerMeta = CASE_MARKER_META[caseFile.caseMarker] || CASE_MARKER_META[SUPPORT_CASE_MARKERS.MONITORING];
+  const canResolve = (
+    reportDraft.summary.trim()
+    && reportDraft.actionsTaken.trim()
+    && reportDraft.nextSteps.trim()
+    && caseFile.caseMarker === SUPPORT_CASE_MARKERS.READY_TO_FILE
+  );
 
   return (
     <NewsPage className="specialist-casefile" max="reading">
@@ -262,11 +339,18 @@ const SpecialistCaseFile = () => {
             <p className="eyebrow sm text-smoke-dim">
               {STATUS_COPY[caseFile.status] || caseFile.status} · {URGENCY_LABELS[caseFile.urgency] || caseFile.urgency}
             </p>
+            {!redacted && (
+              <div className="mt-4">
+                <span className={`specialist-casefile__marker ${markerMeta.tone}`}>
+                  {markerMeta.label}
+                </span>
+              </div>
+            )}
             <h1 className="display text-4xl md:text-6xl leading-none mt-4">
               {CRISIS_LABELS[caseFile.crisisType] || caseFile.crisisType}
               <span className="italic-ox">.</span>
             </h1>
-            <p className="text-base text-smoke lowercase leading-relaxed max-w-2xl mt-5">
+            <p className="text-base text-smoke leading-relaxed max-w-2xl mt-5">
               Open the case like a proper paper file: identify the contact route, read the brief, and move it only when the next step is clear.
             </p>
           </div>
@@ -274,7 +358,7 @@ const SpecialistCaseFile = () => {
           <div className="specialist-casefile__clipcard">
             <div className="specialist-casefile__clip" aria-hidden="true" />
             <p className="eyebrow sm text-oxblood">Filed details</p>
-            <div className="space-y-3 mt-4 text-sm lowercase">
+            <div className="space-y-3 mt-4 text-sm">
               <div>
                 <span className="text-smoke-dim">opened: </span>
                 <span className="text-ink-soft">{new Date(caseFile.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
@@ -291,13 +375,19 @@ const SpecialistCaseFile = () => {
                   <span className="text-ink-soft">{new Date(caseFile.resolvedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                 </div>
               )}
+              {!redacted && (
+                <div>
+                  <span className="text-smoke-dim">marker: </span>
+                  <span className="text-ink-soft">{markerMeta.label}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {error && (
           <NewsNotice tone="danger" icon={AlertTriangle} className="mt-8">
-            <p className="text-sm text-ink-soft lowercase">{error}</p>
+            <p className="text-sm text-ink-soft">{error}</p>
           </NewsNotice>
         )}
 
@@ -305,7 +395,7 @@ const SpecialistCaseFile = () => {
           <NewsNotice tone="info" icon={Shield} className="mt-8">
             <div>
               <p className="eyebrow sm text-ink">redacted intake</p>
-              <p className="mt-2 text-sm text-ink-soft lowercase">
+              <p className="mt-2 text-sm text-ink-soft">
                 The requester&apos;s identity and detailed incident notes stay hidden until you claim the case. This protects the queue while specialists scan for fit and urgency.
               </p>
             </div>
@@ -315,7 +405,7 @@ const SpecialistCaseFile = () => {
         <div className="specialist-casefile__grid">
           <NewsCard accent="#7B2E2E" className="specialist-casefile__sheet">
             <p className="eyebrow sm text-oxblood">Incident brief</p>
-            <p className="text-base text-ink-soft lowercase leading-relaxed mt-4">
+            <p className="text-base text-ink-soft leading-relaxed mt-4">
               {redacted ? 'confidential details unlock after you claim this request' : caseFile.description}
             </p>
 
@@ -365,7 +455,7 @@ const SpecialistCaseFile = () => {
             {caseFile.feedback && (
               <NewsCard accent="#375E5A" className="specialist-casefile__sheet">
                 <p className="eyebrow sm text-[#375E5A]">Journalist feedback</p>
-                <p className="text-sm text-ink-soft lowercase leading-relaxed mt-4">
+                <p className="text-sm text-ink-soft leading-relaxed mt-4">
                   {caseFile.feedback.comment || 'no written comment'}
                 </p>
                 <p className="text-[10px] text-smoke-dim uppercase tracking-widest mt-4">
@@ -378,6 +468,36 @@ const SpecialistCaseFile = () => {
 
         {!redacted && (
           <div className="specialist-casefile__workspace">
+            {caseFile.status === 'claimed' && (
+              <NewsCard accent={markerMeta.accent} className="specialist-casefile__sheet">
+                <div className="specialist-casefile__section-head">
+                  <div>
+                    <p className="eyebrow sm text-ink">Operational marker</p>
+                    <h2 className="news-card-title mt-2">Show whose move it is before you file the case.</h2>
+                  </div>
+                </div>
+
+                <div className="specialist-casefile__marker-row">
+                  {Object.values(SUPPORT_CASE_MARKERS).map((marker) => {
+                    const meta = CASE_MARKER_META[marker];
+                    const active = caseFile.caseMarker === marker;
+
+                    return (
+                      <button
+                        key={marker}
+                        type="button"
+                        onClick={() => handleSetMarker(marker)}
+                        disabled={actionBusy}
+                        className={`specialist-casefile__marker-button ${active ? 'is-active' : ''}`}
+                      >
+                        {meta.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </NewsCard>
+            )}
+
             <NewsCard accent="#15110C" className="specialist-casefile__sheet">
               <div className="specialist-casefile__section-head">
                 <div>
@@ -400,10 +520,10 @@ const SpecialistCaseFile = () => {
                         {new Date(message.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
                     </div>
-                    <p className="text-sm text-ink-soft lowercase leading-relaxed mt-3">{message.body}</p>
+                    <p className="text-sm text-ink-soft leading-relaxed mt-3">{message.body}</p>
                   </div>
                 )) : (
-                  <p className="text-sm text-smoke lowercase">No messages yet. Use the thread to ask for clarifications or confirm next steps.</p>
+                  <p className="text-sm text-smoke">No messages yet. Use the thread to ask for clarifications or confirm next steps.</p>
                 )}
               </div>
 
@@ -481,7 +601,7 @@ const SpecialistCaseFile = () => {
                   {actionBusy ? 'saving…' : 'save report draft'}
                 </NewsButton>
                 {caseFile.status === 'claimed' && !canResolve && (
-                  <p className="text-xs text-smoke lowercase">Add the summary, actions taken, and next steps before filing the case.</p>
+                  <p className="text-xs text-smoke">Save the report and move the marker to ready to file before closing the case.</p>
                 )}
               </div>
             </NewsCard>

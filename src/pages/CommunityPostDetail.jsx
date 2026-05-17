@@ -28,6 +28,7 @@ import { AuthorLine } from '../features/community/components/AuthorLine';
 import { DeleteConfirmModal } from '../features/community/components/DeleteConfirmModal';
 import { ReportModal } from '../features/community/components/ReportModal';
 import { AuthorProfileModal } from '../features/community/components/AuthorProfileModal';
+import { getDisplayName } from '../utils/userUtils';
 import {
   NewsInput,
   NewsPage,
@@ -159,7 +160,7 @@ const CommunityPostDetail = () => {
       const comment = {
         id: `${user.uid}-${Date.now()}`,
         authorId: user.uid,
-        authorName: user.username || 'anonymous',
+        authorName: getDisplayName(user) || 'anonymous',
         authorType: user.accountType || 'journalist',
         isVerified: user.verificationStatus === 'approved',
         authorVerificationStatus: user.accountType === 'specialist' ? (user.verificationStatus || 'pending') : null,
@@ -212,10 +213,10 @@ const CommunityPostDetail = () => {
     return (
       <NewsPage>
         <div className="text-center py-24">
-          <p className="text-smoke text-sm lowercase mb-3">post not found</p>
+          <p className="text-smoke text-sm mb-3">post not found</p>
           <button
             onClick={() => navigate('/community')}
-            className="text-xs text-smoke-dim hover:text-ink transition-colors lowercase"
+            className="text-xs text-smoke-dim hover:text-ink transition-colors"
           >
             ← back to community
           </button>
@@ -254,7 +255,7 @@ const CommunityPostDetail = () => {
               >
                 <button
                   onClick={() => navigate('/community')}
-                  className="flex items-center gap-1.5 text-smoke hover:text-ink transition-colors text-xs lowercase flex-shrink-0"
+                  className="flex items-center gap-1.5 text-smoke hover:text-ink transition-colors text-xs flex-shrink-0"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   back
@@ -274,7 +275,7 @@ const CommunityPostDetail = () => {
                   {CATEGORY_NAMES[post.category] || post.category}
                 </span>
                 <span className="text-smoke-dim text-xs">·</span>
-                <span className="text-[10px] text-smoke-dim lowercase">{timeAgo(post.createdAt)}</span>
+                <span className="text-[10px] text-smoke-dim">{timeAgo(post.createdAt)}</span>
               </motion.div>
 
               <motion.div
@@ -313,7 +314,7 @@ const CommunityPostDetail = () => {
                   />
                   <div className="flex-1 min-w-0">
                     <AuthorLine item={post} onOpenProfile={openProfile} />
-                    <p className="text-[11px] text-smoke-dim lowercase mt-0.5">
+                    <p className="text-[11px] text-smoke-dim mt-0.5">
                       {post.isAnonymous
                         ? 'posted anonymously'
                         : (post.authorType === 'specialist' ? 'security specialist' : 'journalist')}
@@ -327,14 +328,14 @@ const CommunityPostDetail = () => {
                             if (editMode) setEditMode(false);
                             else { setEditMode(true); setEditForm({ title: post.title, content: post.content }); }
                           }}
-                          className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-ink transition-colors lowercase"
+                          className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-ink transition-colors"
                         >
                           {editMode ? <X className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
                           {editMode ? 'cancel' : 'edit'}
                         </button>
                         <button
                           onClick={() => setDeleteTarget({ type: 'post', id: post.id })}
-                          className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors lowercase"
+                          className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors"
                         >
                           <Trash2 className="w-3 h-3" />
                           delete
@@ -344,7 +345,7 @@ const CommunityPostDetail = () => {
                     {!isAuthor && user && (
                       <button
                         onClick={() => setReportDialog({ type: 'post', postId: post.id })}
-                        className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors lowercase"
+                        className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors"
                       >
                         <Flag className="w-3 h-3" />
                         report
@@ -368,7 +369,7 @@ const CommunityPostDetail = () => {
                     />
                     <div className="flex items-start gap-2 px-3 py-2.5 mb-4 bg-amber-500/[0.08] border border-amber-500/20">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <p className="text-[11px] text-brass/80 lowercase leading-relaxed">
+                      <p className="text-[11px] text-brass/80 leading-relaxed">
                         once saved, an "edited" label will be visible to all community members.
                       </p>
                     </div>
@@ -387,14 +388,14 @@ const CommunityPostDetail = () => {
                         cancel
                       </button>
                     </div>
-                    {error && <p className="text-xs text-oxblood mt-2 lowercase">{error}</p>}
+                    {error && <p className="text-xs text-oxblood mt-2">{error}</p>}
                   </>
                 ) : (
                   <>
                     <h1 className="text-xl font-display font-bold mb-3 leading-snug text-ink">
                       {post.title}
                       {post.edited && (
-                        <span className="ml-2 text-[10px] font-normal text-smoke-dim lowercase align-middle">(edited)</span>
+                        <span className="ml-2 text-[10px] font-normal text-smoke-dim align-middle">(edited)</span>
                       )}
                     </h1>
                     <p className="text-sm text-ink-soft leading-relaxed whitespace-pre-wrap mb-4">
@@ -406,20 +407,20 @@ const CommunityPostDetail = () => {
                 <div className="flex items-center gap-4 pt-3 border-t border-ink/8">
                   <button
                     onClick={handleLike}
-                    className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${
+                    className={`flex items-center gap-1.5 text-xs transition-colors ${
                       liked ? 'text-oxblood' : 'text-smoke hover:text-oxblood'
                     }`}
                   >
                     <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
                     {post.likes || 0}
                   </button>
-                  <span className="flex items-center gap-1.5 text-xs text-smoke lowercase">
+                  <span className="flex items-center gap-1.5 text-xs text-smoke">
                     <MessageSquare className="w-3.5 h-3.5" />
                     {commentCount} {commentCount === 1 ? 'reply' : 'replies'}
                   </span>
                   <button
                     onClick={(e) => toggleFollowPost(e, post.id)}
-                    className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${
+                    className={`flex items-center gap-1.5 text-xs transition-colors ${
                       followedPosts.has(post.id) ? 'text-brass' : 'text-smoke hover:text-brass'
                     }`}
                   >
@@ -432,7 +433,7 @@ const CommunityPostDetail = () => {
                   {isQuestion && isAuthor && (
                     <button
                       onClick={handleResolve}
-                      className={`flex items-center gap-1.5 text-xs transition-colors lowercase ml-auto ${
+                      className={`flex items-center gap-1.5 text-xs transition-colors ml-auto ${
                         post.resolved ? 'text-olive-400' : 'text-smoke hover:text-olive-400'
                       }`}
                     >
@@ -474,11 +475,11 @@ const CommunityPostDetail = () => {
                         </div>
                       </div>
                     </div>
-                    {error && <p className="text-xs text-oxblood mt-2 lowercase">{error}</p>}
+                    {error && <p className="text-xs text-oxblood mt-2">{error}</p>}
                   </NewsPanel>
                 ) : (
                   <NewsPanel muted className="flex items-center justify-between gap-4 px-5 py-3.5 mb-4">
-                    <p className="text-xs text-smoke lowercase">
+                    <p className="text-xs text-smoke">
                       {isAMA ? 'log in to ask a question' : 'log in to join the conversation'}
                     </p>
                     <button
@@ -534,11 +535,11 @@ const CommunityPostDetail = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                               {comment.deleted ? (
-                                <span className="text-xs font-semibold text-smoke-dim lowercase italic">deleted</span>
+                                <span className="text-xs font-semibold text-smoke-dim italic">deleted</span>
                               ) : (
                                 <AuthorLine item={comment} onOpenProfile={openProfile} />
                               )}
-                              <span className="text-[10px] text-smoke-dim lowercase ml-auto">{timeAgo(comment.createdAt)}</span>
+                              <span className="text-[10px] text-smoke-dim ml-auto">{timeAgo(comment.createdAt)}</span>
                             </div>
                             <p className={`text-sm leading-relaxed ${comment.deleted ? 'text-smoke-dim italic' : 'text-smoke'}`}>
                               {comment.content}
@@ -548,7 +549,7 @@ const CommunityPostDetail = () => {
                                 {canAccept && (
                                   <button
                                     onClick={() => handleAcceptAnswer(comment.id)}
-                                    className={`flex items-center gap-1 text-[11px] transition-colors lowercase ${
+                                    className={`flex items-center gap-1 text-[11px] transition-colors ${
                                       isAccepted ? 'text-olive-400' : 'text-smoke-dim hover:text-olive-400'
                                     }`}
                                   >
@@ -559,7 +560,7 @@ const CommunityPostDetail = () => {
                                 {canDelete && (
                                   <button
                                     onClick={() => setDeleteTarget({ type: 'comment', id: post.id, commentId: comment.id })}
-                                    className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors lowercase"
+                                    className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors"
                                   >
                                     <Trash2 className="w-3 h-3" />
                                     delete
@@ -568,7 +569,7 @@ const CommunityPostDetail = () => {
                                 {canReport && (
                                   <button
                                     onClick={() => setReportDialog({ type: 'comment', postId: post.id, commentId: comment.id })}
-                                    className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors lowercase"
+                                    className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors"
                                   >
                                     <Flag className="w-3 h-3" />
                                     report
@@ -583,7 +584,7 @@ const CommunityPostDetail = () => {
                   })}
 
                   {commentCount === 0 && (
-                    <p className="text-center text-smoke-dim text-xs lowercase py-6">
+                    <p className="text-center text-smoke-dim text-xs py-6">
                       no {isQuestion ? 'answers' : 'replies'} yet — be the first
                     </p>
                   )}
@@ -607,7 +608,7 @@ const CommunityPostDetail = () => {
                       value={sidebarSearch}
                       onChange={(e) => setSidebarSearch(e.target.value)}
                       placeholder="search discussions..."
-                      className="pl-9 pr-4 py-2.5 lowercase"
+                      className="pl-9 pr-4 py-2.5"
                     />
                   </div>
                 </form>

@@ -314,7 +314,7 @@ const RequestSupport = () => {
             Fill out this form and a verified cybersecurity expert will contact you.
           </p>
           {user && (
-            <p className="mt-3 text-sm text-smoke lowercase">
+            <p className="mt-3 text-sm text-smoke">
               Filed before?{' '}
               <Link to="/my-cases" className="link-handdrawn">
                 View your existing cases →

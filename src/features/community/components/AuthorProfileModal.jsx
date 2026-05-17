@@ -49,14 +49,14 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
                   <UserAvatar name={profile.username} accountType={profile.type} size="lg" />
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-base font-semibold text-ink lowercase">
+                      <span className="text-base font-semibold text-ink">
                         {profile.username}
                       </span>
                       {profile.type === 'specialist' && profile.verified && (
                         <BadgeCheck className="w-4 h-4 text-oxblood" />
                       )}
                     </div>
-                    <p className="text-[11px] text-smoke lowercase mt-0.5">
+                    <p className="text-[11px] text-smoke mt-0.5">
                       {profile.type === 'specialist'
                         ? (profile.verified ? 'verified security specialist' : 'specialist (unverified)')
                         : 'journalist'}
@@ -66,13 +66,13 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
                 <div className="flex items-center gap-6 flex-wrap">
                   <div>
                     <p className="text-xl font-bold text-ink">{profile.postCount}</p>
-                    <p className="text-[10px] text-smoke-dim lowercase">community posts</p>
+                    <p className="text-[10px] text-smoke-dim">community posts</p>
                   </div>
                   {profile.type === 'specialist' && profile.supportStatsVisible && (
                     <>
                       <div>
                         <p className="text-xl font-bold text-ink">{profile.resolvedCount}</p>
-                        <p className="text-[10px] text-smoke-dim lowercase">cases resolved</p>
+                        <p className="text-[10px] text-smoke-dim">cases resolved</p>
                       </div>
                       {profile.avgRating && (
                         <div>
@@ -80,7 +80,7 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
                             {profile.avgRating}
                             <Star className="w-3.5 h-3.5 text-brass fill-current" />
                           </p>
-                          <p className="text-[10px] text-smoke-dim lowercase">avg rating</p>
+                          <p className="text-[10px] text-smoke-dim">avg rating</p>
                         </div>
                       )}
                     </>
@@ -90,7 +90,7 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
                       <p className="text-sm font-semibold text-ink-soft">
                         {new Date(profile.createdAt).toLocaleDateString()}
                       </p>
-                      <p className="text-[10px] text-smoke-dim lowercase">joined</p>
+                      <p className="text-[10px] text-smoke-dim">joined</p>
                     </div>
                   )}
                 </div>
@@ -101,7 +101,7 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
                   <p className="text-[10px] font-bold tracking-widest uppercase text-smoke-dim mb-2">
                     about
                   </p>
-                  <p className="text-sm text-smoke lowercase leading-relaxed">{profile.bio}</p>
+                  <p className="text-sm text-smoke leading-relaxed">{profile.bio}</p>
                 </div>
               )}
 
@@ -114,7 +114,7 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
                     {profile.specializations.map((s, i) => (
                       <span
                         key={i}
-                        className="px-2 py-1 bg-ink/8 border border-ink/15 text-[11px] text-ink-soft lowercase"
+                        className="px-2 py-1 bg-ink/8 border border-ink/15 text-[11px] text-ink-soft"
                       >
                         {s}
                       </span>
@@ -139,8 +139,8 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
                           {p.type === 'question' ? 'q' : 'd'}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-ink-soft lowercase line-clamp-1">{p.title}</p>
-                          <p className="text-[10px] text-smoke-dim lowercase">{timeAgo(p.createdAt)}</p>
+                          <p className="text-xs text-ink-soft line-clamp-1">{p.title}</p>
+                          <p className="text-[10px] text-smoke-dim">{timeAgo(p.createdAt)}</p>
                         </div>
                       </button>
                     ))}
@@ -168,7 +168,7 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
                             />
                           ))}
                         </div>
-                        <p className="text-xs text-smoke lowercase italic">"{r.feedback.comment}"</p>
+                        <p className="text-xs text-smoke italic">"{r.feedback.comment}"</p>
                       </div>
                     ))}
                   </div>

@@ -277,7 +277,7 @@ const Community = () => {
               <input type="text" value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={`search ${isQA ? 'questions' : 'discussions'}...`}
-                className="flex-1 bg-transparent py-1.5 pl-2 pr-3 text-xs lowercase text-ink placeholder-smoke-dim outline-none"
+                className="flex-1 bg-transparent py-1.5 pl-2 pr-3 text-xs text-ink placeholder-smoke-dim outline-none"
               />
             </div>
             <div className="hidden sm:flex items-center gap-2">
@@ -452,13 +452,13 @@ const Community = () => {
                         ? <Search className="w-5 h-5 text-smoke-dim" />
                         : isQA ? <HelpCircle className="w-5 h-5 text-smoke-dim" /> : <MessageSquare className="w-5 h-5 text-smoke-dim" />}
                     </div>
-                    <p className="text-smoke text-sm lowercase mb-1">
+                    <p className="text-smoke text-sm mb-1">
                       {sortMode === 'unanswered' ? 'no unanswered questions'
                         : searchQuery.trim() ? `no results for "${searchQuery.trim()}"`
                         : activeCategory !== 'all' ? 'nothing here yet'
                         : `no ${isQA ? 'questions' : 'discussions'} yet`}
                     </p>
-                    <p className="text-smoke-dim text-xs lowercase">
+                    <p className="text-smoke-dim text-xs">
                       {searchQuery.trim()
                         ? 'try different keywords or clear the search'
                         : `be the first to ${isQA ? 'ask something' : 'start a conversation'}`}
@@ -487,7 +487,7 @@ const Community = () => {
                                     {post.resolved ? '✓' : '?'}
                                   </span>
                                   <span className="text-sm text-smoke mt-1 font-semibold">{getPostCommentCount(post)}</span>
-                                  <span className="eyebrow sm text-smoke-dim lowercase normal-case text-[9px]">
+                                  <span className="eyebrow sm text-smoke-dim normal-case text-[9px]">
                                     {getPostCommentCount(post) === 1 ? 'answer' : 'answers'}
                                   </span>
                                 </div>
@@ -501,7 +501,7 @@ const Community = () => {
                                   </h3>
                                   <p className="text-sm text-smoke line-clamp-2 mb-2 leading-relaxed">{post.content}</p>
                                   <CategoryPills post={post} />
-                                  <div className="flex items-center gap-4 text-xs text-smoke-dim lowercase flex-wrap mt-3">
+                                  <div className="flex items-center gap-4 text-xs text-smoke-dim flex-wrap mt-3">
                                     <div className="flex items-center gap-1.5">
                                       <UserAvatar name={post.authorName} accountType={post.authorType} anonymous={post.isAnonymous} size="xs" />
                                       <AuthorLine item={post} onOpenProfile={openProfile} />
@@ -543,17 +543,17 @@ const Community = () => {
                             <CategoryPills post={post} />
                             <div className="flex items-center gap-4 pt-3 border-t border-ink/8 mt-2">
                               <button onClick={(e) => handleLike(e, post.id)}
-                                className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${liked ? 'text-oxblood' : 'text-smoke-dim hover:text-oxblood'}`}>
+                                className={`flex items-center gap-1.5 text-xs transition-colors ${liked ? 'text-oxblood' : 'text-smoke-dim hover:text-oxblood'}`}>
                                 <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
                                 {post.likes || 0}
                               </button>
-                              <span className="flex items-center gap-1.5 text-xs text-smoke-dim lowercase">
+                              <span className="flex items-center gap-1.5 text-xs text-smoke-dim">
                                 <MessageSquare className="w-3.5 h-3.5" />
                                 {getPostCommentCount(post)}
                               </span>
                               <div className="flex-1" />
                               <button onClick={(e) => toggleFollow(e, post.id)}
-                                className={`flex items-center gap-1.5 text-xs transition-colors lowercase ${followedPosts.has(post.id) ? 'text-brass' : 'text-smoke-dim hover:text-brass'}`}>
+                                className={`flex items-center gap-1.5 text-xs transition-colors ${followedPosts.has(post.id) ? 'text-brass' : 'text-smoke-dim hover:text-brass'}`}>
                                 {followedPosts.has(post.id) ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
                               </button>
                             </div>
@@ -574,7 +574,7 @@ const Community = () => {
                 <Shield className="w-4 h-4 text-smoke-dim flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="eyebrow sm text-smoke-dim mb-2">community guidelines</p>
-                  <p className="text-xs text-smoke-dim lowercase leading-relaxed">
+                  <p className="text-xs text-smoke-dim leading-relaxed">
                     never share identifying details of sources · keep discussions focused on security · be respectful · report suspicious activity
                   </p>
                 </div>

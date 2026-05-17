@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion';
-import { Shield, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  NewsPage, NewsHeader, NewsField, NewsButton, NewsNotice,
+  NewsPage, NewsField, NewsButton, NewsNotice,
 } from '../components/editorial/NewsPage';
+import RotatingType from '../components/editorial/RotatingType';
+import PageLoader from '../components/PageLoader';
 
 const GoogleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
@@ -16,12 +18,18 @@ const GoogleIcon = () => (
   </svg>
 );
 
+const LOGIN_LINES = [
+  'Protect your reporting before the pressure starts.',
+  'Keep sources harder to trace when the work gets sensitive.',
+  'Ask for specialist support before a bad day becomes a breach.',
+];
+
 const Login = () => {
   const navigate = useNavigate();
   const { user, login, loginWithGoogle, authError, clearAuthError } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [error, setError]     = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -37,7 +45,7 @@ const Login = () => {
     try {
       await login(formData.email, formData.password);
     } catch (err) {
-      setError(err.code === 'auth/invalid-email' ? 'invalid email address.' : 'incorrect email or password.');
+      setError(err.code === 'auth/invalid-email' ? 'Invalid email address.' : 'Incorrect email or password.');
       setLoading(false);
     }
   };
@@ -48,13 +56,13 @@ const Login = () => {
       await loginWithGoogle();
     } catch (err) {
       const msgs = {
-        'auth/unauthorized-domain': 'google sign-in is blocked for this domain.',
-        'auth/popup-blocked': 'the browser blocked the google sign-in popup.',
-        'auth/cancelled-popup-request': 'a previous popup was interrupted — please try again.',
-        'auth/operation-not-allowed': 'google sign-in is not enabled.',
+        'auth/unauthorized-domain': 'Google sign-in is blocked for this domain.',
+        'auth/popup-blocked': 'The browser blocked the Google sign-in popup.',
+        'auth/cancelled-popup-request': 'A previous popup was interrupted — please try again.',
+        'auth/operation-not-allowed': 'Google sign-in is not enabled.',
       };
       if (err.code !== 'auth/popup-closed-by-user') {
-        setError(msgs[err.code] ?? `google sign-in failed (${err.code ?? 'unknown error'}).`);
+        setError(msgs[err.code] ?? `Google sign-in failed (${err.code ?? 'unknown error'}).`);
       }
       setLoading(false);
     }
@@ -62,77 +70,98 @@ const Login = () => {
 
   if (loading) {
     return (
-      <NewsPage >
-        <div className="flex flex-col items-center justify-center py-32 gap-4">
-          <Shield className="w-10 h-10 text-oxblood animate-pulse" />
-          <p className="eyebrow sm text-smoke">signing in…</p>
-        </div>
+      <NewsPage>
+        <PageLoader text="Signing in…" />
       </NewsPage>
     );
   }
 
   return (
-    <NewsPage >
+    <NewsPage>
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="login-split"
       >
-        <NewsHeader
-          kicker="SafePress · Sign in"
-          title={<>Welcome <em className="italic-ox">back.</em></>}
-          lede="Log in to continue protecting your work and your sources."
-        />
+        <section className="login-split__editorial">
+          <p className="eyebrow sm text-oxblood">SafePress · secure login</p>
+          <div className="login-split__brandline">
+            <h1 className="broadsheet-wordmark login-split__wordmark">
+              <em>Safe</em>Press
+            </h1>
+          </div>
+          <p className="login-split__lede">
+            A calmer entry into source protection, drills, case support, and the field manual.
+          </p>
+          <div className="login-split__typebox">
+            <p className="display-soft login-split__typecopy">
+              <RotatingType lines={LOGIN_LINES} />
+            </p>
+          </div>
+        </section>
 
-        {(error || authError) && (
-          <NewsNotice tone="danger" icon={AlertCircle}>
-            <p className="text-sm text-ink-soft lowercase">{error || authError}</p>
-          </NewsNotice>
-        )}
-
-        <div className="mt-6 space-y-8">
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            className="btn ghost w-full justify-center gap-2.5 lowercase"
-          >
-            <GoogleIcon />
-            continue with google
-          </button>
-
-          <div className="flex items-center gap-4">
-            <div className="flex-1 border-t border-ink/[0.12]" />
-            <span className="eyebrow sm text-smoke">or sign in with email</span>
-            <div className="flex-1 border-t border-ink/[0.12]" />
+        <section className="login-split__formpanel">
+          <div className="login-split__formhead">
+            <p className="eyebrow sm text-oxblood">Sign in</p>
+            <h2 className="display-soft text-[1.7rem] leading-tight text-ink mt-2">
+              Return to your file.
+            </h2>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <NewsField no="01" label="Email address">
-              <input
-                type="email" name="email" value={formData.email}
-                onChange={handleChange} required placeholder="your@email.com"
-              />
-            </NewsField>
+          {(error || authError) && (
+            <NewsNotice tone="danger" icon={AlertCircle}>
+              <p className="text-sm text-ink-soft">{error || authError}</p>
+            </NewsNotice>
+          )}
 
-            <NewsField no="02" label="Password">
-              <input
-                type="password" name="password" value={formData.password}
-                onChange={handleChange} required placeholder="••••••••"
-              />
-            </NewsField>
+          <div className="space-y-8">
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="btn ghost w-full justify-center gap-2.5"
+            >
+              <GoogleIcon />
+              Continue with Google
+            </button>
+            <p className="text-xs text-smoke-dim -mt-4">
+              Journalists only — specialists should use email so verification stays attached to the right account.
+            </p>
 
-            <NewsButton type="submit" className="w-full justify-center mt-8">
-              Log in
-            </NewsButton>
-          </form>
+            <div className="flex items-center gap-4">
+              <div className="flex-1 border-t border-ink/[0.12]" />
+              <span className="eyebrow sm text-smoke">Or sign in with email</span>
+              <div className="flex-1 border-t border-ink/[0.12]" />
+            </div>
 
-          <p className="eyebrow sm text-smoke text-center">
-            No account?{' '}
-            <Link to="/signup" className="text-oxblood hover:text-ink transition-colors">
-              Sign up
-            </Link>
-          </p>
-        </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <NewsField no="01" label="Email address">
+                <input
+                  type="email" name="email" value={formData.email}
+                  onChange={handleChange} required placeholder="your@email.com"
+                />
+              </NewsField>
+
+              <NewsField no="02" label="Password">
+                <input
+                  type="password" name="password" value={formData.password}
+                  onChange={handleChange} required placeholder="••••••••"
+                />
+              </NewsField>
+
+              <NewsButton type="submit" className="w-full justify-center mt-8">
+                Log in
+              </NewsButton>
+            </form>
+
+            <p className="eyebrow sm text-smoke text-center">
+              No account?{' '}
+              <Link to="/signup" className="text-oxblood hover:text-ink transition-colors">
+                Sign up
+              </Link>
+            </p>
+          </div>
+        </section>
       </motion.div>
     </NewsPage>
   );

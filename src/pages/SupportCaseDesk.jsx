@@ -7,6 +7,7 @@ import {
   addSupportCaseMessage,
   listenToSupportCaseFile,
   listenToSupportCaseMessages,
+  SUPPORT_CASE_MARKERS,
   submitSupportFeedback,
 } from '../features/support/services/supportService';
 import { logError } from '../utils/logger';
@@ -24,6 +25,25 @@ const STATUS_COPY = {
   open: 'waiting in intake',
   claimed: 'with a specialist',
   resolved: 'resolution filed',
+};
+
+const CASE_MARKER_META = {
+  [SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST]: {
+    label: 'awaiting specialist',
+    note: 'Your last update is on file. A specialist needs to review or respond next.',
+  },
+  [SUPPORT_CASE_MARKERS.AWAITING_REPORTER]: {
+    label: 'awaiting you',
+    note: 'The specialist is waiting for a reply or confirmation before moving the case forward.',
+  },
+  [SUPPORT_CASE_MARKERS.MONITORING]: {
+    label: 'monitoring',
+    note: 'The specialist is actively working the case and watching for the next change.',
+  },
+  [SUPPORT_CASE_MARKERS.READY_TO_FILE]: {
+    label: 'ready to file',
+    note: 'The report is in place and the case is ready to be formally closed.',
+  },
 };
 
 const SupportCaseDesk = () => {
@@ -146,12 +166,14 @@ const SupportCaseDesk = () => {
           </div>
           <NewsRule />
           <NewsNotice tone="danger" icon={AlertTriangle}>
-            <p className="text-sm text-ink-soft lowercase">{error || 'This case desk could not be opened.'}</p>
+            <p className="text-sm text-ink-soft">{error || 'This case desk could not be opened.'}</p>
           </NewsNotice>
         </div>
       </NewsPage>
     );
   }
+
+  const markerMeta = CASE_MARKER_META[caseFile.caseMarker] || CASE_MARKER_META[SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST];
 
   return (
     <NewsPage className="specialist-casefile" max="reading">
@@ -173,11 +195,16 @@ const SupportCaseDesk = () => {
             <p className="eyebrow sm text-smoke-dim">
               {STATUS_COPY[caseFile.status] || caseFile.status}
             </p>
+            <div className="mt-4">
+              <span className="specialist-casefile__marker">
+                {markerMeta.label}
+              </span>
+            </div>
             <h1 className="display text-4xl md:text-6xl leading-none mt-4">
               {CRISIS_LABELS[caseFile.crisisType] || caseFile.crisisType}
               <span className="italic-ox">.</span>
             </h1>
-            <p className="text-base text-smoke lowercase leading-relaxed max-w-2xl mt-5">
+            <p className="text-base text-smoke leading-relaxed max-w-2xl mt-5">
               Use this desk to follow your case, answer specialist questions, and keep the final report in one place.
             </p>
           </div>
@@ -185,7 +212,7 @@ const SupportCaseDesk = () => {
           <div className="specialist-casefile__clipcard">
             <div className="specialist-casefile__clip" aria-hidden="true" />
             <p className="eyebrow sm text-oxblood">Case status</p>
-            <div className="space-y-3 mt-4 text-sm lowercase">
+            <div className="space-y-3 mt-4 text-sm">
               <div>
                 <span className="text-smoke-dim">filed: </span>
                 <span className="text-ink-soft">{new Date(caseFile.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
@@ -193,6 +220,10 @@ const SupportCaseDesk = () => {
               <div>
                 <span className="text-smoke-dim">specialist: </span>
                 <span className="text-ink-soft">{caseFile.claimedByName || 'waiting to be claimed'}</span>
+              </div>
+              <div>
+                <span className="text-smoke-dim">marker: </span>
+                <span className="text-ink-soft">{markerMeta.label}</span>
               </div>
               {caseFile.resolvedAt && (
                 <div>
@@ -206,8 +237,16 @@ const SupportCaseDesk = () => {
 
         {caseFile.status === 'open' && (
           <NewsNotice tone="info" icon={AlertTriangle} className="mt-8">
-            <p className="text-sm text-ink-soft lowercase">
+            <p className="text-sm text-ink-soft">
               Your request is still in the intake tray. You can add more context below, and the thread will be ready once a specialist claims the case.
+            </p>
+          </NewsNotice>
+        )}
+
+        {caseFile.status !== 'open' && (
+          <NewsNotice tone="info" icon={MessageSquare} className="mt-8">
+            <p className="text-sm text-ink-soft">
+              {markerMeta.note}
             </p>
           </NewsNotice>
         )}
@@ -215,7 +254,7 @@ const SupportCaseDesk = () => {
         <div className="specialist-casefile__grid">
           <NewsCard accent="#7B2E2E" className="specialist-casefile__sheet">
             <p className="eyebrow sm text-oxblood">Filed request</p>
-            <p className="text-base text-ink-soft lowercase leading-relaxed mt-4">
+            <p className="text-base text-ink-soft leading-relaxed mt-4">
               {caseFile.description}
             </p>
           </NewsCard>
@@ -264,15 +303,15 @@ const SupportCaseDesk = () => {
                       {new Date(message.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
-                  <p className="text-sm text-ink-soft lowercase leading-relaxed mt-3">{message.body}</p>
+                  <p className="text-sm text-ink-soft leading-relaxed mt-3">{message.body}</p>
                 </div>
               )) : (
-                <p className="text-sm text-smoke lowercase">No messages yet. Add any new developments here so the specialist sees them in the file.</p>
+                <p className="text-sm text-smoke">No messages yet. Add any new developments here so the specialist sees them in the file.</p>
               )}
             </div>
 
             {caseFile.status === 'open' && (
-              <p className="text-sm text-smoke lowercase mt-4 pt-4 border-t border-ink/8">
+              <p className="text-sm text-smoke mt-4 pt-4 border-t border-ink/8">
                 The thread opens once a specialist claims your case. You can add more context to your request in the meantime by filing a new request with updated details.
               </p>
             )}
@@ -317,12 +356,12 @@ const SupportCaseDesk = () => {
                 ].map(([label, value]) => (
                   <div key={label}>
                     <p className="eyebrow sm text-smoke-dim">{label}</p>
-                    <p className="text-sm text-ink-soft lowercase leading-relaxed mt-2">{value || 'Not provided.'}</p>
+                    <p className="text-sm text-ink-soft leading-relaxed mt-2">{value || 'Not provided.'}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-smoke lowercase">
+              <p className="text-sm text-smoke">
                 The report will appear here once the specialist has documented what happened, what they did, and what you should do next.
               </p>
             )}
@@ -332,7 +371,7 @@ const SupportCaseDesk = () => {
             <NewsCard accent="#8A6D2C" className="specialist-casefile__sheet">
               <p className="eyebrow sm text-brass">Close-out feedback</p>
               <h2 className="news-card-title mt-2">How did the specialist support go?</h2>
-              <p className="text-sm text-smoke lowercase leading-relaxed mt-4 mb-6">
+              <p className="text-sm text-smoke leading-relaxed mt-4 mb-6">
                 Your rating and comments help improve matching and response quality for future reporters.
               </p>
 
@@ -369,7 +408,7 @@ const SupportCaseDesk = () => {
                   {feedbackBusy ? 'submitting…' : 'submit feedback'}
                 </NewsButton>
                 {!feedbackRating && (
-                  <p className="text-xs text-smoke lowercase">Select a rating to submit.</p>
+                  <p className="text-xs text-smoke">Select a rating to submit.</p>
                 )}
               </div>
             </NewsCard>
@@ -384,7 +423,7 @@ const SupportCaseDesk = () => {
                 ))}
               </div>
               {caseFile.feedback.comment && (
-                <p className="text-sm text-ink-soft lowercase leading-relaxed">{caseFile.feedback.comment}</p>
+                <p className="text-sm text-ink-soft leading-relaxed">{caseFile.feedback.comment}</p>
               )}
               <p className="text-[10px] text-smoke-dim uppercase tracking-widest mt-4">
                 filed · {new Date(caseFile.feedback.submittedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}

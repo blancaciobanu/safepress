@@ -14,7 +14,9 @@ import {
 import { isSafeLinkedInUrl } from '../utils/externalLinks';
 import { logError } from '../utils/logger';
 import { NewsPage } from '../components/editorial/NewsPage';
+import PageLoader from '../components/PageLoader';
 import { useAuth } from '../contexts/AuthContext';
+import { getInitials } from '../utils/userUtils';
 
 const AdminDashboard = () => {
   const { refreshUser } = useAuth();
@@ -161,13 +163,8 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <NewsPage >
-        <div className="flex items-center justify-center py-32">
-          <div className="text-center">
-            <Shield className="w-12 h-12 text-oxblood mx-auto mb-4 animate-pulse" />
-            <p className="eyebrow sm">Loading admin dashboard…</p>
-          </div>
-        </div>
+      <NewsPage>
+        <PageLoader text="Loading admin dashboard…" />
       </NewsPage>
     );
   }
@@ -185,11 +182,11 @@ const AdminDashboard = () => {
             <div className="w-12 h-12 rounded-full bg-ink/20 flex items-center justify-center">
               <Shield className="w-6 h-6 text-oxblood" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-display font-bold lowercase">
+            <h1 className="text-4xl md:text-5xl font-display font-bold">
               admin dashboard
             </h1>
           </div>
-          <p className="text-lg text-smoke lowercase leading-relaxed">
+          <p className="text-lg text-smoke leading-relaxed">
             manage specialist verification requests
           </p>
         </motion.div>
@@ -251,7 +248,7 @@ const AdminDashboard = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2  text-sm font-medium transition-all lowercase ${
+                className={`flex items-center gap-2 px-4 py-2  text-sm font-medium transition-all ${
                   active ? 'bg-white/[0.08] text-ink' : 'text-smoke hover:text-ink-soft'
                 }`}
               >
@@ -277,7 +274,7 @@ const AdminDashboard = () => {
             className="mb-8"
           >
             <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-              <h2 className="text-2xl font-display font-bold lowercase">
+              <h2 className="text-2xl font-display font-bold">
                 community reports
               </h2>
               <div className="flex gap-1 bg-paper-soft/60 border border-white/[0.07]  p-1">
@@ -291,7 +288,7 @@ const AdminDashboard = () => {
                     <button
                       key={f.id}
                       onClick={() => setReportFilter(f.id)}
-                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all lowercase ${
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                         active ? 'bg-white/[0.08] text-ink' : 'text-smoke hover:text-ink-soft'
                       }`}
                     >
@@ -304,8 +301,8 @@ const AdminDashboard = () => {
 
             {reportsLoading ? (
               <div className="bg-paper-soft border border-ink/12 p-12 text-center">
-                <div className="w-6 h-6 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-smoke lowercase">loading reports...</p>
+                <div className="w-5 h-5 border-2 border-ink border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                <p className="eyebrow sm text-smoke-dim">Loading reports…</p>
               </div>
             ) : (() => {
               const filtered = reports.filter(r =>
@@ -315,10 +312,10 @@ const AdminDashboard = () => {
                 return (
                   <div className="bg-paper-soft border border-ink/12 p-12 text-center">
                     <Flag className="w-16 h-16 text-smoke mx-auto mb-4" />
-                    <h3 className="text-xl font-display font-bold mb-2 lowercase">
+                    <h3 className="text-xl font-display font-bold mb-2">
                       no {reportFilter === 'all' ? '' : reportFilter} reports
                     </h3>
-                    <p className="text-smoke lowercase">
+                    <p className="text-smoke">
                       {reportFilter === 'open' ? 'the community is behaving.' : 'nothing to show here.'}
                     </p>
                   </div>
@@ -347,20 +344,20 @@ const AdminDashboard = () => {
                                 comment
                               </span>
                             )}
-                            <span className="text-xs text-smoke-dim lowercase ml-auto">
+                            <span className="text-xs text-smoke-dim ml-auto">
                               {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}
                             </span>
                           </div>
                           {r.postMissing ? (
-                            <p className="text-sm text-smoke italic lowercase">original post has been deleted</p>
+                            <p className="text-sm text-smoke italic">original post has been deleted</p>
                           ) : (
                             <>
-                              <p className="text-sm font-semibold text-ink mb-1 lowercase">{r.postTitle || 'untitled'}</p>
-                              <p className="text-xs text-smoke lowercase">
+                              <p className="text-sm font-semibold text-ink mb-1">{r.postTitle || 'untitled'}</p>
+                              <p className="text-xs text-smoke">
                                 by {r.postAuthor} · {r.postType === 'question' ? 'q&a' : 'discussion'}
                               </p>
                               {r.commentContent && (
-                                <p className="text-xs text-smoke lowercase mt-2 italic line-clamp-2 border-l-2 border-ink/12 pl-2">
+                                <p className="text-xs text-smoke mt-2 italic line-clamp-2 border-l-2 border-ink/12 pl-2">
                                   "{r.commentContent}"
                                 </p>
                               )}
@@ -369,7 +366,7 @@ const AdminDashboard = () => {
                           {r.note && (
                             <div className="mt-3 p-3  bg-paper-soft/60 border border-ink/8">
                               <p className="text-[10px] font-bold tracking-widest uppercase text-smoke mb-1">reporter note</p>
-                              <p className="text-xs text-ink-soft lowercase leading-relaxed">{r.note}</p>
+                              <p className="text-xs text-ink-soft leading-relaxed">{r.note}</p>
                             </div>
                           )}
                         </div>
@@ -378,7 +375,7 @@ const AdminDashboard = () => {
                         {r.status === 'open' && (
                           <button
                             onClick={() => markReportReviewed(r.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-brass/20 border border-olive-500/30  text-xs text-brass hover:bg-brass/30 transition-all lowercase"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-brass/20 border border-olive-500/30  text-xs text-brass hover:bg-brass/30 transition-all"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             mark reviewed
@@ -387,7 +384,7 @@ const AdminDashboard = () => {
                         {!r.postMissing && (r.commentId === null || r.commentId === undefined) && r.status === 'open' && (
                           <button
                             onClick={() => deleteReportedPost(r.postId, r.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-oxblood/20 border border-oxblood/30  text-xs text-oxblood hover:bg-oxblood/30 transition-all lowercase"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-oxblood/20 border border-oxblood/30  text-xs text-oxblood hover:bg-oxblood/30 transition-all"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             delete post
@@ -395,14 +392,14 @@ const AdminDashboard = () => {
                         )}
                         <button
                           onClick={() => deleteReport(r.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-paper-dim border border-ink/10 hover:bg-white/[0.08] text-smoke  text-xs transition-all lowercase ml-auto"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-paper-dim border border-ink/10 hover:bg-white/[0.08] text-smoke  text-xs transition-all ml-auto"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           discard report
                         </button>
                       </div>
                       {r.actionTaken && (
-                        <p className="text-[10px] text-smoke-dim lowercase mt-2">action: {r.actionTaken}</p>
+                        <p className="text-[10px] text-smoke-dim mt-2">action: {r.actionTaken}</p>
                       )}
                     </div>
                   ))}
@@ -419,17 +416,17 @@ const AdminDashboard = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <h2 className="text-2xl font-display font-bold mb-6 lowercase">
+          <h2 className="text-2xl font-display font-bold mb-6">
             pending verification requests
           </h2>
 
           {pendingVerifications.length === 0 ? (
             <div className="bg-paper-soft border border-ink/12 p-12 text-center">
               <Users className="w-16 h-16 text-smoke mx-auto mb-4" />
-              <h3 className="text-xl font-display font-bold mb-2 lowercase">
+              <h3 className="text-xl font-display font-bold mb-2">
                 no pending verifications
               </h3>
-              <p className="text-smoke lowercase">
+              <p className="text-smoke">
                 all specialist applications have been reviewed
               </p>
             </div>
@@ -447,12 +444,14 @@ const AdminDashboard = () => {
                     {/* User Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-4">
-                        <span className="text-3xl">{verification.avatarIcon}</span>
+                        <div className="w-12 h-12 bg-paper border border-ink/15 flex items-center justify-center font-display font-bold text-base text-ink flex-shrink-0">
+                          {getInitials(verification.realName || verification.username || '')}
+                        </div>
                         <div>
-                          <h3 className="text-xl font-display font-bold lowercase">
+                          <h3 className="text-xl font-display font-bold">
                             {verification.username}
                           </h3>
-                          <p className="text-sm text-smoke lowercase">
+                          <p className="text-sm text-smoke">
                             {verification.realName}
                           </p>
                         </div>
@@ -470,7 +469,7 @@ const AdminDashboard = () => {
                           <p className="text-xs text-smoke uppercase tracking-wider mb-1">
                             submitted
                           </p>
-                          <p className="text-sm text-ink lowercase">
+                          <p className="text-sm text-ink">
                             {new Date(verification.verificationData.submittedAt).toLocaleDateString('en-US', {
                               month: 'long',
                               day: 'numeric',
@@ -483,7 +482,7 @@ const AdminDashboard = () => {
                           <p className="text-xs text-smoke uppercase tracking-wider mb-1">
                             organization
                           </p>
-                          <p className="text-sm text-ink lowercase">
+                          <p className="text-sm text-ink">
                             {verification.verificationData.organization}
                           </p>
                         </div>
@@ -492,7 +491,7 @@ const AdminDashboard = () => {
                           <p className="text-xs text-smoke uppercase tracking-wider mb-1">
                             expertise
                           </p>
-                          <p className="text-sm text-ink lowercase">
+                          <p className="text-sm text-ink">
                             {verification.verificationData.expertise}
                           </p>
                         </div>
@@ -502,7 +501,7 @@ const AdminDashboard = () => {
                         <p className="text-xs text-smoke uppercase tracking-wider mb-1">
                           credentials
                         </p>
-                        <p className="text-sm text-ink-soft lowercase leading-relaxed">
+                        <p className="text-sm text-ink-soft leading-relaxed">
                           {verification.verificationData.credentials}
                         </p>
                       </div>
@@ -512,7 +511,7 @@ const AdminDashboard = () => {
                           href={verification.verificationData.linkedinUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-oxblood hover:text-ink transition-colors lowercase"
+                          className="inline-flex items-center gap-2 text-sm text-oxblood hover:text-ink transition-colors"
                         >
                           view linkedin profile
                           <ExternalLink className="w-4 h-4" />
@@ -525,7 +524,7 @@ const AdminDashboard = () => {
                       <button
                         onClick={() => handleApprove(verification.id)}
                         disabled={processingId === verification.id || rejectingId === verification.id}
-                        className="flex-1 lg:flex-none px-6 py-3 bg-brass hover:bg-olive-600 text-ink  font-semibold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 lowercase"
+                        className="flex-1 lg:flex-none px-6 py-3 bg-brass hover:bg-olive-600 text-ink  font-semibold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         <CheckCircle2 className="w-5 h-5" />
                         {processingId === verification.id ? 'processing...' : 'approve'}
@@ -534,7 +533,7 @@ const AdminDashboard = () => {
                       <button
                         onClick={() => openReject(verification.id)}
                         disabled={processingId === verification.id || rejectingId === verification.id}
-                        className="flex-1 lg:flex-none px-6 py-3 bg-oxblood hover:bg-crimson-600 text-ink  font-semibold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 lowercase"
+                        className="flex-1 lg:flex-none px-6 py-3 bg-oxblood hover:bg-crimson-600 text-ink  font-semibold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         <XCircle className="w-5 h-5" />
                         reject
@@ -557,13 +556,13 @@ const AdminDashboard = () => {
                         onChange={(e) => setRejectionReason(e.target.value)}
                         rows="3"
                         placeholder="explain what's missing so the applicant can improve and reapply..."
-                        className="w-full px-3 py-2 bg-paper-soft border border-ink/12  text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood transition-colors resize-none lowercase"
+                        className="w-full px-3 py-2 bg-paper-soft border border-ink/12  text-sm text-ink placeholder-gray-600 focus:outline-none focus:border-oxblood transition-colors resize-none"
                       />
                       <div className="flex gap-2 mt-3">
                         <button
                           onClick={() => handleReject(verification.id)}
                           disabled={processingId === verification.id}
-                          className="px-4 py-2 bg-oxblood hover:bg-crimson-600 text-ink  text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 lowercase"
+                          className="px-4 py-2 bg-oxblood hover:bg-crimson-600 text-ink  text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
                           <XCircle className="w-4 h-4" />
                           {processingId === verification.id ? 'rejecting...' : 'confirm rejection'}
@@ -571,7 +570,7 @@ const AdminDashboard = () => {
                         <button
                           onClick={cancelReject}
                           disabled={processingId === verification.id}
-                          className="px-4 py-2 bg-paper-dim border border-ink/10 hover:bg-white/[0.08] text-ink-soft  text-sm transition-all disabled:opacity-50 lowercase"
+                          className="px-4 py-2 bg-paper-dim border border-ink/10 hover:bg-white/[0.08] text-ink-soft  text-sm transition-all disabled:opacity-50"
                         >
                           cancel
                         </button>
@@ -594,13 +593,13 @@ const AdminDashboard = () => {
           >
             <div className="flex items-center gap-3 mb-2">
               <KeyRound className="w-5 h-5 text-amber-500" />
-              <h2 className="text-xl font-semibold lowercase">grant or revoke admin</h2>
+              <h2 className="text-xl font-semibold">grant or revoke admin</h2>
             </div>
-            <p className="text-sm text-smoke lowercase mb-6 leading-relaxed">
+            <p className="text-sm text-smoke mb-6 leading-relaxed">
               sets the `admin` custom claim on the target user. once set, they keep admin access until revoked here. user must reload the app for the claim to apply.
             </p>
 
-            <label className="block text-xs text-smoke mb-1.5 lowercase">target user uid</label>
+            <label className="block text-xs text-smoke mb-1.5">target user uid</label>
             <input
               type="text"
               value={grantTargetUid}
@@ -615,7 +614,7 @@ const AdminDashboard = () => {
                 type="button"
                 onClick={() => handleGrantAdmin(true)}
                 disabled={grantSubmitting}
-                className="px-4 py-2 bg-brass hover:bg-olive-600 text-ink  text-sm font-semibold transition-all disabled:opacity-50 lowercase flex items-center gap-2"
+                className="px-4 py-2 bg-brass hover:bg-olive-600 text-ink  text-sm font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 grant admin
@@ -624,7 +623,7 @@ const AdminDashboard = () => {
                 type="button"
                 onClick={() => handleGrantAdmin(false)}
                 disabled={grantSubmitting}
-                className="px-4 py-2 bg-oxblood hover:bg-crimson-600 text-ink  text-sm font-semibold transition-all disabled:opacity-50 lowercase flex items-center gap-2"
+                className="px-4 py-2 bg-oxblood hover:bg-crimson-600 text-ink  text-sm font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
               >
                 <XCircle className="w-4 h-4" />
                 revoke admin
@@ -633,7 +632,7 @@ const AdminDashboard = () => {
 
             {grantMessage && (
               <div
-                className={`mt-4 p-3  text-sm lowercase ${
+                className={`mt-4 p-3  text-sm ${
                   grantMessage.type === 'success'
                     ? 'bg-brass/10 border border-olive-500/20 text-brass'
                     : 'bg-oxblood/10 border border-oxblood/20 text-oxblood'

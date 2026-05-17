@@ -1,13 +1,15 @@
 import { motion } from 'framer-motion';
-import { Shield, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getPasswordRequirementMessage, isStrongPassword } from '../config/security';
 import { logError } from '../utils/logger';
 import {
-  NewsPage, NewsHeader, NewsField, NewsButton, NewsNotice,
+  NewsPage, NewsField, NewsButton, NewsNotice,
 } from '../components/editorial/NewsPage';
+import RotatingType from '../components/editorial/RotatingType';
+import PageLoader from '../components/PageLoader';
 
 const GoogleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
@@ -18,28 +20,67 @@ const GoogleIcon = () => (
   </svg>
 );
 
+const ROLE_OPTIONS = [
+  { value: 'journalist', label: 'Journalist', desc: 'seeking security guidance' },
+  { value: 'specialist', label: 'Security specialist', desc: 'providing expertise' },
+];
+
+const SIGNUP_COPY = {
+  journalist: [
+    'Open a quieter account before the reporting gets messy.',
+    'Keep your public activity separate from your real identity.',
+    'Start with drills, field notes, and support that does not expose your sources.',
+  ],
+  specialist: [
+    'Apply with a clean record that can be reviewed, verified, and trusted.',
+    'Join the desk with enough context to help journalists under pressure.',
+    'Keep your expertise attached to the right file from the beginning.',
+  ],
+};
+
 const Signup = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, signup, loginWithGoogle } = useAuth();
+  const initialRole = searchParams.get('role') === 'specialist' ? 'specialist' : 'journalist';
   const [formData, setFormData] = useState({
     realName: '', email: '', password: '', confirmPassword: '',
-    accountType: 'journalist',
+    accountType: initialRole,
     expertise: '', credentials: '', linkedinUrl: '', organization: '',
   });
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (user) navigate('/'); }, [user, navigate]);
+  useEffect(() => {
+    if (!user) return;
+    const isNew = sessionStorage.getItem('safepress:new-user') === '1';
+    navigate(isNew ? '/welcome' : '/');
+  }, [user, navigate]);
+
+  useEffect(() => {
+    const nextRole = searchParams.get('role') === 'specialist' ? 'specialist' : 'journalist';
+    setFormData((current) => (
+      current.accountType === nextRole
+        ? current
+        : { ...current, accountType: nextRole }
+    ));
+  }, [searchParams]);
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
+  const handleRoleSelect = (accountType) => {
+    setFormData((prev) => ({ ...prev, accountType }));
+    setSearchParams(accountType === 'specialist' ? { role: 'specialist' } : {});
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault(); setError('');
-    if (formData.password !== formData.confirmPassword) return setError('passwords do not match.');
+    if (formData.password !== formData.confirmPassword) return setError('Passwords do not match.');
     if (!isStrongPassword(formData.password)) return setError(getPasswordRequirementMessage());
     if (formData.accountType === 'specialist') {
       if (!formData.expertise || !formData.credentials || !formData.organization)
-        return setError('please fill in all required specialist fields.');
+        return setError('Please fill in all required specialist fields.');
     }
     setLoading(true);
     try {
@@ -47,8 +88,8 @@ const Signup = () => {
     } catch (err) {
       logError('Signup error:', err);
       setError(err.code === 'auth/invalid-email'
-        ? 'invalid email address.'
-        : 'unable to create account. if you already signed up, try logging in.');
+        ? 'Invalid email address.'
+        : 'Unable to create account. If you already signed up, try logging in.');
       setLoading(false);
     }
   };
@@ -57,23 +98,21 @@ const Signup = () => {
     setError(''); setLoading(true);
     try { await loginWithGoogle(); }
     catch (err) {
-      if (err.code !== 'auth/popup-closed-by-user') setError('google sign-in failed. please try again.');
+      if (err.code !== 'auth/popup-closed-by-user') setError('Google sign-in failed. Please try again.');
       setLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <NewsPage >
-        <div className="flex flex-col items-center justify-center py-32 gap-4">
-          <Shield className="w-10 h-10 text-oxblood animate-pulse" />
-          <p className="eyebrow sm text-smoke">creating your account…</p>
-        </div>
+      <NewsPage>
+        <PageLoader text="Creating your account…" />
       </NewsPage>
     );
   }
 
   const isSpecialist = formData.accountType === 'specialist';
+  const rotatingLines = SIGNUP_COPY[formData.accountType];
 
   return (
     <NewsPage >
@@ -81,147 +120,165 @@ const Signup = () => {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="login-split"
       >
-        <NewsHeader
-          kicker="SafePress · Create account"
-          title={isSpecialist
-            ? <><em className="italic-ox">Help</em> journalists stay safe.</>
-            : <>Join SafePress<em className="italic-ox">.</em></>
-          }
-          lede={isSpecialist
-            ? 'Apply to become a verified security specialist and guide journalists in the field.'
-            : 'Your identity stays anonymous. We assign a random username and avatar to protect you.'}
-        />
+        <section className="login-split__editorial">
+          <p className="eyebrow sm text-oxblood">SafePress · create account</p>
+          <div className="login-split__brandline">
+            <h1 className="broadsheet-wordmark login-split__wordmark">
+              <em>Safe</em>Press
+            </h1>
+          </div>
+          <p className="login-split__lede">
+            {isSpecialist
+              ? 'Apply with the information a review desk actually needs, then step into verified casework once your file is approved.'
+              : 'Open a quieter account for source protection, drills, field guidance, and help that does not announce who you are.'}
+          </p>
+          <div className="login-split__typebox">
+            <p className="display-soft login-split__typecopy">
+              <RotatingType lines={rotatingLines} />
+            </p>
+          </div>
+        </section>
 
-        {error && (
-          <NewsNotice tone="danger" icon={AlertCircle}>
-            <p className="text-sm text-ink-soft lowercase">{error}</p>
-          </NewsNotice>
-        )}
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-8">
-
-          {/* Account type */}
-          <div>
-            <p className="eyebrow sm text-smoke mb-3">I'm signing up as</p>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: 'journalist',  label: 'Journalist',          desc: 'seeking security guidance' },
-                { value: 'specialist',  label: 'Security specialist',  desc: 'providing expertise' },
-              ].map((opt) => (
-                <label
-                  key={opt.value}
-                  className={`block p-4 border cursor-pointer transition-colors ${
-                    formData.accountType === opt.value
-                      ? 'border-oxblood/50 bg-oxblood/[0.04]'
-                      : 'border-ink/[0.12] hover:bg-paper-dim'
-                  }`}
-                >
-                  <input
-                    type="radio" name="accountType" value={opt.value}
-                    checked={formData.accountType === opt.value}
-                    onChange={handleChange} className="sr-only"
-                  />
-                  <span className={`display-soft text-base block leading-tight ${
-                    formData.accountType === opt.value ? 'text-oxblood' : 'text-ink'
-                  }`}>
-                    {opt.label}
-                  </span>
-                  <span className="eyebrow sm text-smoke mt-1 block normal-case">{opt.desc}</span>
-                </label>
-              ))}
-            </div>
+        <section className="login-split__formpanel">
+          <div className="login-split__formhead">
+            <p className="eyebrow sm text-oxblood">Sign up</p>
+            <h2 className="display-soft text-[1.7rem] leading-tight text-ink mt-2">
+              {isSpecialist ? 'Open a reviewed file.' : 'Open a protected file.'}
+            </h2>
           </div>
 
-          {/* Google (journalist only) */}
-          {!isSpecialist && (
+          {error && (
+            <NewsNotice tone="danger" icon={AlertCircle}>
+              <p className="text-sm text-ink-soft">{error}</p>
+            </NewsNotice>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-8">
             <div>
-              <button
-                type="button" onClick={handleGoogleSignup}
-                className="btn ghost w-full justify-center gap-2.5 lowercase"
-              >
-                <GoogleIcon />
-                continue with google
-              </button>
-              <p className="eyebrow sm text-smoke text-center mt-2">creates a journalist account instantly</p>
-
-              <div className="flex items-center gap-4 mt-6">
-                <div className="flex-1 border-t border-ink/[0.12]" />
-                <span className="eyebrow sm text-smoke">or sign up with email</span>
-                <div className="flex-1 border-t border-ink/[0.12]" />
-              </div>
-            </div>
-          )}
-
-          {/* Core fields */}
-          <div className="space-y-6">
-            <NewsField no="01" label="Email address">
-              <input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="your@email.com" />
-            </NewsField>
-            <NewsField no="02" label="Password">
-              <input type="password" name="password" value={formData.password} onChange={handleChange} required placeholder="••••••••" />
-              <p className="eyebrow sm text-smoke mt-2 normal-case">{getPasswordRequirementMessage()}</p>
-            </NewsField>
-            <NewsField no="03" label="Confirm password">
-              <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required placeholder="••••••••" />
-            </NewsField>
-          </div>
-
-          {/* Specialist fields */}
-          {isSpecialist && (
-            <div className="space-y-6 pt-6 border-t border-ink/[0.12]">
-              <NewsNotice tone="brass" icon={AlertCircle}>
-                <div>
-                  <p className="eyebrow sm text-brass mb-1">Verification required</p>
-                  <p className="text-sm text-ink-soft leading-relaxed">Your account will be reviewed before you can access the specialist dashboard and support queue.</p>
-                </div>
-              </NewsNotice>
-
-              <NewsField no="04" label="Full name (admin-only, used during verification)">
-                <input type="text" name="realName" value={formData.realName} onChange={handleChange} required={isSpecialist} placeholder="Jane Doe" />
-              </NewsField>
-              <NewsField no="05" label="Area of expertise">
-                <input type="text" name="expertise" value={formData.expertise} onChange={handleChange} required={isSpecialist} placeholder="e.g. digital security, encryption, OPSEC" />
-              </NewsField>
-              <NewsField no="06" label="Credentials">
-                <textarea name="credentials" value={formData.credentials} onChange={handleChange} required={isSpecialist} rows={3} placeholder="certifications, degrees, relevant experience…" />
-                <p className="eyebrow sm text-smoke mt-2 normal-case">List your qualifications — e.g. CISSP, CEH, security researcher at…</p>
-              </NewsField>
-              <NewsField no="07" label="Organization">
-                <input type="text" name="organization" value={formData.organization} onChange={handleChange} required={isSpecialist} placeholder="company, university, or independent" />
-              </NewsField>
-              <NewsField no="08" label="LinkedIn profile URL (optional)">
-                <input type="url" name="linkedinUrl" value={formData.linkedinUrl} onChange={handleChange} placeholder="https://linkedin.com/in/yourprofile" />
-                <p className="eyebrow sm text-smoke mt-2 normal-case">Recommended — speeds up verification.</p>
-              </NewsField>
-            </div>
-          )}
-
-          {/* Privacy notice */}
-          <div className="border border-ink/[0.12] bg-paper-soft p-4 flex gap-3">
-            <Shield className="w-4 h-4 text-ink flex-shrink-0 mt-0.5" />
-            <div className="space-y-1.5">
-              <p className="eyebrow sm text-ink">Anonymous by default</p>
-              <p className="text-sm text-smoke leading-relaxed">You'll receive a random username and avatar. Your real name stays private. Email accounts must verify before posting in the community or requesting specialist support.</p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                {['Encrypted with Firebase', 'No third-party tracking', 'Journalist-focused privacy'].map(f => (
-                  <span key={f} className="inline-flex items-center gap-1.5 eyebrow sm text-smoke normal-case">
-                    <CheckCircle2 className="w-3 h-3 text-ink" /> {f}
-                  </span>
+              <p className="eyebrow sm text-smoke mb-3">I&apos;m signing up as</p>
+              <div className="grid grid-cols-2 gap-2">
+                {ROLE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => handleRoleSelect(opt.value)}
+                    className={`block p-4 border text-left transition-colors ${
+                      formData.accountType === opt.value
+                        ? 'border-oxblood/50 bg-oxblood/[0.04]'
+                        : 'border-ink/[0.12] hover:bg-paper-dim'
+                    }`}
+                  >
+                    <span className={`display-soft text-base block leading-tight ${
+                      formData.accountType === opt.value ? 'text-oxblood' : 'text-ink'
+                    }`}>
+                      {opt.label}
+                    </span>
+                    <span className="eyebrow sm text-smoke mt-1 block normal-case">{opt.desc}</span>
+                  </button>
                 ))}
               </div>
             </div>
-          </div>
 
-          <NewsButton type="submit" className="w-full justify-center">
-            Create account
-          </NewsButton>
+            {!isSpecialist && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleGoogleSignup}
+                  className="btn ghost w-full justify-center gap-2.5"
+                >
+                  <GoogleIcon />
+                  Continue with Google
+                </button>
+                <p className="text-xs text-smoke-dim -mt-4">
+                  Journalists only — specialists should use email so verification stays attached to the right account.
+                </p>
 
-          <p className="eyebrow sm text-smoke text-center">
-            Already have an account?{' '}
-            <Link to="/login" className="text-oxblood hover:text-ink transition-colors">Log in</Link>
-          </p>
-        </form>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 border-t border-ink/[0.12]" />
+                  <span className="eyebrow sm text-smoke">Or sign up with email</span>
+                  <div className="flex-1 border-t border-ink/[0.12]" />
+                </div>
+              </>
+            )}
+
+            <div className="space-y-6">
+              <NewsField no="01" label="Email address">
+                <input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="your@email.com" />
+              </NewsField>
+              <NewsField no="02" label="Password">
+                <input type="password" name="password" value={formData.password} onChange={handleChange} required placeholder="••••••••" />
+                <p className="eyebrow sm text-smoke mt-2 normal-case">{getPasswordRequirementMessage()}</p>
+              </NewsField>
+              <NewsField no="03" label="Confirm password">
+                <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required placeholder="••••••••" />
+              </NewsField>
+            </div>
+
+            {isSpecialist && (
+              <div className="space-y-6 pt-6 border-t border-ink/[0.12]">
+                <NewsNotice tone="brass" icon={AlertCircle}>
+                  <div>
+                    <p className="eyebrow sm text-brass mb-1">Verification required</p>
+                    <p className="text-sm text-ink-soft leading-relaxed">Your account will be reviewed before you can access the specialist dashboard and support queue.</p>
+                  </div>
+                </NewsNotice>
+
+                <NewsField no="04" label="Full name (admin-only, used during verification)">
+                  <input type="text" name="realName" value={formData.realName} onChange={handleChange} required={isSpecialist} placeholder="Jane Doe" />
+                </NewsField>
+                <NewsField no="05" label="Area of expertise">
+                  <input type="text" name="expertise" value={formData.expertise} onChange={handleChange} required={isSpecialist} placeholder="e.g. digital security, encryption, OPSEC" />
+                </NewsField>
+                <NewsField no="06" label="Credentials">
+                  <textarea name="credentials" value={formData.credentials} onChange={handleChange} required={isSpecialist} rows={3} placeholder="certifications, degrees, relevant experience…" />
+                  <p className="eyebrow sm text-smoke mt-2 normal-case">List your qualifications — e.g. CISSP, CEH, security researcher at…</p>
+                </NewsField>
+                <NewsField no="07" label="Organization">
+                  <input type="text" name="organization" value={formData.organization} onChange={handleChange} required={isSpecialist} placeholder="company, university, or independent" />
+                </NewsField>
+                <NewsField no="08" label="LinkedIn profile URL (optional)">
+                  <input type="url" name="linkedinUrl" value={formData.linkedinUrl} onChange={handleChange} placeholder="https://linkedin.com/in/yourprofile" />
+                  <p className="eyebrow sm text-smoke mt-2 normal-case">Recommended — speeds up verification.</p>
+                </NewsField>
+              </div>
+            )}
+
+            <div className="border border-ink/[0.12] bg-paper-soft p-4 flex gap-3">
+              <Shield className="w-4 h-4 text-ink flex-shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <p className="eyebrow sm text-ink">Protected by default</p>
+                <p className="text-sm text-smoke leading-relaxed">
+                  {isSpecialist
+                    ? 'Your application details stay private while the review team verifies your file. Once approved, your casework identity stays consistent across the desk.'
+                    : 'SafePress assigns you a codename so your activity can stay separate from your real identity. Email accounts must verify before posting or requesting specialist support.'}
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                  {['Encrypted at rest', 'No third-party tracking', 'Journalist-focused privacy'].map((f) => (
+                    <span key={f} className="inline-flex items-center gap-1.5 eyebrow sm text-smoke normal-case">
+                      <CheckCircle2 className="w-3 h-3 text-ink" /> {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <NewsButton type="submit" className="w-full justify-center">
+              {isSpecialist ? 'Submit application' : 'Create account'}
+            </NewsButton>
+
+            <p className="eyebrow sm text-smoke text-center">
+              Already have an account?{' '}
+              <Link
+                to={isSpecialist ? '/login?role=specialist' : '/login'}
+                className="text-oxblood hover:text-ink transition-colors"
+              >
+                Log in
+              </Link>
+            </p>
+          </form>
+        </section>
       </motion.div>
     </NewsPage>
   );

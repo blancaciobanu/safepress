@@ -42,7 +42,10 @@ const Welcome = () => {
   const timerRef = useRef(null);
 
   const codename = user?.username || '';
-  const typewriterText = `Your codename is ${codename}.`;
+  const isSpecialist = user?.accountType === 'specialist';
+  const typewriterText = isSpecialist
+    ? `Your internal file name is ${codename}.`
+    : `Your codename is ${codename}.`;
 
   useEffect(() => {
     const t = setTimeout(() => setTypeStart(true), 1100);
@@ -58,7 +61,7 @@ const Welcome = () => {
 
   const handleEnter = () => {
     sessionStorage.removeItem(WELCOME_KEY);
-    navigate('/');
+    navigate(isSpecialist ? '/specialist-dashboard' : '/');
   };
 
   if (!user) return null;
@@ -115,9 +118,11 @@ const Welcome = () => {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease }}
-            className="mt-4 text-sm text-smoke-dim lowercase max-w-xs leading-relaxed"
+            className="mt-4 text-sm text-smoke-dim max-w-xs leading-relaxed"
           >
-            This is your anonymous identity on SafePress. It protects your privacy across support, resources, and community.
+            {isSpecialist
+              ? 'Your specialist application is on file. This internal name helps SafePress keep account records distinct while your reviewed identity handles public casework.'
+              : 'This is your anonymous identity on SafePress. It protects your privacy across support, resources, and community.'}
           </motion.p>
         )}
       </AnimatePresence>
@@ -131,7 +136,7 @@ const Welcome = () => {
             onClick={handleEnter}
             className="mt-8 btn mono"
           >
-            Enter SafePress <ArrowRight className="w-3.5 h-3.5" />
+            {isSpecialist ? 'Open your desk file' : 'Enter SafePress'} <ArrowRight className="w-3.5 h-3.5" />
           </motion.button>
         )}
       </AnimatePresence>
