@@ -274,9 +274,15 @@ const Header = () => {
                         onClick={() => { setUserMenuOpen(o => !o); setNotifOpen(false); }}
                         className={`flex items-center gap-2 pl-2 pr-3 h-9 rounded-sm ${t.controlBg} border ${t.controlBorder} transition-all`}
                       >
-                        <span className="text-base leading-none">{user.avatarIcon || '·'}</span>
+                        <span className={`w-5 h-5 bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-[9px] text-ink flex-shrink-0`}>
+                          {(user.username || user.realName || '').trim().split(/[\s_]+/).filter(w => w && !/^\d+$/.test(w)).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?'}
+                        </span>
                         <span className={`hidden sm:inline font-mono text-[11px] tracking-[0.1em] truncate max-w-[100px] ${t.userText}`}>
-                          {user.username || user.email}
+                          {user.isAdmin
+                            ? (user.displayName || user.username || user.email)
+                            : user.accountType === 'specialist'
+                              ? (user.realName || user.username)
+                              : (user.username || user.email)}
                         </span>
                         {isVerified && <VerifiedBadge size="xs" />}
                         <ChevronDown className={`w-3 h-3 ${t.userChevron} transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
@@ -293,7 +299,11 @@ const Header = () => {
                           >
                             <div className={`px-5 py-4 border-b ${t.dropdownDivider}`}>
                               <p className={`text-sm ${t.dropdownText} truncate`}>
-                                {user.avatarIcon} {user.username}
+                                {user.isAdmin
+                                  ? (user.displayName || user.username)
+                                  : user.accountType === 'specialist'
+                                    ? (user.realName || user.username)
+                                    : user.username}
                               </p>
                               <p className={`font-mono text-[10px] uppercase tracking-[0.2em] mt-1 ${t.dropdownLabel}`}>
                                 {user.accountType}

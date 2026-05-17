@@ -160,7 +160,6 @@ const CommunityPostDetail = () => {
         id: `${user.uid}-${Date.now()}`,
         authorId: user.uid,
         authorName: user.username || 'anonymous',
-        authorIcon: user.avatarIcon || '🔒',
         authorType: user.accountType || 'journalist',
         isVerified: user.verificationStatus === 'approved',
         authorVerificationStatus: user.accountType === 'specialist' ? (user.verificationStatus || 'pending') : null,
@@ -293,10 +292,12 @@ const CommunityPostDetail = () => {
                 {/* AMA specialist banner */}
                 {isAMA && (
                   <div className="flex items-start gap-4 mb-5 pb-4 border-b border-ink/8">
-                    <span className="text-4xl leading-none flex-shrink-0">{post.avatarIcon || '◉'}</span>
+                    <div className="w-12 h-12 bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-base text-ink flex-shrink-0">
+                      {(post.authorName || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?'}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="eyebrow sm text-oxblood mb-1">Ask Me Anything</p>
-                      <p className="font-semibold text-ink text-base">{post.authorName}</p>
+                      <p className="font-semibold text-base text-brass">{post.authorName}</p>
                       {post.specialistBio && (
                         <p className="text-xs text-smoke-dim italic mt-1 leading-relaxed">{post.specialistBio}</p>
                       )}

@@ -1,92 +1,39 @@
-/**
- * User Utility Functions
- * Generates anonymous usernames and avatar icons for user privacy
- */
-
-// Avatar icon options (animals and nature emojis for friendly, safe feel)
-export const avatarIcons = [
-  '🦊', // Fox
-  '🐧', // Penguin
-  '🦉', // Owl
-  '🐺', // Wolf
-  '🦅', // Eagle
-  '🐱', // Cat
-  '🐶', // Dog
-  '🐻', // Bear
-  '🦁', // Lion
-  '🐯', // Tiger
-  '🐼', // Panda
-  '🐨', // Koala
-  '🦔', // Hedgehog
-  '🦎', // Lizard
-  '🐢', // Turtle
-  '🦋', // Butterfly
-  '🐝', // Bee
-  '🦜', // Parrot
-  '🦚', // Peacock
-  '🌸', // Cherry Blossom
-  '🌺', // Hibiscus
-  '🌻', // Sunflower
-  '🌵', // Cactus
-  '🍀', // Four Leaf Clover
-  '🌙', // Crescent Moon
-  '⭐', // Star
-  '💫', // Dizzy
-  '🔮', // Crystal Ball
-  '🎭', // Theater Masks
-  '🎨', // Artist Palette
+const CODENAME_POOL_A = [
+  'Slate', 'Iron', 'Coal', 'Ash', 'Obsidian', 'Copper', 'Flint', 'Chalk', 'Ember', 'Cedar',
+  'Indigo', 'Silver', 'Steel', 'Shadow', 'Granite', 'Onyx', 'Bronze', 'Birch', 'Quartz', 'Hazel',
+  'Dusk', 'Thorn', 'Heath', 'Frost', 'Storm', 'Peat', 'Cinder', 'Sable', 'Umber', 'Shale',
+  'Briar', 'Amber', 'Alder', 'Brine', 'Holt', 'Gorse', 'Marsh', 'Flax', 'Larch', 'Weld',
+  'Rivet', 'Calyx', 'Vane', 'Spine', 'Cairn', 'Scree', 'Riven', 'Tarn', 'Sedge', 'Croft',
 ];
 
-// Username prefixes (professional, security-focused)
-const usernamePrefixes = [
-  'SecureReporter',
-  'SafeJournalist',
-  'ProtectedWriter',
-  'AnonymousPress',
-  'ShieldedScribe',
-  'GuardedEditor',
-  'PrivateInvestigator',
-  'CloakedCorrespondent',
-  'MaskedMedia',
-  'HiddenTruth',
-  'VeiledVoice',
-  'CrypticChronicler',
-  'StealthStory',
-  'CovertCoverage',
-  'DiscreetDispatch',
+const CODENAME_POOL_B = [
+  'Wire', 'Ledger', 'Dispatch', 'Bureau', 'Fox', 'Hawk', 'Wren', 'Cipher', 'Meridian',
+  'Chronicle', 'Signal', 'Courier', 'Raven', 'Swift', 'Crane', 'Heron', 'Quill', 'Index',
+  'Column', 'Broadside', 'Register', 'Tribune', 'Herald', 'Gazette', 'Kestrel', 'Linnet',
+  'Reed', 'Tor', 'Beck', 'Moor', 'Vale', 'Ridge', 'Osprey', 'Press', 'Record',
+  'Monitor', 'Finch', 'Stag', 'Skein', 'Teal', 'Stint', 'Piper', 'Bunting',
+  'Snipe', 'Plover', 'Godwit', 'Curlew', 'Lapwing', 'Brant', 'Field',
 ];
 
-/**
- * Generate a random anonymous username
- * Format: Prefix_#### (e.g., SecureReporter_4829)
- */
-export const generateUsername = () => {
-  const prefix = usernamePrefixes[Math.floor(Math.random() * usernamePrefixes.length)];
-  const randomNumber = Math.floor(1000 + Math.random() * 9000); // 4-digit number
-  return `${prefix}_${randomNumber}`;
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+export const generateUsername = () => `${pick(CODENAME_POOL_A)} ${pick(CODENAME_POOL_B)}`;
+
+export const getInitials = (name = '') =>
+  name.trim().split(/[\s_]+/).filter(w => w && !/^\d+$/.test(w)).slice(0, 2)
+    .map(w => w[0]?.toUpperCase() || '').join('') || '?';
+
+export const generateUserIdentity = () => ({ username: generateUsername() });
+
+export const getDisplayName = (user) => {
+  if (!user) return '';
+  if (user.isAdmin) return user.displayName || user.username || user.email || '';
+  if (user.accountType === 'specialist') return user.realName || user.username || '';
+  return user.username || '';
 };
 
-/**
- * Get a random avatar icon
- */
-export const getRandomAvatarIcon = () => {
-  return avatarIcons[Math.floor(Math.random() * avatarIcons.length)];
-};
-
-/**
- * Get avatar icon by index (for consistent assignment)
- */
-export const getAvatarIcon = (index) => {
-  return avatarIcons[index % avatarIcons.length];
-};
-
-/**
- * Generate unique user identity (username + icon)
- * Returns: { username: string, avatarIcon: string }
- */
-export const generateUserIdentity = () => {
-  return {
-    username: generateUsername(),
-    avatarIcon: getRandomAvatarIcon()
-  };
+export const getRoleColor = (accountType, isVerified = false) => {
+  if (accountType === 'admin') return 'text-oxblood';
+  if (accountType === 'specialist') return isVerified ? 'text-brass' : 'text-smoke';
+  return 'text-ink';
 };

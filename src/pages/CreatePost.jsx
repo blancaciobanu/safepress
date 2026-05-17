@@ -77,7 +77,6 @@ const CreatePost = () => {
           authorId:    user.uid,
           authorName:  anon ? 'anonymous' : (user.username || 'anonymous'),
           authorType:  user.accountType || 'journalist',
-          avatarIcon:  user.avatarIcon,
           isAnonymous: anon,
           category:    finalCats[0],
           categories:  finalCats,

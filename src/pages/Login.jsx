@@ -23,7 +23,11 @@ const Login = () => {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  useEffect(() => { if (user) navigate('/'); }, [user, navigate]);
+  useEffect(() => {
+    if (!user) return;
+    const isNew = sessionStorage.getItem('safepress:new-user') === '1';
+    navigate(isNew ? '/welcome' : '/');
+  }, [user, navigate]);
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 

@@ -77,7 +77,9 @@ const DispatchCard = ({ post, onNavigate }) => {
         </h2>
         <p className="text-sm text-smoke leading-relaxed line-clamp-2 mb-4 italic">{post.content}</p>
         <div className="flex items-center gap-3 font-mono text-xs text-smoke-dim">
-          <span className="text-smoke">{post.isAnonymous ? 'Anonymous' : (post.authorName || 'Anonymous')}</span>
+          <span className={post.isAnonymous ? 'text-smoke-dim' : (post.authorType === 'specialist' && post.isVerified ? 'text-brass' : 'text-smoke')}>
+            {post.isAnonymous ? 'Anonymous' : (post.authorName || 'Anonymous')}
+          </span>
           <span>·</span><span>{timeAgo(post.createdAt)}</span>
           <span>·</span><span>↑ {post.likes || 0}</span>
           <span>·</span><span>{getPostCommentCount(post)} {getPostCommentCount(post) === 1 ? 'reply' : 'replies'}</span>
@@ -403,9 +405,11 @@ const Community = () => {
                           className="group border-t border-ink/10 py-5 cursor-pointer hover:bg-paper-soft/25 transition-colors"
                         >
                           <div className="flex items-start gap-4">
-                            <span className="text-2xl leading-none flex-shrink-0 mt-0.5">{ama.avatarIcon || '◉'}</span>
+                            <div className="w-10 h-10 bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-sm text-ink flex-shrink-0 mt-0.5">
+                              {(ama.authorName || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?'}
+                            </div>
                             <div className="flex-1 min-w-0">
-                              <p className="display-soft text-base md:text-lg text-ink mb-1 group-hover:text-oxblood transition-colors">
+                              <p className="display-soft text-base md:text-lg mb-1 group-hover:text-oxblood transition-colors text-brass">
                                 {ama.authorName}
                               </p>
                               {ama.specialistBio && (

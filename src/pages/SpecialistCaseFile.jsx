@@ -142,7 +142,7 @@ const SpecialistCaseFile = () => {
       const claimData = await claimSupportRequest({
         requestId: caseFile.id,
         specialistId: user.uid,
-        specialistName: user.username,
+        specialistName: user.realName || user.username,
       });
       setCaseFile((current) => (current ? { ...current, ...claimData, queueOnly: false } : current));
     } catch (err) {
@@ -196,7 +196,7 @@ const SpecialistCaseFile = () => {
       await saveSupportCaseReport({
         requestId: caseFile.id,
         specialistId: user.uid,
-        specialistName: user.username,
+        specialistName: user.realName || user.username,
         report: reportDraft,
       });
     } catch (err) {

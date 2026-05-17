@@ -108,7 +108,7 @@ export const AuthProvider = ({ children }) => {
   /* ── Email / password signup ─────────────────────────────────────────── */
   const signup = async (email, password, userData) => {
     const result = await createUserWithEmailAndPassword(auth, email, password);
-    const { username, avatarIcon } = generateUserIdentity();
+    const { username } = generateUserIdentity();
 
     const accountType = ['journalist', 'specialist'].includes(userData?.accountType)
       ? userData.accountType
@@ -117,7 +117,6 @@ export const AuthProvider = ({ children }) => {
     const profile = {
       email,
       username,
-      avatarIcon,
       createdAt: new Date().toISOString(),
       securityScores: [],
       accountType,
@@ -157,11 +156,10 @@ export const AuthProvider = ({ children }) => {
     // First time with Google? Create a Firestore profile automatically.
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, result.user.uid));
     if (!userDoc.exists()) {
-      const { username, avatarIcon } = generateUserIdentity();
+      const { username } = generateUserIdentity();
       const journalistProfile = {
         email: result.user.email,
         username,
-        avatarIcon,
         createdAt: new Date().toISOString(),
         securityScores: [],
         accountType: 'journalist',
@@ -172,6 +170,7 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         logError('Public profile sync failed after Google signup:', error);
       }
+      sessionStorage.setItem('safepress:new-user', '1');
     } else {
       try {
         await createOrUpdatePublicProfile(result.user.uid, userDoc.data());

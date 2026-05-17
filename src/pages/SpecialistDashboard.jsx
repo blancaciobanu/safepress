@@ -282,7 +282,7 @@ const SpecialistDashboard = () => {
       const claimData = await claimSupportRequest({
         requestId: id,
         specialistId: user.uid,
-        specialistName: user.username,
+        specialistName: user.realName || user.username,
       });
       setRequests(prev => prev.filter((request) => request.id !== id));
       const refreshedClaimed = await getClaimedSupportRequestsBySpecialist(user.uid);
@@ -466,7 +466,7 @@ const SpecialistDashboard = () => {
   const avgRating    = ratedReqs.length
     ? ratedReqs.reduce((s, r) => s + r.feedback.rating, 0) / ratedReqs.length
     : null;
-  const specialistMonogram = getMonogram(user.username);
+  const specialistMonogram = getMonogram(user.realName || user.username);
   const laneConfig = [
     {
       id: 'open',
@@ -563,7 +563,7 @@ const SpecialistDashboard = () => {
                 <div className="min-w-0">
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                   <h1 className="display text-4xl md:text-6xl leading-none">
-                    {user.username}<span className="italic-ox">.</span>
+                    {user.realName || user.username}<span className="italic-ox">.</span>
                   </h1>
                   <VerifiedBadge size="md" />
                 </div>

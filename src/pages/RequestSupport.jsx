@@ -328,13 +328,23 @@ const RequestSupport = () => {
           <div className="mt-8 flex items-center gap-4 pt-4 pb-1 border-t border-ink/12">
             <div className="flex -space-x-1.5 flex-shrink-0">
               {recentSpecialists.map((sp) => (
-                <span
-                  key={sp.id}
-                  className="w-8 h-8 inline-flex items-center justify-center bg-paper-soft border border-ink/15 text-base"
-                  title={sp.username}
-                >
-                  {sp.avatarIcon || '🛡️'}
-                </span>
+                sp.avatarUrl ? (
+                  <img
+                    key={sp.id}
+                    src={sp.avatarUrl}
+                    alt={sp.realName || sp.username}
+                    title={sp.realName || sp.username}
+                    className="w-8 h-8 rounded-full object-cover border border-ink/15"
+                  />
+                ) : (
+                  <span
+                    key={sp.id}
+                    className="w-8 h-8 inline-flex items-center justify-center bg-paper-soft border border-ink/15 font-display font-bold text-[11px] text-ink"
+                    title={sp.realName || sp.username}
+                  >
+                    {(sp.realName || sp.username || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?'}
+                  </span>
+                )
               ))}
             </div>
             <div className="flex-1 min-w-0">

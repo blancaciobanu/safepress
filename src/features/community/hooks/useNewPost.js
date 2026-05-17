@@ -35,7 +35,6 @@ export const useNewPost = (user, currentTabType, setPosts) => {
         content: newPost.content.trim(),
         authorId: user.uid,
         authorName: anon ? 'anonymous' : (user.username || 'anonymous'),
-        authorIcon: anon ? '🕶️' : (user.avatarIcon || '🔒'),
         authorType: user.accountType || 'journalist',
         isVerified: user.verificationStatus === 'approved',
         authorVerificationStatus: user.accountType === 'specialist' ? (user.verificationStatus || 'pending') : null,

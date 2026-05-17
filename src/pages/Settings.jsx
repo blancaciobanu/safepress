@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import {
-  AlertCircle, Award, CheckCircle2, Clock, Trash2, XCircle,
+  AlertCircle, Award, CheckCircle2, Clock, Trash2, Upload, XCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   EmailAuthProvider,
@@ -10,17 +10,19 @@ import {
   reauthenticateWithCredential,
   updatePassword,
 } from 'firebase/auth';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import { useAuth } from '../contexts/AuthContext';
 import VerifiedBadge from '../components/VerifiedBadge';
-import { db, auth } from '../firebase/config';
-import { deletePublicProfile } from '../features/users/services/userService';
+import { db, auth, storage } from '../firebase/config';
+import { createOrUpdatePublicProfile, deletePublicProfile } from '../features/users/services/userService';
 import { COLLECTIONS } from '../config/firebaseCollections';
 import {
   getPasswordRequirementMessage,
   isStrongPassword,
 } from '../config/security';
+import { getInitials } from '../utils/userUtils';
 import { logError } from '../utils/logger';
 import {
   NewsButton,
@@ -44,11 +46,61 @@ const SECTIONS = [
 ];
 
 const Settings = () => {
-  const { user, logout, resendVerificationEmail } = useAuth();
+  const { user, logout, resendVerificationEmail, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [section, setSection] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef(null);
+  const [adminName, setAdminName] = useState(user.displayName || user.username || '');
+  const [adminNameSaving, setAdminNameSaving] = useState(false);
+
+  const handleAdminNameSave = async () => {
+    const trimmed = adminName.trim();
+    if (!trimmed || !user.isAdmin) return;
+    setAdminNameSaving(true);
+    setMessage({ type: '', text: '' });
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), { displayName: trimmed });
+      await refreshUser();
+      setMessage({ type: 'success', text: 'Display name updated.' });
+    } catch (err) {
+      logError('Admin display name save error:', err);
+      setMessage({ type: 'error', text: 'Could not save display name.' });
+    } finally {
+      setAdminNameSaving(false);
+    }
+  };
+
+  const handleAvatarUpload = async (file) => {
+    if (!file || !user) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      setMessage({ type: 'error', text: 'Please upload a JPG, PNG, or WebP image.' });
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Photo must be under 3 MB.' });
+      return;
+    }
+    setAvatarUploading(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const storageRef = ref(storage, `specialist-avatars/${user.uid}`);
+      await uploadBytes(storageRef, file);
+      const avatarUrl = await getDownloadURL(storageRef);
+      await updateDoc(doc(db, COLLECTIONS.USERS, user.uid), { avatarUrl });
+      await createOrUpdatePublicProfile(user.uid, { ...user, avatarUrl });
+      await refreshUser();
+      setMessage({ type: 'success', text: 'Photo updated.' });
+    } catch (err) {
+      logError('Avatar upload error:', err);
+      setMessage({ type: 'error', text: 'Photo could not be uploaded. Please try again.' });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
   const [sendingVerificationEmail, setSendingVerificationEmail] = useState(false);
 
   const [passwordData, setPasswordData] = useState({
@@ -172,7 +224,7 @@ const Settings = () => {
               {user.realName || user.username || 'Private'}
             </p>
             <p className="eyebrow text-[10px] mt-1 text-smoke normal-case">
-              Public identity · {user.avatarIcon || '🔒'} {user.username || 'unverified'}
+              Public identity · {user.accountType === 'specialist' ? (user.realName || user.username) : user.username || 'unverified'}
             </p>
           </div>
           <div>
@@ -280,7 +332,18 @@ const Settings = () => {
             {currentSection.label}<span className="italic-ox">.</span>
           </h2>
 
-          {section === 'profile' && <ProfileSection user={user} />}
+          {section === 'profile' && (
+            <ProfileSection
+              user={user}
+              avatarUploading={avatarUploading}
+              avatarInputRef={avatarInputRef}
+              onAvatarUpload={handleAvatarUpload}
+              adminName={adminName}
+              setAdminName={setAdminName}
+              adminNameSaving={adminNameSaving}
+              onAdminNameSave={handleAdminNameSave}
+            />
+          )}
 
           {section === 'security' && (
             <SecuritySection
@@ -374,34 +437,100 @@ const Settings = () => {
 
 /* ─── Profile section ────────────────────────────────────────────────── */
 
-const ProfileSection = ({ user }) => (
+const ProfileSection = ({ user, avatarUploading, avatarInputRef, onAvatarUpload, adminName, setAdminName, adminNameSaving, onAdminNameSave }) => (
   <div className="mt-7 flex flex-col gap-8">
-    <NewsNotice tone="brass">
-      <p className="eyebrow sm text-brass">Field note</p>
-      <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-        You appear as your anonymous username everywhere. Your real name is
-        encrypted and only used for account recovery.
-      </p>
-    </NewsNotice>
+    {user.isAdmin && (
+      <div className="p-5 border border-oxblood/20 bg-oxblood/[0.03]">
+        <p className="eyebrow sm text-oxblood mb-4">Admin · Display name</p>
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            value={adminName}
+            onChange={(e) => setAdminName(e.target.value)}
+            placeholder="Your display name"
+            className="flex-1"
+            maxLength={60}
+          />
+          <NewsButton
+            type="button"
+            onClick={onAdminNameSave}
+            disabled={adminNameSaving || !adminName.trim()}
+          >
+            {adminNameSaving ? 'Saving…' : 'Save'}
+          </NewsButton>
+        </div>
+        <p className="eyebrow text-[10px] mt-2 normal-case text-smoke-dim">
+          Shown in the header and dropdown. Not tied to your codename or role — free text.
+        </p>
+      </div>
+    )}
+
+    {user.accountType === 'journalist' ? (
+      <NewsNotice tone="brass">
+        <p className="eyebrow sm text-brass">Field note</p>
+        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+          You appear as your anonymous codename everywhere on the platform. Your real name is never shown.
+        </p>
+      </NewsNotice>
+    ) : (
+      <NewsNotice tone="brass">
+        <p className="eyebrow sm text-brass">Field note</p>
+        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+          Journalists see your real name, photo, organization, and credentials when you are assigned to their case.
+        </p>
+      </NewsNotice>
+    )}
+
+    {user.accountType === 'specialist' && (
+      <div className="flex items-center gap-6">
+        <div className="w-20 h-20 bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-2xl text-ink flex-shrink-0 overflow-hidden">
+          {user.avatarUrl ? (
+            <img src={user.avatarUrl} alt={user.realName || user.username} className="w-full h-full object-cover" />
+          ) : (
+            getInitials(user.realName || user.username || '')
+          )}
+        </div>
+        <div>
+          <p className="eyebrow sm mb-3">Profile photo</p>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onAvatarUpload(file);
+              e.target.value = '';
+            }}
+          />
+          <NewsButton
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            disabled={avatarUploading}
+          >
+            <Upload className="w-4 h-4" />
+            {avatarUploading ? 'Uploading…' : user.avatarUrl ? 'Replace photo' : 'Upload photo'}
+          </NewsButton>
+          <p className="eyebrow text-[10px] mt-2 normal-case text-smoke-dim">JPG, PNG, or WebP · max 3 MB</p>
+        </div>
+      </div>
+    )}
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <NewsField no="01" label="Anonymous username">
-        <div className="flex items-baseline gap-3 pb-1.5 border-b border-ink">
-          <span className="text-base">{user.avatarIcon || '🔒'}</span>
+      <NewsField no="01" label={user.accountType === 'specialist' ? 'Display name' : 'Anonymous codename'}>
+        <input
+          type="text"
+          value={user.accountType === 'specialist' ? (user.realName || user.username || '') : (user.username || '')}
+          disabled
+          className="opacity-60 cursor-not-allowed"
+        />
+      </NewsField>
+
+      {user.accountType === 'specialist' && (
+        <NewsField no="02" label="Codename (system)">
           <input
             type="text"
             value={user.username || ''}
-            disabled
-            className="opacity-60 cursor-not-allowed border-0 p-0"
-          />
-        </div>
-      </NewsField>
-
-      {user.accountType === 'specialist' && user.realName && (
-        <NewsField no="02" label="Real name (admins only)">
-          <input
-            type="text"
-            value={user.realName}
             disabled
             className="opacity-60 cursor-not-allowed"
           />
@@ -409,7 +538,7 @@ const ProfileSection = ({ user }) => (
       )}
 
       <NewsField
-        no={user.accountType === 'specialist' && user.realName ? '03' : '02'}
+        no={user.accountType === 'specialist' ? '03' : '02'}
         label="Email address"
       >
         <input

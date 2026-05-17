@@ -25,6 +25,7 @@ const CreatePost     = lazy(() => import('./pages/CreatePost'));
 const ThreatModel    = lazy(() => import('./pages/ThreatModel'));
 const Simulations    = lazy(() => import('./pages/Simulations'));
 const MyCases        = lazy(() => import('./pages/MyCases'));
+const Welcome        = lazy(() => import('./pages/Welcome'));
 
 function withRouteSuspense(element) {
   return (
@@ -116,6 +117,14 @@ function App() {
         />
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<Signup />} />
+        <Route
+          path="welcome"
+          element={
+            <ProtectedRoute>
+              {withRouteSuspense(<Welcome />)}
+            </ProtectedRoute>
+          }
+        />
       </Route>
     </Routes>
   );

@@ -7,9 +7,11 @@ const PUBLIC_PROFILES_COLLECTION = COLLECTIONS.PUBLIC_PROFILES;
 
 export const buildPublicProfile = (privateProfile = {}) => ({
   username: privateProfile.username || 'user',
-  avatarIcon: privateProfile.avatarIcon || '🔒',
+  realName: privateProfile.realName || null,
+  avatarUrl: privateProfile.avatarUrl || null,
   accountType: privateProfile.accountType || 'journalist',
   verificationStatus: privateProfile.verificationStatus || null,
+  verificationData: privateProfile.verificationData || null,
   createdAt: privateProfile.createdAt || null,
   specialistProfile: privateProfile.specialistProfile || null,
 });
