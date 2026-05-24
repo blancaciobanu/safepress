@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { AlertCircle, ArrowRight, CheckCircle, Send, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
 import VerifiedBadge from '../components/VerifiedBadge';
@@ -90,6 +90,8 @@ const RequestSupport = () => {
       email: user?.email || '',
     }));
   }, [user?.realName, user?.email]);
+
+  if (user?.accountType === 'specialist') return <Navigate to="/specialist-dashboard" replace />;
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getPostAuthPath, NEW_USER_SESSION_KEY } from '../features/users/accountRouting';
+import { getPostAuthPath, needsWelcomePathChoice } from '../features/users/accountRouting';
 
 const ease = [0.22, 1, 0.36, 1];
 
@@ -33,19 +33,25 @@ const Typewriter = ({ text, onDone }) => {
 };
 
 const Welcome = () => {
-  const { user } = useAuth();
+  const { user, completeWelcomeChoice } = useAuth();
   const navigate = useNavigate();
 
   const [typeStart, setTypeStart] = useState(false);
   const [showBody, setShowBody] = useState(false);
   const [showChoices, setShowChoices] = useState(false);
+  const [routing, setRouting] = useState(false);
   const timerRef = useRef(null);
 
   const codename = user?.username || '';
-  const isSpecialist = user?.accountType === 'specialist';
-  const typewriterText = isSpecialist
-    ? `Your internal file name is ${codename}.`
-    : `Your codename is ${codename}.`;
+  const typewriterText = `Your codename is ${codename}.`;
+
+  useEffect(() => {
+    if (!user) return;
+    if (routing) return;
+    if (!needsWelcomePathChoice(user)) {
+      navigate(getPostAuthPath(user), { replace: true });
+    }
+  }, [user, navigate, routing]);
 
   useEffect(() => {
     const t = setTimeout(() => setTypeStart(true), 1100);
@@ -59,14 +65,24 @@ const Welcome = () => {
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
-  const handleJournalistPath = () => {
-    sessionStorage.removeItem(NEW_USER_SESSION_KEY);
-    navigate('/', { replace: true });
+  const handleJournalistPath = async () => {
+    try {
+      setRouting(true);
+      await completeWelcomeChoice();
+      navigate('/', { replace: true });
+    } catch {
+      setRouting(false);
+    }
   };
 
-  const handleSpecialistPath = () => {
-    sessionStorage.removeItem(NEW_USER_SESSION_KEY);
-    navigate('/specialist-verification', { replace: true });
+  const handleSpecialistPath = async () => {
+    try {
+      setRouting(true);
+      await completeWelcomeChoice();
+      navigate('/specialist-verification', { replace: true });
+    } catch {
+      setRouting(false);
+    }
   };
 
   if (!user) return null;
@@ -125,61 +141,49 @@ const Welcome = () => {
             transition={{ duration: 0.5, ease }}
             className="mt-4 text-sm text-smoke-dim max-w-xs leading-relaxed"
           >
-            {isSpecialist
-              ? 'Your specialist application is on file. This internal name helps SafePress keep account records distinct while your reviewed identity handles public casework.'
-              : 'This is your anonymous identity on SafePress. Now choose whether this account stays in the journalist lane or opens a specialist verification file.'}
+            This is your anonymous identity on SafePress. Now choose whether this account stays in the journalist lane or opens a specialist verification file.
           </motion.p>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {showChoices && (
-          isSpecialist ? (
-            <motion.button
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease }}
-              onClick={() => navigate(getPostAuthPath(user), { replace: true })}
-              className="mt-8 btn mono"
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease }}
+            className="mt-8 w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-4 text-left"
+          >
+            <button
+              type="button"
+              onClick={handleJournalistPath}
+              disabled={routing}
+              className="border border-ink/15 bg-paper-soft px-5 py-5 hover:bg-paper-dim transition-colors disabled:opacity-70 disabled:cursor-wait"
             >
-              Open your desk file <ArrowRight className="w-3.5 h-3.5" />
-            </motion.button>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease }}
-              className="mt-8 w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-4 text-left"
-            >
-              <button
-                type="button"
-                onClick={handleJournalistPath}
-                className="border border-ink/15 bg-paper-soft px-5 py-5 hover:bg-paper-dim transition-colors"
-              >
-                <p className="eyebrow sm text-oxblood">Journalist path</p>
-                <p className="display-soft text-xl text-ink mt-3 leading-tight">
-                  Keep the anonymous codename and enter the reporting desk.
-                </p>
-                <span className="mt-4 inline-flex items-center gap-1 text-sm text-ink-soft">
-                  Enter SafePress <ArrowRight className="w-3.5 h-3.5" />
-                </span>
-              </button>
+              <p className="eyebrow sm text-oxblood">Journalist path</p>
+              <p className="display-soft text-xl text-ink mt-3 leading-tight">
+                Keep the anonymous codename and enter the reporting desk.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-sm text-ink-soft">
+                Enter SafePress <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </button>
 
-              <button
-                type="button"
-                onClick={handleSpecialistPath}
-                className="border border-ink/15 bg-paper-soft px-5 py-5 hover:bg-paper-dim transition-colors"
-              >
-                <p className="eyebrow sm text-oxblood">Specialist path</p>
-                <p className="display-soft text-xl text-ink mt-3 leading-tight">
-                  Open a verification dossier and apply for reviewed casework.
-                </p>
-                <span className="mt-4 inline-flex items-center gap-1 text-sm text-ink-soft">
-                  Open dossier <ArrowRight className="w-3.5 h-3.5" />
-                </span>
-              </button>
-            </motion.div>
-          )
+            <button
+              type="button"
+              onClick={handleSpecialistPath}
+              disabled={routing}
+              className="border border-ink/15 bg-paper-soft px-5 py-5 hover:bg-paper-dim transition-colors disabled:opacity-70 disabled:cursor-wait"
+            >
+              <p className="eyebrow sm text-oxblood">Specialist path</p>
+              <p className="display-soft text-xl text-ink mt-3 leading-tight">
+                Open a verification dossier and apply for reviewed casework.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-sm text-ink-soft">
+                Open dossier <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

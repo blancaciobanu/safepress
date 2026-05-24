@@ -5,17 +5,14 @@ import {
   getDoc,
   getDocs,
   query,
-  setDoc,
   updateDoc,
   where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../../firebase/config';
-import { buildPublicProfile } from '../../users/services/userService';
 import { COLLECTIONS } from '../../../config/firebaseCollections';
 
 const USERS_COLLECTION = COLLECTIONS.USERS;
-const PUBLIC_PROFILES_COLLECTION = COLLECTIONS.PUBLIC_PROFILES;
 const POSTS_COLLECTION = COLLECTIONS.COMMUNITY_POSTS;
 const REPORTS_COLLECTION = COLLECTIONS.COMMUNITY_REPORTS;
 
@@ -109,51 +106,20 @@ export const getCommunityReports = async () => {
 };
 
 export const approveSpecialist = async (userId) => {
-  const verificationDate = new Date().toISOString();
-  const userSnapshot = await getDoc(doc(db, USERS_COLLECTION, userId));
-
-  await updateDoc(doc(db, USERS_COLLECTION, userId), {
-    verificationStatus: 'approved',
-    verificationDate,
-    verificationReviewNote: null,
-    verificationRejectionReason: null,
-  });
-  await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), {
-    ...buildPublicProfile({ ...(userSnapshot.data() || {}), verificationStatus: 'approved' }),
-  });
-
-  return verificationDate;
+  const callable = httpsCallable(functions, 'reviewSpecialistVerification');
+  const result = await callable({ userId, action: 'approve' });
+  return result.data?.verificationDate || null;
 };
 
 export const requestSpecialistMoreInfo = async (userId, reviewNote) => {
-  const userSnapshot = await getDoc(doc(db, USERS_COLLECTION, userId));
-
-  await updateDoc(doc(db, USERS_COLLECTION, userId), {
-    verificationStatus: 'needs-more-info',
-    verificationDate: null,
-    verificationReviewNote: reviewNote.trim(),
-    verificationRejectionReason: null,
-  });
-  await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), {
-    ...buildPublicProfile({ ...(userSnapshot.data() || {}), verificationStatus: 'needs-more-info' }),
-  });
+  const callable = httpsCallable(functions, 'reviewSpecialistVerification');
+  await callable({ userId, action: 'needs-more-info', note: reviewNote.trim() });
 };
 
 export const rejectSpecialist = async (userId, rejectionReason) => {
-  const verificationDate = new Date().toISOString();
-  const userSnapshot = await getDoc(doc(db, USERS_COLLECTION, userId));
-
-  await updateDoc(doc(db, USERS_COLLECTION, userId), {
-    verificationStatus: 'rejected',
-    verificationDate,
-    verificationReviewNote: null,
-    verificationRejectionReason: rejectionReason.trim() || null,
-  });
-  await setDoc(doc(db, PUBLIC_PROFILES_COLLECTION, userId), {
-    ...buildPublicProfile({ ...(userSnapshot.data() || {}), verificationStatus: 'rejected' }),
-  });
-
-  return verificationDate;
+  const callable = httpsCallable(functions, 'reviewSpecialistVerification');
+  const result = await callable({ userId, action: 'reject', note: rejectionReason.trim() });
+  return result.data?.verificationDate || null;
 };
 
 export const markCommunityReportReviewed = async (reportId) => {

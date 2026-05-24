@@ -89,6 +89,7 @@ const Header = () => {
 
   const isAdmin    = !!user?.isAdmin;
   const isVerified = user?.accountType === 'specialist' && user?.verificationStatus === 'approved';
+  const visibleName = getDisplayName(user) || 'Private account';
 
   const navItems = [
     ...(isVerified ? [{ name: 'Dashboard', path: '/specialist-dashboard' }] : []),
@@ -295,10 +296,10 @@ const Header = () => {
                         className={`flex items-center gap-2 pl-2 pr-3 h-9 rounded-sm ${t.controlBg} border ${t.controlBorder} transition-all`}
                       >
                         <span className={`w-5 h-5 bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-[9px] text-ink flex-shrink-0`}>
-                          {getInitials(getDisplayName(user) || user.email || '')}
+                          {getInitials(visibleName)}
                         </span>
                         <span className={`hidden sm:inline font-mono text-[11px] tracking-[0.1em] truncate max-w-[100px] ${t.userText}`}>
-                          {getDisplayName(user) || user.email}
+                          {visibleName}
                         </span>
                         {isVerified && <VerifiedBadge size="xs" />}
                         <ChevronDown className={`w-3 h-3 ${t.userChevron} transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
@@ -315,20 +316,27 @@ const Header = () => {
                           >
                             <div className={`px-5 py-4 border-b ${t.dropdownDivider}`}>
                               <p className={`text-sm ${t.dropdownText} truncate`}>
-                                {getDisplayName(user) || user.email}
+                                {visibleName}
                               </p>
+                              {user.email && (
+                                <p className={`text-xs mt-1 truncate ${t.dropdownLabel}`}>
+                                  {user.email}
+                                </p>
+                              )}
                               <p className={`font-mono text-[10px] uppercase tracking-[0.2em] mt-1 ${t.dropdownLabel}`}>
                                 {user.accountType}
                               </p>
                             </div>
-                            <Link
-                              to="/my-cases"
-                              onClick={() => setUserMenuOpen(false)}
-                              className={`flex items-center gap-3 px-5 py-3 text-sm ${t.dropdownText} ${t.dropdownHover} transition-all border-t ${t.dropdownDivider}`}
-                            >
-                              <AlertCircle className="w-3.5 h-3.5" />
-                              My cases
-                            </Link>
+                            {user.accountType !== 'specialist' && (
+                              <Link
+                                to="/my-cases"
+                                onClick={() => setUserMenuOpen(false)}
+                                className={`flex items-center gap-3 px-5 py-3 text-sm ${t.dropdownText} ${t.dropdownHover} transition-all border-t ${t.dropdownDivider}`}
+                              >
+                                <AlertCircle className="w-3.5 h-3.5" />
+                                My cases
+                              </Link>
+                            )}
                             <Link
                               to="/settings"
                               onClick={() => setUserMenuOpen(false)}
@@ -410,7 +418,7 @@ const Header = () => {
 
       {/* ── Crisis banner ─────────────────────────────────────────────── */}
       <AnimatePresence>
-        {isInCrisis && (
+        {isInCrisis && user?.accountType !== 'specialist' && (
           <Motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -451,7 +459,7 @@ const Header = () => {
       </AnimatePresence>
 
       {/* ── Crisis toggle — anchored as a footer pill, not a floating overlay ── */}
-      <div
+      {user?.accountType !== 'specialist' && <div
         className="fixed bottom-4 right-4 md:bottom-5 md:right-6 z-[60] flex items-center gap-3 px-3.5 py-2 backdrop-blur-md transition-colors"
         style={{
           backgroundColor: isPaperSurface
@@ -505,7 +513,7 @@ const Header = () => {
             }}
           />
         </button>
-      </div>
+      </div>}
     </div>
   );
 };

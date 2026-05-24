@@ -1794,7 +1794,6 @@ body::before {
    ────────────────────────────────────────────────────────────────────── */
 
 .threat-dossier {
-  background: linear-gradient(180deg, rgba(250, 246, 238, 0.9), rgba(246, 241, 233, 0.97));
 }
 
 .threat-context-card {
@@ -1936,7 +1935,6 @@ body::before {
    ────────────────────────────────────────────────────────────────────── */
 
 .specialist-desk {
-  background: linear-gradient(180deg, rgba(250, 246, 238, 0.9), rgba(246, 241, 233, 0.97));
 }
 
 .specialist-desk__header {
@@ -2785,7 +2783,6 @@ body::before {
 }
 
 .specialist-casefile {
-  background: linear-gradient(180deg, rgba(250, 246, 238, 0.94), rgba(246, 241, 233, 0.98));
 }
 
 .specialist-casefile__hero {

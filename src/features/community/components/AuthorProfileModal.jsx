@@ -4,13 +4,16 @@ import { Link } from 'react-router-dom';
 import { NewsModalCard } from '../../../components/editorial/NewsPage';
 import { timeAgo } from '../../../utils/time';
 import { UserAvatar } from './UserAvatar';
+import { useAuth } from '../../../contexts/AuthContext';
 
 /* Author profile modal — read-only summary of a journalist or specialist.
    profile: result of getAuthorProfile() (or null/loading state)
    onSelectPost: (post) => void — called when user clicks a recent post
    onClose: () => void */
 
-export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
+export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => {
+  const { user } = useAuth();
+  return (
   <AnimatePresence>
     {profile && (
       <motion.div
@@ -175,7 +178,7 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
                 </div>
               )}
 
-              {profile.type === 'specialist' && profile.verified && (
+              {profile.type === 'specialist' && profile.verified && user?.accountType !== 'specialist' && (
                 <div className="px-6 py-4">
                   <Link
                     to="/request-support"
@@ -192,4 +195,5 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => (
       </motion.div>
     )}
   </AnimatePresence>
-);
+  );
+};

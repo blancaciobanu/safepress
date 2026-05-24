@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   fetchSignInMethodsForEmail,
-  getAdditionalUserInfo,
   getIdTokenResult,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -17,7 +16,6 @@ import { auth, db } from '../firebase/config';
 import { generateUserIdentity } from '../utils/userUtils';
 import { createOrUpdatePublicProfile } from '../features/users/services/userService';
 import { SPECIALIST_VERIFICATION_STATUSES } from '../features/users/verification';
-import { NEW_USER_SESSION_KEY } from '../features/users/accountRouting';
 import { COLLECTIONS } from '../config/firebaseCollections';
 import { isAdminFromClaims } from '../config/security';
 import { logError } from '../utils/logger';
@@ -33,6 +31,15 @@ const claimsUpdatedAtMs = (profile) => {
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const buildBaseJournalistProfile = (firebaseUser) => ({
+  email: firebaseUser.email,
+  username: generateUserIdentity().username,
+  createdAt: new Date(firebaseUser.metadata?.creationTime || Date.now()).toISOString(),
+  securityScores: [],
+  accountType: 'journalist',
+  welcomeCompletedAt: null,
+});
 
 const waitForUserProfile = async (uid, { attempts = 8, delayMs = 120 } = {}) => {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -60,18 +67,59 @@ const sendVerificationEmailWithRetry = async (firebaseUser) => {
   }
 };
 
-const buildSessionUser = async (firebaseUser) => {
-  const shouldWaitForProfile =
-    typeof window !== 'undefined' && sessionStorage.getItem(NEW_USER_SESSION_KEY) === '1';
+const ensureUserProfileShape = async (firebaseUser) => {
+  const userRef = doc(db, COLLECTIONS.USERS, firebaseUser.uid);
+  const initialSnapshot = await getDoc(userRef);
+  const snapshot = initialSnapshot.exists() ? initialSnapshot : await waitForUserProfile(firebaseUser.uid);
 
-  const [userDoc, initialTokenResult] = await Promise.all([
-    shouldWaitForProfile
-      ? waitForUserProfile(firebaseUser.uid)
-      : getDoc(doc(db, COLLECTIONS.USERS, firebaseUser.uid)),
+  if (!snapshot?.exists()) {
+    const createdProfile = buildBaseJournalistProfile(firebaseUser);
+    await setDoc(userRef, createdProfile);
+    try {
+      await createOrUpdatePublicProfile(firebaseUser.uid, createdProfile);
+    } catch (error) {
+      logError('Public profile sync failed after rebuilding missing profile:', error);
+    }
+    return createdProfile;
+  }
+
+  const profile = snapshot.data();
+  const repairPatch = {};
+
+  if (!profile.username) {
+    repairPatch.username = generateUserIdentity().username;
+  }
+  if (!profile.createdAt) {
+    repairPatch.createdAt = new Date(firebaseUser.metadata?.creationTime || Date.now()).toISOString();
+  }
+  if (!profile.accountType) {
+    repairPatch.accountType = 'journalist';
+  }
+  if (!Object.prototype.hasOwnProperty.call(profile, 'welcomeCompletedAt')) {
+    repairPatch.welcomeCompletedAt = null;
+  }
+
+  if (!Object.keys(repairPatch).length) {
+    return profile;
+  }
+
+  const nextProfile = { ...profile, ...repairPatch };
+  await updateDoc(userRef, repairPatch);
+  try {
+    await createOrUpdatePublicProfile(firebaseUser.uid, nextProfile);
+  } catch (error) {
+    logError('Public profile sync failed after repairing profile shape:', error);
+  }
+  return nextProfile;
+};
+
+const buildSessionUser = async (firebaseUser) => {
+  const [profileData, initialTokenResult] = await Promise.all([
+    ensureUserProfileShape(firebaseUser),
     getIdTokenResult(firebaseUser),
   ]);
 
-  let profile = userDoc?.exists() ? userDoc.data() : {};
+  let profile = profileData || {};
   let tokenResult = initialTokenResult;
 
   const issuedAtMs = new Date(tokenResult.issuedAtTime).getTime();
@@ -147,9 +195,7 @@ export const AuthProvider = ({ children }) => {
   const clearAuthError = () => setAuthError(null);
 
   /* ── Email / password signup ─────────────────────────────────────────── */
-  const signup = async (email, password, userData) => {
-    sessionStorage.setItem(NEW_USER_SESSION_KEY, '1');
-
+  const signup = async (email, password) => {
     try {
       const existingMethods = await fetchSignInMethodsForEmail(auth, email);
       if (existingMethods.length > 0) {
@@ -162,15 +208,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      const { username } = generateUserIdentity();
-
-      const profile = {
-        email,
-        username,
-        createdAt: new Date().toISOString(),
-        securityScores: [],
-        accountType: 'journalist',
-      };
+      const profile = buildBaseJournalistProfile(result.user);
 
       await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), profile);
       try {
@@ -186,7 +224,6 @@ export const AuthProvider = ({ children }) => {
       await refreshUser();
       return result;
     } catch (error) {
-      sessionStorage.removeItem(NEW_USER_SESSION_KEY);
       throw error;
     }
   };
@@ -196,33 +233,14 @@ export const AuthProvider = ({ children }) => {
     const provider = new GoogleAuthProvider();
     const result   = await signInWithPopup(auth, provider);
 
-    // Set the new-user flag immediately — before any further awaits — so the
-    // onAuthStateChanged handler (which runs concurrently) sees it in time.
-    if (getAdditionalUserInfo(result)?.isNewUser) {
-      sessionStorage.setItem(NEW_USER_SESSION_KEY, '1');
-    }
-
     const userDoc = await getDoc(doc(db, COLLECTIONS.USERS, result.user.uid));
     if (!userDoc.exists()) {
-      const { username } = generateUserIdentity();
-      const profile = {
-        email: result.user.email,
-        username,
-        createdAt: new Date().toISOString(),
-        securityScores: [],
-        accountType: 'journalist',
-      };
+      const profile = buildBaseJournalistProfile(result.user);
       await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), profile);
       try {
         await createOrUpdatePublicProfile(result.user.uid, profile);
       } catch (error) {
         logError('Public profile sync failed after Google signup:', error);
-      }
-    } else {
-      try {
-        await createOrUpdatePublicProfile(result.user.uid, userDoc.data());
-      } catch (error) {
-        logError('Public profile sync failed after Google login:', error);
       }
     }
 
@@ -277,6 +295,14 @@ export const AuthProvider = ({ children }) => {
     return refreshedUser;
   };
 
+  const completeWelcomeChoice = async () => {
+    if (!auth.currentUser) return null;
+    await updateDoc(doc(db, COLLECTIONS.USERS, auth.currentUser.uid), {
+      welcomeCompletedAt: new Date().toISOString(),
+    });
+    return refreshUser();
+  };
+
   const value = {
     user,
     loading,
@@ -288,6 +314,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     resendVerificationEmail,
     refreshUser,
+    completeWelcomeChoice,
   };
 
   return (

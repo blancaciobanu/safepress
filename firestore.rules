@@ -128,8 +128,10 @@ service cloud.firestore {
           'verificationDate',
           'verificationRejectionReason',
           'verificationReviewNote',
-          'specialistProfile'
+          'specialistProfile',
+          'welcomeCompletedAt'
         ])
+        && (!('welcomeCompletedAt' in request.resource.data) || isOptionalString(request.resource.data.welcomeCompletedAt, 40))
         && (
           request.resource.data.accountType == 'journalist'
           || (
@@ -156,7 +158,8 @@ service cloud.firestore {
           'securityScores',
           'setupProgress',
           'followedPosts',
-          'notifLastSeen'
+          'notifLastSeen',
+          'welcomeCompletedAt'
         ])
         && (
           resource.data.accountType != 'specialist'
@@ -169,6 +172,27 @@ service cloud.firestore {
         && (
           !('avatarUrl' in request.resource.data)
           || isOptionalString(request.resource.data.avatarUrl, 2000)
+        )
+        && (
+          !('welcomeCompletedAt' in request.resource.data)
+          || isOptionalString(request.resource.data.welcomeCompletedAt, 40)
+        );
+    }
+
+    function ownerCanRepairLegacyUserDocument(userId) {
+      return isOwner(userId)
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'username',
+          'createdAt',
+          'accountType',
+          'welcomeCompletedAt'
+        ])
+        && request.resource.data.accountType in ['journalist', 'specialist']
+        && isRequiredString(request.resource.data.username, 50)
+        && isIsoString(request.resource.data.createdAt)
+        && (
+          !('welcomeCompletedAt' in request.resource.data)
+          || isOptionalString(request.resource.data.welcomeCompletedAt, 40)
         );
     }
 
@@ -229,7 +253,7 @@ service cloud.firestore {
         && request.resource.data.verificationStatus in ['pending', 'needs-more-info', 'approved', 'rejected']
         && (request.resource.data.verificationDate == null || isIsoString(request.resource.data.verificationDate))
         && isOptionalString(request.resource.data.verificationRejectionReason, 500)
-        && isOptionalString(request.resource.data.verificationReviewNote, 1000);
+        && isOptionalString(request.resource.data.verificationReviewNote, 3000);
     }
 
     function currentUserVisibleName() {
@@ -723,6 +747,7 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if ownerCanCreateOwnUserDocument(userId);
       allow update: if ownerCanUpdateOwnUserDocument(userId)
+        || ownerCanRepairLegacyUserDocument(userId)
         || ownerCanActivateEmailVerifiedSpecialistApplication(userId)
         || ownerCanSubmitSpecialistVerificationDossier(userId)
         || adminCanUpdateUserDocument();

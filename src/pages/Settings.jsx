@@ -191,7 +191,6 @@ const Settings = () => {
       await deleteDoc(doc(db, COLLECTIONS.USERS, user.uid));
       await deletePublicProfile(user.uid);
       await deleteUser(auth.currentUser);
-      sessionStorage.removeItem('safepress:new-user');
       await logout();
       navigate('/');
     } catch (error) {

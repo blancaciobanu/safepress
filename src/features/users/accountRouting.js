@@ -1,10 +1,13 @@
 import { SPECIALIST_VERIFICATION_STATUSES, specialistNeedsVerificationDossier } from './verification';
 
-export const NEW_USER_SESSION_KEY = 'safepress:new-user';
+export const needsWelcomePathChoice = (user) => {
+  if (!user || user.isAdmin) return false;
+  return user.accountType === 'journalist' && !user.welcomeCompletedAt;
+};
 
-export const getPostAuthPath = (user, { isNew = false } = {}) => {
+export const getPostAuthPath = (user) => {
   if (!user) return '/';
-  if (isNew) return '/welcome';
+  if (needsWelcomePathChoice(user)) return '/welcome';
 
   if (user.accountType === 'specialist') {
     const status = !user.emailVerified

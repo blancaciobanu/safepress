@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,6 +71,8 @@ const MyCases = () => {
       unsubscribe();
     };
   }, [user]);
+
+  if (user?.accountType === 'specialist') return <Navigate to="/specialist-dashboard" replace />;
 
   if (loading) {
     return (

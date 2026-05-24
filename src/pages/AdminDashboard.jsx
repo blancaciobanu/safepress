@@ -141,7 +141,12 @@ const AdminDashboard = () => {
       await fetchVerifications();
     } catch (error) {
       logError('Error requesting more specialist info:', error);
-      alert('Failed to request more information. Please try again.');
+      const causeCode = error?.cause?.code || error?.code;
+      alert(
+        causeCode
+          ? `${error?.message || 'Failed to request more information.'} (${causeCode})`
+          : (error?.message || 'Failed to request more information. Please try again.')
+      );
     } finally {
       setProcessingId(null);
     }
@@ -424,6 +429,15 @@ const AdminDashboard = () => {
                     <p className="text-sm text-ink-soft leading-relaxed">{verification.verificationData.credentials}</p>
                   </div>
 
+                  {verification.verificationData.responseToReviewNote && (
+                    <div className="admin-review-file__credentials">
+                      <p className="eyebrow sm text-smoke mb-2">Response to the review desk</p>
+                      <p className="text-sm text-ink-soft leading-relaxed">
+                        {verification.verificationData.responseToReviewNote}
+                      </p>
+                    </div>
+                  )}
+
                   {(verification.verificationData.portfolioUrl
                     || verification.verificationData.secureContactHandle
                     || verification.verificationData.availability
@@ -602,6 +616,14 @@ const AdminDashboard = () => {
                       <p className="text-sm text-ink-soft leading-relaxed">
                         {verification.verificationReviewNote || 'Waiting for updated detail from the specialist.'}
                       </p>
+                      {verification.verificationData?.responseToReviewNote && (
+                        <>
+                          <p className="eyebrow sm text-smoke mt-4 mb-2">Latest response</p>
+                          <p className="text-sm text-ink-soft leading-relaxed">
+                            {verification.verificationData.responseToReviewNote}
+                          </p>
+                        </>
+                      )}
                     </div>
                   </article>
                 ))}

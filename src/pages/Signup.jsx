@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getPasswordRequirementMessage, isStrongPassword } from '../config/security';
-import { getPostAuthPath, NEW_USER_SESSION_KEY } from '../features/users/accountRouting';
+import { getPostAuthPath } from '../features/users/accountRouting';
 import { logError } from '../utils/logger';
 import {
   NewsPage, NewsField, NewsButton, NewsNotice,
@@ -38,8 +38,7 @@ const Signup = () => {
 
   useEffect(() => {
     if (!user) return;
-    const isNew = sessionStorage.getItem(NEW_USER_SESSION_KEY) === '1';
-    navigate(getPostAuthPath(user, { isNew }), { replace: true });
+    navigate(getPostAuthPath(user), { replace: true });
   }, [user, navigate]);
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -50,7 +49,7 @@ const Signup = () => {
     if (!isStrongPassword(formData.password)) return setError(getPasswordRequirementMessage());
     setLoading(true);
     try {
-      await signup(formData.email, formData.password, formData);
+      await signup(formData.email, formData.password);
     } catch (err) {
       logError('Signup error:', err);
       if (err.code === 'auth/invalid-email') {

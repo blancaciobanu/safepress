@@ -3,7 +3,7 @@ import { AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getPostAuthPath, NEW_USER_SESSION_KEY } from '../features/users/accountRouting';
+import { getPostAuthPath } from '../features/users/accountRouting';
 import {
   NewsPage, NewsField, NewsButton, NewsNotice,
 } from '../components/editorial/NewsPage';
@@ -34,8 +34,7 @@ const Login = () => {
 
   useEffect(() => {
     if (!user) return;
-    const isNew = sessionStorage.getItem(NEW_USER_SESSION_KEY) === '1';
-    navigate(getPostAuthPath(user, { isNew }), { replace: true });
+    navigate(getPostAuthPath(user), { replace: true });
   }, [user, navigate]);
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));

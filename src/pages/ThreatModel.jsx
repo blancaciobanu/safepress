@@ -543,7 +543,9 @@ const ThreatModel = () => {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link to="/secure-setup" className="link-handdrawn">Open secure setup</Link>
                 <Link to="/resources?tab=source-protection" className="link-handdrawn">Open source protection guide</Link>
-                <Link to="/request-support" className="link-handdrawn">Request specialist support</Link>
+                {user?.accountType !== 'specialist' && (
+                  <Link to="/request-support" className="link-handdrawn">Request specialist support</Link>
+                )}
               </div>
             </section>
           </motion.div>

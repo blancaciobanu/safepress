@@ -12,6 +12,15 @@ const SUPPORT_REQUEST_URGENCIES = new Set(['emergency', 'urgent', 'normal']);
 const SUPPORT_CONTACT_METHODS = new Set(['email', 'phone', 'signal']);
 const AI_MESSAGE_ROLES = new Set(['user', 'assistant']);
 const THREAT_LEVELS = new Set(['low', 'medium', 'high', 'critical']);
+const SPECIALIST_REVIEW_ACTIONS = new Set(['approve', 'needs-more-info', 'reject']);
+const SPECIALIST_VERIFICATION_STATUSES = new Set([
+  'pending-email-verification',
+  'pending-details',
+  'pending',
+  'needs-more-info',
+  'approved',
+  'rejected',
+]);
 const RECOMMENDATION_DESTINATIONS = new Set([
   'secure-setup',
   'resources',
@@ -32,6 +41,39 @@ const callerCanUseAiAdvisor = (auth) =>
 
 const clampText = (value, maxLength) =>
   typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+
+const buildPublicProfilePayload = (privateProfile = {}) => ({
+  username: privateProfile.username ?? null,
+  realName: privateProfile.realName ?? null,
+  avatarUrl: privateProfile.avatarUrl ?? null,
+  accountType: privateProfile.accountType ?? null,
+  verificationStatus: privateProfile.verificationStatus ?? null,
+  createdAt: privateProfile.createdAt ?? null,
+  specialistProfile: privateProfile.specialistProfile ?? null,
+});
+
+const normalizeStringList = (value, maxItems = 12, maxLength = 160) =>
+  Array.isArray(value)
+    ? value.map((entry) => clampText(entry, maxLength)).filter(Boolean).slice(0, maxItems)
+    : [];
+
+const normalizeSpecialistDossierInput = (input = {}) => ({
+  realName: clampText(input.realName, 120),
+  expertise: clampText(input.expertise, 120),
+  credentials: clampText(input.credentials, 3000),
+  organization: clampText(input.organization, 160),
+  linkedinUrl: clampText(input.linkedinUrl, 300) || null,
+  portfolioUrl: clampText(input.portfolioUrl, 500) || null,
+  certifications: clampText(input.certifications, 3000),
+  secureContactMethod: clampText(input.secureContactMethod, 50),
+  secureContactHandle: clampText(input.secureContactHandle, 300),
+  region: clampText(input.region, 160),
+  languages: clampText(input.languages, 300),
+  availability: clampText(input.availability, 120),
+  supportAreas: normalizeStringList(input.supportAreas, 12, 120),
+  notes: clampText(input.notes, 2000) || null,
+  responseToReviewNote: clampText(input.responseToReviewNote, 2000) || null,
+});
 
 const extractJsonObject = (value = '') => {
   const trimmed = value.trim();
@@ -439,6 +481,194 @@ export const setAdminClaim = onCall({ region: 'europe-west1' }, async (request) 
 
   return { success: true, targetUid, admin };
 });
+
+export const reviewSpecialistVerification = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
+    if (!callerIsAdmin(request.auth)) {
+      throw new HttpsError('permission-denied', 'caller must be an admin');
+    }
+
+    const userId = clampText(request.data?.userId, 128);
+    const action = clampText(request.data?.action, 40);
+    const note = clampText(request.data?.note, 3000);
+
+    if (!userId) {
+      throw new HttpsError('invalid-argument', 'userId is required');
+    }
+    if (!SPECIALIST_REVIEW_ACTIONS.has(action)) {
+      throw new HttpsError('invalid-argument', 'action must be approve, needs-more-info, or reject');
+    }
+    if (action === 'needs-more-info' && !note) {
+      throw new HttpsError('invalid-argument', 'review note is required');
+    }
+
+    const firestore = getFirestore();
+    const userRef = firestore.collection('users').doc(userId);
+    const userSnapshot = await userRef.get();
+
+    if (!userSnapshot.exists) {
+      throw new HttpsError('not-found', 'specialist file not found');
+    }
+
+    const userData = userSnapshot.data() || {};
+    if (userData.accountType !== 'specialist') {
+      throw new HttpsError('failed-precondition', 'target account is not a specialist file');
+    }
+
+    const patch = {};
+    const reviewedAt = new Date().toISOString();
+
+    if (action === 'approve') {
+      patch.verificationStatus = 'approved';
+      patch.verificationDate = reviewedAt;
+      patch.verificationReviewNote = null;
+      patch.verificationRejectionReason = null;
+    }
+
+    if (action === 'needs-more-info') {
+      patch.verificationStatus = 'needs-more-info';
+      patch.verificationDate = null;
+      patch.verificationReviewNote = note;
+      patch.verificationRejectionReason = null;
+    }
+
+    if (action === 'reject') {
+      patch.verificationStatus = 'rejected';
+      patch.verificationDate = reviewedAt;
+      patch.verificationReviewNote = null;
+      patch.verificationRejectionReason = note || null;
+    }
+
+    await userRef.update(patch);
+
+    const updatedSnapshot = await userRef.get();
+    const updatedData = updatedSnapshot.data() || {};
+    await firestore
+      .collection('public-profiles')
+      .doc(userId)
+      .set(buildPublicProfilePayload(updatedData));
+
+    return {
+      success: true,
+      userId,
+      action,
+      verificationStatus: updatedData.verificationStatus || null,
+      verificationDate: updatedData.verificationDate || null,
+    };
+  }
+);
+
+export const submitSpecialistVerificationDossier = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError('permission-denied', 'authenticated users only');
+    }
+    if (request.auth.token?.email_verified !== true) {
+      throw new HttpsError('failed-precondition', 'email verification is required');
+    }
+
+    const userId = request.auth.uid;
+    const dossier = normalizeSpecialistDossierInput(request.data?.dossier);
+
+    if (!dossier.realName || !dossier.expertise || !dossier.credentials || !dossier.organization) {
+      throw new HttpsError('invalid-argument', 'identity, expertise, credentials, and organization are required');
+    }
+    if (!dossier.certifications || !dossier.secureContactMethod || !dossier.secureContactHandle) {
+      throw new HttpsError('invalid-argument', 'training, secure contact method, and secure contact handle are required');
+    }
+    if (!dossier.region || !dossier.languages || !dossier.availability) {
+      throw new HttpsError('invalid-argument', 'region, languages, and availability are required');
+    }
+    if (dossier.supportAreas.length === 0) {
+      throw new HttpsError('invalid-argument', 'at least one support area is required');
+    }
+
+    const firestore = getFirestore();
+    const userRef = firestore.collection('users').doc(userId);
+    const userSnapshot = await userRef.get();
+
+    if (!userSnapshot.exists) {
+      throw new HttpsError('not-found', 'specialist profile not found');
+    }
+
+    const current = userSnapshot.data() || {};
+    const currentStatus = current.verificationStatus || null;
+    if (
+      current.accountType === 'specialist'
+      && currentStatus
+      && !SPECIALIST_VERIFICATION_STATUSES.has(currentStatus)
+    ) {
+      throw new HttpsError('failed-precondition', 'specialist file is in an invalid state');
+    }
+    if (
+      current.accountType === 'specialist'
+      && currentStatus
+      && !['pending-details', 'needs-more-info', 'rejected', 'pending-email-verification'].includes(currentStatus)
+      && currentStatus !== 'pending'
+    ) {
+      throw new HttpsError('failed-precondition', 'specialist file cannot be edited in its current state');
+    }
+    if (current.accountType === 'specialist' && currentStatus === 'pending') {
+      throw new HttpsError('failed-precondition', 'specialist file is already under review');
+    }
+
+    const submittedAt = new Date().toISOString();
+    const existingVerificationData = current.verificationData || {};
+    const verificationData = {
+      ...existingVerificationData,
+      expertise: dossier.expertise,
+      credentials: dossier.credentials,
+      linkedinUrl: dossier.linkedinUrl,
+      organization: dossier.organization,
+      portfolioUrl: dossier.portfolioUrl,
+      certifications: dossier.certifications,
+      secureContactMethod: dossier.secureContactMethod,
+      secureContactHandle: dossier.secureContactHandle,
+      region: dossier.region,
+      languages: dossier.languages,
+      availability: dossier.availability,
+      supportAreas: dossier.supportAreas,
+      notes: dossier.notes,
+      responseToReviewNote: dossier.responseToReviewNote,
+      submittedAt: existingVerificationData.submittedAt || submittedAt,
+      dossierSubmittedAt: submittedAt,
+      resubmittedAt: existingVerificationData.submittedAt ? submittedAt : null,
+    };
+
+    const specialistProfile = {
+      ...(current.specialistProfile || {}),
+      bio: dossier.notes || current.specialistProfile?.bio || '',
+      expertiseAreas: dossier.supportAreas,
+      certifications: dossier.certifications ? [dossier.certifications] : [],
+    };
+
+    await userRef.update({
+      accountType: 'specialist',
+      realName: dossier.realName,
+      verificationStatus: 'pending',
+      verificationDate: null,
+      verificationRejectionReason: null,
+      verificationReviewNote: null,
+      verificationData,
+      specialistProfile,
+    });
+
+    const updatedSnapshot = await userRef.get();
+    const updatedData = updatedSnapshot.data() || {};
+    await firestore
+      .collection('public-profiles')
+      .doc(userId)
+      .set(buildPublicProfilePayload(updatedData));
+
+    return {
+      success: true,
+      submittedAt,
+      verificationStatus: updatedData.verificationStatus || null,
+    };
+  }
+);
 
 export const draftSupportRequest = onCall(
   { region: 'europe-west1', secrets: [anthropicApiKey] },

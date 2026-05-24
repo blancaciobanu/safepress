@@ -176,13 +176,10 @@ const formatShortDate = (value) => {
 
 const getFirstName = (user) => {
   if (!user) return '';
+  if (user.username) return user.username;
   if (user.displayName) {
     const trimmed = user.displayName.trim();
     if (trimmed) return trimmed.split(/\s+/)[0];
-  }
-  if (user.email) {
-    const local = user.email.split('@')[0];
-    if (local) return local;
   }
   return 'colleague';
 };

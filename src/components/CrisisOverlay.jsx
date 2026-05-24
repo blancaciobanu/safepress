@@ -6,6 +6,7 @@ import {
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCrisis } from '../contexts/CrisisContext';
+import { useAuth } from '../contexts/AuthContext';
 
 /* ─── Data ──────────────────────────────────────────────────────────────── */
 
@@ -289,6 +290,7 @@ const CrisisOverlay = () => {
     activateCrisis, deactivateCrisis,
     isInCrisis, activeScenario,
   } = useCrisis();
+  const { user } = useAuth();
 
   const [localId, setLocalId]          = useState(null);
   const [completedSteps, setCompleted] = useState([]);
@@ -343,33 +345,50 @@ const CrisisOverlay = () => {
       {overlayOpen && (
         <motion.div
           key="crisis-overlay"
-          initial={{ clipPath: 'circle(0% at calc(100% - 56px) calc(100% - 36px))' }}
-          animate={{ clipPath: 'circle(150% at calc(100% - 56px) calc(100% - 36px))' }}
-          exit={{ clipPath: 'circle(0% at calc(100% - 56px) calc(100% - 36px))' }}
-          transition={{ duration: 1.2, ease: [0.4, 0, 0.15, 1] }}
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           className="fixed inset-0 z-[100] overflow-y-auto"
-          style={{ backgroundColor: 'var(--color-paper)', filter: 'drop-shadow(0 0 30px rgba(244,239,230,0.5))' }}
+          style={{ backgroundColor: 'var(--color-paper)' }}
         >
-          {/* ── Toggle pill — bottom-right, matches header crisis toggle position ── */}
-          <div className="fixed bottom-4 right-4 flex items-center gap-2" style={{ zIndex: 3 }}>
-            <span className="hidden sm:inline text-xs font-bold uppercase tracking-[0.1em] text-[var(--color-smoke)]">
-              Crisis
+          {/* ── Toggle pill — matches the header crisis toggle exactly ── */}
+          <div
+            className="fixed bottom-4 right-4 md:bottom-5 md:right-6 flex items-center gap-3 px-3.5 py-2 backdrop-blur-md"
+            style={{
+              zIndex: 3,
+              backgroundColor: 'rgba(248, 244, 236, 0.92)',
+              border: '1px solid rgba(21,17,12,0.12)',
+              boxShadow: '0 8px 24px -12px rgba(21,17,12,0.18)',
+            }}
+          >
+            <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--color-oxblood)]">
+              Crisis · active
             </span>
             <button
               onClick={closeOverlay}
               role="switch"
               aria-checked={true}
-              className="relative flex-shrink-0 w-20 h-10 rounded-full focus:outline-none"
-              style={{ backgroundColor: 'var(--color-oxblood)' }}
+              className="relative flex-shrink-0 w-14 h-7 transition-colors duration-200 focus:outline-none"
+              style={{
+                backgroundColor: 'var(--color-oxblood)',
+                border: '1px solid rgba(21,17,12,0.22)',
+              }}
             >
               <span
-                className="absolute top-[4px] w-8 h-8 rounded-full bg-white"
-                style={{ left: 4, transform: 'translateX(40px)', boxShadow: '0 1px 4px rgba(0,0,0,0.35)' }}
+                className="absolute w-[22px] h-[22px] transition-transform duration-200"
+                style={{
+                  left: 3,
+                  top: '50%',
+                  transform: 'translate(28px, -50%)',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                }}
               />
             </button>
           </div>
 
-          {/* EXTRA edition masthead — oxblood top rule, dateline strip */}
+          {/* ── Masthead ── */}
           <div
             className="sticky top-0 z-10 px-6 py-3"
             style={{ background: 'var(--color-paper)', borderBottom: '1px solid rgba(21,17,12,0.10)' }}
@@ -387,352 +406,301 @@ const CrisisOverlay = () => {
             </div>
           </div>
 
-          {/* Content — fades in as the circle expands */}
+          {/* ── Content ── */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ delay: 0.2, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
-          <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait">
 
-            {/* ── Selection view ──────────────────────────────────────────── */}
-            {!displayId && (
-              <motion.div
-                key="selection"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ duration: 0.2 }}
-                className="relative min-h-screen flex flex-col items-center justify-center px-4 py-20"
-              >
-                {/* Breathing glow */}
+              {/* ── Selection view ── */}
+              {!displayId && (
                 <motion.div
-                  className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full"
-                  style={{ background: 'radial-gradient(circle, rgba(107,31,31,0.05) 0%, transparent 60%)' }}
-                  animate={{ scale: [1, 1.14, 1] }}
-                  transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-                />
-
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35 }}
-                  className="relative text-center mb-12"
+                  key="selection"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18 }}
+                  className="min-h-screen flex flex-col items-center justify-center px-6 py-20"
                 >
-                  <div className="inline-flex items-center gap-2 mb-5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-oxblood">
-                      Crisis Mode
-                    </span>
-                  </div>
-                  <h1 className="text-5xl md:text-6xl font-display font-bold text-[var(--color-ink)] mb-4 tracking-tight leading-none">
-                    you're going to be{' '}
-                    <span style={{ color: 'var(--color-oxblood)' }}>okay.</span>
-                  </h1>
-                  <p className="text-[var(--color-smoke)] max-w-xs mx-auto leading-relaxed text-sm">
-                    what's happening right now?
-                  </p>
-                </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35 }}
+                    className="text-center mb-12 max-w-lg"
+                  >
+                    <div className="inline-flex items-center gap-2 mb-5">
+                      <span className="w-1.5 h-1.5 bg-oxblood animate-pulse" />
+                      <span className="eyebrow sm text-oxblood">Crisis Mode</span>
+                    </div>
+                    <h1 className="display text-5xl md:text-6xl text-ink leading-none mb-4">
+                      You're going to be <em className="italic-ox">okay.</em>
+                    </h1>
+                    <p className="text-smoke text-sm leading-relaxed">
+                      Select the scenario that matches what's happening right now.
+                    </p>
+                  </motion.div>
 
-                <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl w-full">
-                  {SCENARIOS.map((s, i) => {
-                    const Icon = s.icon;
-                    return (
-                      <motion.button
-                        key={s.id}
-                        initial={{ opacity: 0, y: 16 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: 0.08 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}
-                        whileHover={{ y: -3, boxShadow: '0 16px 40px rgba(0,0,0,0.1)', transition: { duration: 0.18 } }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleSelect(s.id)}
-                        className="bg-paper-soft border border-ink/12 p-8 text-left group"
-                        style={{ boxShadow: 'var(--shadow-card)' }}
-                      >
-                        <div className="flex items-start justify-between mb-7">
-                          <Icon className="w-8 h-8 text-[var(--color-smoke-dim)] group-hover:text-oxblood transition-colors duration-200" />
-                          <ArrowRight className="w-4 h-4 text-[rgba(21,17,12,0.25)] group-hover:text-oxblood group-hover:translate-x-0.5 transition-all duration-200" />
-                        </div>
-                        <h3 className="text-[1.6rem] font-display font-bold text-[var(--color-ink)] mb-2 tracking-tight leading-tight">
-                          {s.title}
-                        </h3>
-                        <p className="text-sm text-[var(--color-smoke)] leading-relaxed">
-                          {s.subtitle}
-                        </p>
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-
-            {/* ── Expanded view ───────────────────────────────────────────── */}
-            {displayId && currentScenario && (
-              <motion.div
-                key="expanded"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="relative min-h-screen px-4 sm:px-8 pb-16 pt-14"
-              >
-                {/* Breathing glow */}
-                <motion.div
-                  className="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full"
-                  style={{ background: 'radial-gradient(circle, rgba(107,31,31,0.04) 0%, transparent 60%)' }}
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-                />
-
-                <div className="relative max-w-5xl mx-auto">
-                  <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
-
-                    {/* ── Left: scenario content */}
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={displayId}
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -6 }}
-                        transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                      >
-                        {(() => {
-                          const Icon = currentScenario.icon;
-                          return (
-                            <div className="flex items-start gap-5 mb-4">
-                              <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-oxblood/8 border border-oxblood/20 flex items-center justify-center">
-                                <Icon className="w-7 h-7 text-oxblood" />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-oxblood">
-                                    Crisis Mode Active
-                                  </span>
-                                </div>
-                                <h2 className="text-3xl md:text-4xl font-display font-bold text-[var(--color-ink)] tracking-tight leading-tight mb-1.5">
-                                  {currentScenario.title}
-                                </h2>
-                                <p className="text-sm font-medium" style={{ color: 'var(--color-oxblood)' }}>
-                                  {currentScenario.urgency}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Progress */}
-                        <div className="flex items-center gap-3 mb-7">
-                          <div className="flex-1 h-1 bg-ink/10 rounded-full overflow-hidden">
-                            <motion.div
-                              className="h-full rounded-full"
-                              style={{ backgroundColor: 'var(--color-oxblood)' }}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${(completedSteps.length / currentScenario.actions.length) * 100}%` }}
-                              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                            />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl w-full">
+                    {SCENARIOS.map((s, i) => {
+                      const Icon = s.icon;
+                      return (
+                        <motion.button
+                          key={s.id}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.35, delay: 0.05 + i * 0.06, ease: [0.22, 1, 0.36, 1] }}
+                          onClick={() => handleSelect(s.id)}
+                          className="bg-paper-soft border border-ink/12 p-7 text-left group hover:border-oxblood/30 hover:bg-paper transition-colors"
+                        >
+                          <div className="flex items-start justify-between mb-6">
+                            <Icon className="w-6 h-6 text-smoke group-hover:text-oxblood transition-colors" />
+                            <ArrowRight className="w-3.5 h-3.5 text-ink/20 group-hover:text-oxblood group-hover:translate-x-0.5 transition-all" />
                           </div>
-                          <span className="text-xs font-medium text-[var(--color-smoke)] flex-shrink-0">
-                            {completedSteps.length}/{currentScenario.actions.length} done
-                          </span>
-                        </div>
+                          <h3 className="display text-2xl text-ink mb-2 leading-tight">{s.title}</h3>
+                          <p className="text-sm text-smoke leading-relaxed">{s.subtitle}</p>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
 
-                        {/* Checklist */}
-                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-smoke-dim)] mb-4">
-                          Immediate Actions — Complete In Order
-                        </p>
-                        <div className="space-y-2 mb-6">
-                          {currentScenario.actions.map((action, index) => {
-                            const done      = completedSteps.includes(action.id);
-                            const guideOpen = openGuides.includes(action.id);
+              {/* ── Expanded view ── */}
+              {displayId && currentScenario && (
+                <motion.div
+                  key="expanded"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="min-h-screen px-6 sm:px-8 pb-20 pt-10"
+                >
+                  <div className="max-w-5xl mx-auto">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
+
+                      {/* ── Left: scenario content ── */}
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={displayId}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                        >
+                          {(() => {
+                            const Icon = currentScenario.icon;
                             return (
-                              <div
-                                key={action.id}
-                                className={`w-full rounded-xl border transition-all duration-150 ${
-                                  done ? 'bg-paper-dim/60 border-transparent' : 'bg-paper-soft border-ink/10'
-                                }`}
-                              >
-                                <div className="flex items-start gap-4 p-4">
-                                  {/* Checkbox */}
-                                  <button
-                                    onClick={() => toggleStep(action.id)}
-                                    className={`flex-shrink-0 mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                                      done ? 'bg-[var(--color-oxblood)] border-[var(--color-oxblood)]' : 'border-[rgba(21,17,12,0.25)] hover:border-[var(--color-oxblood)]'
-                                    }`}
-                                  >
-                                    {done && (
-                                      <motion.div
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-                                      >
-                                        <Check className="w-3.5 h-3.5 text-paper" />
-                                      </motion.div>
-                                    )}
-                                  </button>
+                              <div className="flex items-start gap-4 mb-6">
+                                <div className="flex-shrink-0 w-12 h-12 bg-oxblood/8 border border-oxblood/20 flex items-center justify-center">
+                                  <Icon className="w-6 h-6 text-oxblood" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <span className="w-1.5 h-1.5 bg-oxblood animate-pulse" />
+                                    <span className="eyebrow sm text-oxblood">Crisis Mode Active</span>
+                                  </div>
+                                  <h2 className="display text-3xl md:text-4xl text-ink leading-tight mb-1">
+                                    {currentScenario.title}
+                                  </h2>
+                                  <p className="eyebrow sm text-oxblood">{currentScenario.urgency}</p>
+                                </div>
+                              </div>
+                            );
+                          })()}
 
-                                  {/* Text + how? */}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <p
-                                        className={`text-sm font-medium leading-snug cursor-pointer ${
-                                          done ? 'text-[var(--color-smoke)] line-through' : 'text-[var(--color-ink)]'
-                                        }`}
-                                        onClick={() => toggleStep(action.id)}
-                                      >
-                                        <span className={`font-bold mr-1.5 ${done ? 'text-[var(--color-smoke)]' : 'text-oxblood'}`}>
-                                          {index + 1}.
-                                        </span>
-                                        {action.text}
-                                      </p>
-                                      {action.guide && (
-                                        <button
-                                          onClick={() => toggleGuide(action.id)}
-                                          className="flex-shrink-0 flex items-center gap-0.5 text-[10px] font-semibold text-[var(--color-oxblood)] hover:text-[var(--color-oxblood)] transition-colors mt-0.5"
+                          {/* Progress — flat rule */}
+                          <div className="flex items-center gap-3 mb-8">
+                            <div className="flex-1 h-px bg-ink/10 relative overflow-hidden">
+                              <motion.div
+                                className="absolute top-0 left-0 h-full bg-oxblood"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(completedSteps.length / currentScenario.actions.length) * 100}%` }}
+                                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                              />
+                            </div>
+                            <span className="eyebrow sm text-smoke flex-shrink-0">
+                              {completedSteps.length}/{currentScenario.actions.length} done
+                            </span>
+                          </div>
+
+                          {/* Checklist */}
+                          <p className="eyebrow sm text-smoke mb-4">Immediate actions — complete in order</p>
+                          <div className="space-y-1.5 mb-6">
+                            {currentScenario.actions.map((action, index) => {
+                              const done      = completedSteps.includes(action.id);
+                              const guideOpen = openGuides.includes(action.id);
+                              return (
+                                <div
+                                  key={action.id}
+                                  className={`border transition-colors ${done ? 'border-ink/8 bg-paper-dim/40' : 'border-ink/12 bg-paper-soft'}`}
+                                >
+                                  <div className="flex items-start gap-4 p-4">
+                                    <button
+                                      onClick={() => toggleStep(action.id)}
+                                      className={`flex-shrink-0 mt-0.5 w-5 h-5 border flex items-center justify-center transition-colors ${
+                                        done ? 'bg-oxblood border-oxblood' : 'border-ink/30 hover:border-oxblood'
+                                      }`}
+                                    >
+                                      {done && (
+                                        <motion.div
+                                          initial={{ scale: 0 }}
+                                          animate={{ scale: 1 }}
+                                          transition={{ type: 'spring', stiffness: 500, damping: 28 }}
                                         >
-                                          how?
-                                          <ChevronDown
-                                            className={`w-3 h-3 transition-transform duration-200 ${guideOpen ? 'rotate-180' : ''}`}
-                                          />
-                                        </button>
+                                          <Check className="w-3 h-3 text-paper" />
+                                        </motion.div>
                                       )}
+                                    </button>
+
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <p
+                                          className={`text-sm leading-snug cursor-pointer ${done ? 'text-smoke line-through' : 'text-ink'}`}
+                                          onClick={() => toggleStep(action.id)}
+                                        >
+                                          <span className={`font-mono text-[10px] mr-2 ${done ? 'text-smoke' : 'text-oxblood'}`}>
+                                            {String(index + 1).padStart(2, '0')}
+                                          </span>
+                                          {action.text}
+                                        </p>
+                                        {action.guide && (
+                                          <button
+                                            onClick={() => toggleGuide(action.id)}
+                                            className="flex-shrink-0 flex items-center gap-0.5 eyebrow sm text-oxblood hover:text-ink transition-colors mt-0.5"
+                                          >
+                                            how?
+                                            <ChevronDown className={`w-3 h-3 transition-transform ${guideOpen ? 'rotate-180' : ''}`} />
+                                          </button>
+                                        )}
+                                      </div>
+
+                                      <AnimatePresence>
+                                        {guideOpen && action.guide && (
+                                          <motion.ul
+                                            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                            animate={{ opacity: 1, height: 'auto', marginTop: 10 }}
+                                            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                                            className="space-y-2 overflow-hidden"
+                                            style={{ borderLeft: '2px solid var(--color-oxblood)', paddingLeft: 10 }}
+                                          >
+                                            {action.guide.map((point, pi) => (
+                                              <li key={pi} className="flex items-start gap-2 text-xs text-smoke leading-relaxed">
+                                                <span className="w-1 h-1 bg-oxblood flex-shrink-0 mt-[5px]" />
+                                                {point}
+                                              </li>
+                                            ))}
+                                          </motion.ul>
+                                        )}
+                                      </AnimatePresence>
                                     </div>
-
-                                    {/* Guide bullets */}
-                                    <AnimatePresence>
-                                      {guideOpen && action.guide && (
-                                        <motion.ul
-                                          initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                          animate={{ opacity: 1, height: 'auto', marginTop: 10 }}
-                                          exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                                          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                                          className="space-y-2 overflow-hidden"
-                                          style={{ borderLeft: '2px solid var(--color-oxblood)', paddingLeft: 10 }}
-                                        >
-                                          {action.guide.map((point, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-xs text-[var(--color-smoke)] leading-relaxed">
-                                              <span className="w-1 h-1 rounded-full bg-[var(--color-oxblood)] flex-shrink-0 mt-[5px]" />
-                                              {point}
-                                            </li>
-                                          ))}
-                                        </motion.ul>
-                                      )}
-                                    </AnimatePresence>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <AnimatePresence>
-                          {allDone && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0 }}
-                              className="p-4 rounded-xl flex items-center gap-3"
-                              style={{ backgroundColor: 'rgba(107,31,31,0.05)', border: '1px solid rgba(107,31,31,0.25)' }}
-                            >
-                              <ShieldCheck className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--color-oxblood)' }} />
-                              <div>
-                                <p className="text-sm font-semibold" style={{ color: 'var(--color-oxblood)' }}>
-                                  All steps completed.
-                                </p>
-                                <p className="text-xs mt-0.5 text-[var(--color-smoke)]">
-                                  When you're safe, click "I'm Safe" on the right.
-                                </p>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    </AnimatePresence>
-
-                    {/* ── Right sidebar ── */}
-                    <div className="space-y-5 lg:sticky lg:top-14">
-
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-smoke-dim)] mb-3">
-                          Other Scenarios
-                        </p>
-                        <div className="space-y-2">
-                          {otherScenarios.map((s) => {
-                            const Icon = s.icon;
-                            return (
-                              <button
-                                key={s.id}
-                                onClick={() => handleSelect(s.id)}
-                                className="w-full bg-paper-soft border border-ink/12 p-3.5 flex items-center gap-3 text-left group hover:border-ink/25 hover:bg-paper transition-all"
-                                style={{ boxShadow: 'var(--shadow-lift)' }}
-                              >
-                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-paper-dim border border-ink/15 flex items-center justify-center group-hover:bg-red-50 group-hover:border-red-200 transition-all">
-                                  <Icon className="w-4 h-4 text-[var(--color-smoke)] group-hover:text-oxblood transition-colors" />
-                                </div>
-                                <span className="flex-1 text-sm font-semibold text-[var(--color-ink)] truncate">
-                                  {s.title}
-                                </span>
-                                <ArrowRight className="w-3.5 h-3.5 text-[rgba(21,17,12,0.25)] group-hover:text-oxblood flex-shrink-0 transition-colors" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Get help now */}
-                      <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--color-ink)' }}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-7 h-7 rounded-lg bg-paper/15 flex items-center justify-center">
-                            <Phone className="w-3.5 h-3.5 text-white" />
+                              );
+                            })}
                           </div>
-                          <p className="text-paper font-semibold text-sm">Get help now</p>
+
+                          <AnimatePresence>
+                            {allDone && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0 }}
+                                className="p-4 flex items-center gap-3 border"
+                                style={{ backgroundColor: 'rgba(107,31,31,0.04)', borderColor: 'rgba(107,31,31,0.25)' }}
+                              >
+                                <ShieldCheck className="w-4 h-4 flex-shrink-0 text-oxblood" />
+                                <div>
+                                  <p className="eyebrow sm text-oxblood">All steps completed.</p>
+                                  <p className="text-xs mt-0.5 text-smoke">When you're safe, click "I'm Safe" on the right.</p>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      </AnimatePresence>
+
+                      {/* ── Right sidebar ── */}
+                      <div className="space-y-4 lg:sticky lg:top-14">
+
+                        <div>
+                          <p className="eyebrow sm text-smoke mb-3">Other scenarios</p>
+                          <div className="space-y-1.5">
+                            {otherScenarios.map((s) => {
+                              const Icon = s.icon;
+                              return (
+                                <button
+                                  key={s.id}
+                                  onClick={() => handleSelect(s.id)}
+                                  className="w-full bg-paper-soft border border-ink/12 p-3 flex items-center gap-3 text-left group hover:border-ink/25 hover:bg-paper transition-colors"
+                                >
+                                  <div className="flex-shrink-0 w-7 h-7 bg-paper-dim border border-ink/15 flex items-center justify-center group-hover:border-oxblood/30 transition-colors">
+                                    <Icon className="w-3.5 h-3.5 text-smoke group-hover:text-oxblood transition-colors" />
+                                  </div>
+                                  <span className="flex-1 text-sm text-ink truncate">{s.title}</span>
+                                  <ArrowRight className="w-3.5 h-3.5 text-ink/20 group-hover:text-oxblood flex-shrink-0 transition-colors" />
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <p className="text-paper/60 text-xs mb-4 leading-relaxed">
-                          Call a press freedom organization directly — no forms, no waiting.
-                        </p>
-                        <div className="space-y-2 mb-4">
-                          {HELP_LINES.map(h => (
-                            <a
-                              key={h.tel}
-                              href={`tel:${h.tel}`}
-                              className="flex items-center justify-between w-full bg-paper/10 hover:bg-paper/20 rounded-xl px-3.5 py-2.5 transition-all group"
+
+                        {/* Get help now — flat bordered section */}
+                        <div className="border border-ink/12 bg-paper-soft p-4">
+                          <div className="flex items-center gap-2 pb-3 mb-3 border-b border-ink/10">
+                            <Phone className="w-3.5 h-3.5 text-ink-soft" />
+                            <p className="eyebrow sm text-ink">Get help now</p>
+                          </div>
+                          <p className="text-xs text-smoke mb-3 leading-relaxed">
+                            Call a press freedom organization directly — no forms, no waiting.
+                          </p>
+                          <div className="space-y-1.5 mb-3">
+                            {HELP_LINES.map(h => (
+                              <a
+                                key={h.tel}
+                                href={`tel:${h.tel}`}
+                                className="flex items-center justify-between w-full border border-ink/10 bg-paper px-3 py-2.5 hover:border-ink/25 transition-colors group"
+                              >
+                                <div>
+                                  <p className="text-xs font-medium text-ink">{h.short}</p>
+                                  <p className="text-[10px] text-smoke">{h.note}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs font-mono text-ink">{h.display}</p>
+                                  <p className="eyebrow sm text-smoke group-hover:text-ink transition-colors">call →</p>
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                          {user?.accountType !== 'specialist' && (
+                            <Link
+                              to="/request-support"
+                              onClick={closeOverlay}
+                              className="flex items-center justify-center gap-1.5 w-full py-2 border border-ink/12 hover:border-ink/25 text-ink-soft hover:text-ink text-xs transition-colors"
                             >
-                              <div>
-                                <p className="text-paper text-xs font-bold">{h.short}</p>
-                                <p className="text-paper/50 text-[10px]">{h.note}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-white text-xs font-mono">{h.display}</p>
-                                <p className="text-paper/60 text-[10px] group-hover:text-paper/90 transition-colors">tap to call →</p>
-                              </div>
-                            </a>
-                          ))}
+                              Request a specialist <ArrowRight className="w-3 h-3" />
+                            </Link>
+                          )}
                         </div>
-                        <Link
-                          to="/request-support"
-                          onClick={closeOverlay}
-                          className="flex items-center justify-center gap-1.5 w-full py-2 bg-paper/10 hover:bg-paper/20 text-paper text-xs font-medium transition-all"
+
+                        {/* I'm Safe */}
+                        <button
+                          onClick={handleSafe}
+                          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-ink text-ink text-sm hover:bg-ink hover:text-paper transition-colors"
                         >
-                          Request a specialist <ArrowRight className="w-3 h-3" />
-                        </Link>
+                          <ShieldCheck className="w-4 h-4" />
+                          I'm Safe Now
+                        </button>
+
                       </div>
-
-                      {/* I'm Safe */}
-                      <button
-                        onClick={handleSafe}
-                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-paper border-2 border-ink text-[var(--color-ink)] rounded-2xl text-sm font-bold transition-all hover:bg-ink hover:text-paper"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        I'm Safe Now
-                      </button>
-
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            )}
+                </motion.div>
+              )}
 
-          </AnimatePresence>
+            </AnimatePresence>
           </motion.div>
         </motion.div>
       )}

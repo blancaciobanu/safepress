@@ -57,6 +57,7 @@ const SpecialistVerification = () => {
     availability: verificationData.availability || '',
     supportAreas: Array.isArray(verificationData.supportAreas) ? verificationData.supportAreas : [],
     notes: verificationData.notes || '',
+    responseToReviewNote: verificationData.responseToReviewNote || '',
   });
 
   const submittedLabel = useMemo(() => {
@@ -68,6 +69,15 @@ const SpecialistVerification = () => {
       year: 'numeric',
     });
   }, [verificationData.dossierSubmittedAt, verificationData.submittedAt]);
+
+  const reviewReplyLabel = useMemo(() => {
+    if (!verificationData.resubmittedAt) return null;
+    return new Date(verificationData.resubmittedAt).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }, [verificationData.resubmittedAt]);
 
   if (!user) return <Navigate to="/login" replace />;
   if (user.accountType === 'specialist' && status === SPECIALIST_VERIFICATION_STATUSES.APPROVED) {
@@ -139,6 +149,7 @@ const SpecialistVerification = () => {
         availability: normalize(formData.availability),
         supportAreas: formData.supportAreas,
         notes: normalize(formData.notes),
+        responseToReviewNote: normalize(formData.responseToReviewNote),
       });
       await refreshUser();
       setMessage({ type: 'success', text: 'Verification dossier submitted. The review desk can see the updated file now.' });
@@ -194,6 +205,17 @@ const SpecialistVerification = () => {
             <p className="mt-2 text-sm text-ink-soft leading-relaxed">
               {user.verificationReviewNote || 'Strengthen the file below, then resubmit it for review.'}
             </p>
+            {verificationData.responseToReviewNote && (
+              <div className="mt-4 border-t border-ink/10 pt-4">
+                <p className="eyebrow sm text-smoke">Your last response</p>
+                <p className="mt-2 text-sm text-ink-soft leading-relaxed">
+                  {verificationData.responseToReviewNote}
+                </p>
+                {reviewReplyLabel && (
+                  <p className="eyebrow sm mt-3">Filed back · {reviewReplyLabel}</p>
+                )}
+              </div>
+            )}
           </NewsNotice>
         )}
 
@@ -212,6 +234,14 @@ const SpecialistVerification = () => {
             <p className="mt-2 text-sm text-ink-soft leading-relaxed">
               You can read the submitted file here while you wait. If the desk needs more context, it will send the file back with notes.
             </p>
+            {verificationData.responseToReviewNote && (
+              <div className="mt-4 border-t border-ink/10 pt-4">
+                <p className="eyebrow sm text-smoke">Included response to the review desk</p>
+                <p className="mt-2 text-sm text-ink-soft leading-relaxed">
+                  {verificationData.responseToReviewNote}
+                </p>
+              </div>
+            )}
           </NewsNotice>
         )}
 
@@ -375,6 +405,24 @@ const SpecialistVerification = () => {
               />
             </NewsField>
           </section>
+
+          {status === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO && (
+            <section>
+              <NewsField no="08A" label="Reply to the review desk">
+                <textarea
+                  name="responseToReviewNote"
+                  value={formData.responseToReviewNote}
+                  onChange={handleChange}
+                  rows={4}
+                  placeholder="Summarize what you added, clarified, or changed in response to the request."
+                  disabled={isReadOnly}
+                />
+                <p className="eyebrow sm text-smoke mt-2 normal-case">
+                  Keep it brief and practical so the reviewer can immediately see what changed.
+                </p>
+              </NewsField>
+            </section>
+          )}
 
           <section className="border border-ink/12 bg-paper-soft p-5">
             <p className="eyebrow sm text-oxblood mb-4">Coverage areas</p>
