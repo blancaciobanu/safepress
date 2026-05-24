@@ -19,7 +19,7 @@ export const NewsSidebar = ({ className = '' }) => {
     >
       <NewsPanel muted className="p-5">
         <div className="flex items-center gap-2 mb-5">
-          <div className="w-7 h-7 rounded-lg bg-oxblood/8 border border-oxblood/20 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-sm bg-oxblood/8 border border-oxblood/20 flex items-center justify-center">
             <Newspaper className="w-3.5 h-3.5 text-oxblood" />
           </div>
           <h3 className="text-[10px] font-bold tracking-widest uppercase text-smoke">

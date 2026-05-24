@@ -168,13 +168,13 @@ const SpecialistVerification = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex items-baseline justify-between pb-3">
+        <div className="news-page-topline">
           <span className="eyebrow sm text-oxblood">Specialist dossier · Verification</span>
           {submittedLabel && <span className="eyebrow sm">Last filed · {submittedLabel}</span>}
         </div>
         <NewsRule />
 
-        <div className="mt-8 mb-10 max-w-3xl">
+        <div className="mt-10 mb-10 max-w-3xl">
           <h1 className="display text-4xl md:text-5xl leading-none">
             {isSpecialistAccount ? 'Complete your verification file' : 'Apply as a specialist'}<span className="italic-ox">.</span>
           </h1>

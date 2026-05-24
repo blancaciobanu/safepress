@@ -24,27 +24,33 @@ Visit the Vite URL shown in your terminal, usually `http://localhost:5173`.
 ## Features
 
 - **Security Quiz** — 31-question assessment across 6 categories with risk profiling (0-100% score)
-- **Gamified Dashboard** — animated progress rings, security rank labels ("security aware", "security hardened"), 3-col stat cards, quest-style Up Next list, Explore grid
+- **Dual-state Home** — Public visitors get editorial orientation with crisis-first hierarchy; signed-in users get a personalised brief with animated progress rings, security rank label, stat cards, and quest-style Up Next — no separate `/dashboard` route
 - **Interactive Setup Checklist** — 31 actionable security tasks with progress tracking (synced to Firestore)
-- **Smart Resource Filtering** — Risk-based tool recommendations (25+ security tools, personalized by quiz results)
-- **OS Security Guides** — Step-by-step hardening for Windows, macOS, Linux, iOS, Android
+- **Smart Resource Filtering** — Risk-based tool recommendations (25+ security tools, personalised by quiz results)
+- **OS Security Guides** — Step-by-step hardening for Windows, macOS, Linux, iOS, Android with animated OS UI mockups
 - **AI Security Section** — Safe AI usage, deepfake detection, privacy-respecting tools
-- **AI Advisor** — Authenticated journalists can chat with Aegis for tailored security guidance; prompts are routed through Firebase Functions instead of the browser SDK
+- **Source Protection** — 5-tab investigative-journalism opsec guide (compartmentalization, first contact, meeting & handoff, after publication, legal protections) — integrated as a tab in Resources
+- **AI Advisor** — Authenticated journalists chat with Aegis for tailored security guidance; all AI calls are routed through Firebase Cloud Functions (no client-side API key)
+- **Threat Modeling** — AI-powered journalist threat analysis: context intake → adversary mapping → prioritised recommendations; client-side privacy guard scans for PII before submission
+- **Security Simulations** — Step-through scenario training (phishing, source exposure, device seizure, doxxing) with per-scenario confidence self-assessment saved to Firestore
 - **Crisis Mode Overlay** — Fullscreen overlay triggered by a pill toggle in the header; 4 scenarios (hacked, source exposed, doxxed, phishing) with checklist, progress bar, and per-step "how?" guides; direct-call links to CPJ/RSF/EFF
-- **Dual-state Home** — Public visitors get editorial orientation with crisis-first hierarchy; signed-in users get a lighter front-page summary driven by existing auth/session state and read-only role-specific queries
-- **Community Hub** — Discussions, true anonymous stories, and Q&A with likes, comments, category filtering, always-on role labels (journalist / verified specialist / unverified specialist / anonymous), sort controls (newest / top / unanswered), accepted-answer on Q&A, self-service delete (hard-delete for posts, soft-delete `[deleted]` for comments), unified journalist/specialist profile modal, and user-reporting with 5 reasons
-- **Source Protection Playbook** — New `/source-protection` page: 5-tab investigative-journalism operational-security guide (compartmentalization, first contact, meeting & handoff, after publication, legal protections) with accordion content cards + 3 interactive decision-tree scenarios
-- **Support Request Workflow** — Journalists submit crisis requests, verified specialists claim and resolve them; request form shows live count and avatars of available verified specialists
+- **Community Hub** — Discussions, Q&A, and AMA (Ask Me Anything) with likes, comments, category filtering, always-on role labels, sort controls (newest / top / unanswered), accepted-answer on Q&A, self-service delete, profile modal, and user-reporting
+- **Support Request Workflow** — Journalists submit crisis requests; verified specialists claim and resolve them; request form shows live count and avatars of available specialists
+- **Case Messaging** — Bi-directional in-case chat between journalist and specialist with read-receipt state markers (awaiting specialist / awaiting reporter / monitoring / ready to file)
 - **AI Support Drafting** — Verified users can turn rough crisis notes into a structured support request draft; obvious identifiers are redacted before the notes are sent to the model
+- **My Cases** — Journalist view of all their support request history at `/my-cases`
 - **Specialist Dashboard** — Dedicated dashboard at `/specialist-dashboard` with tabbed request queue, stats (resolved/rating/active), profile sidebar, and feedback reviews
+- **Specialist Case File** — Specialist view of an individual case at `/specialist-cases/:id` with full messaging, resolution report, and claim/resolve controls
+- **Support Case Desk** — Journalist view of their case at `/support-cases/:id` with messaging thread and post-resolution feedback form
 - **Specialist Feedback & Rating** — Journalists rate specialists (1-5 stars + comment) after resolution
-- **Verification UX** — Dedicated pending/rejected banners with admin-written rejection reason and reapply CTA; verified specialists auto-redirected to specialist dashboard
+- **Verification UX** — Welcome screen for new journalists; specialists are routed to a verification dossier form before accessing the dashboard; pending/rejected banners with admin-written rejection reason and reapply CTA
 - **Email Verification Gate** — Email/password accounts must verify before community posting/reporting and confidential support requests unlock
 - **Redacted Support Queue** — Specialists browse a metadata-only queue first; full requester details appear only after claim
+- **Privacy Guard** — Client-side PII analysis (email, phone, URL, location patterns) with redaction before any AI submission; consent modal with visible redacted preview
 - **User Authentication** — Secure login/signup with Firebase (anonymous identity system); dynamic tagline and hardened `accountType` whitelist in signup
-- **Specialist Verification** — Admin dashboard for security expert approval, optional rejection reason textarea, and new **reports tab** for reviewing community-reported posts/comments
+- **Specialist Verification** — Admin dashboard for security expert approval, optional rejection reason textarea, and reports tab for reviewing community-reported posts/comments
 - **Settings Page** — Profile management & password change
-- **Protected Routes** — Dashboard & Settings require login
+- **Protected Routes** — Auth-gated pages redirect to login; specialist-only routes redirect based on verification status
 - **Firestore Security Rules** — Production rules deployed (not test mode); support requests are role-restricted, authors can delete their own posts/comments, and `community-reports` is admin-only for review
 
 ## Project Structure
@@ -53,50 +59,95 @@ Visit the Vite URL shown in your terminal, usually `http://localhost:5173`.
 safepress/
 ├── src/
 │   ├── components/
-│   │   ├── layout/           # Header, Footer, MainLayout
-│   │   ├── CrisisOverlay.jsx # Fullscreen crisis mode overlay
+│   │   ├── layout/                    # Header, MainLayout
+│   │   ├── editorial/
+│   │   │   ├── NewsPage.jsx           # Shared editorial design-system primitives
+│   │   │   └── RotatingType.jsx       # Rotating typography animation
+│   │   ├── CrisisOverlay.jsx          # Fullscreen crisis mode overlay
+│   │   ├── PageLoader.jsx             # Full-page loading spinner
 │   │   ├── ProtectedRoute.jsx
 │   │   ├── ProtectedAdminRoute.jsx
-│   │   ├── RouteLoader.jsx   # Shared lazy-route loading state
+│   │   ├── RouteLoader.jsx            # Shared lazy-route loading state
 │   │   └── VerifiedBadge.jsx
+│   ├── config/
+│   │   ├── externalResources.js       # RSS feed URLs for news aggregation
+│   │   ├── firebaseCollections.js     # Centralized Firestore collection name constants
+│   │   └── security.js               # Password rules, support types, community categories
 │   ├── contexts/
-│   │   ├── AuthContext.jsx   # Authentication state & methods
-│   │   └── CrisisContext.jsx # Crisis overlay state (open/active scenario)
+│   │   ├── AuthContext.jsx            # Authentication state & methods
+│   │   └── CrisisContext.jsx          # Crisis overlay state (open/active scenario)
 │   ├── firebase/
-│   │   └── config.js         # Firebase initialization (uses env vars)
+│   │   └── config.js                  # Firebase initialization (uses env vars)
 │   ├── features/
-│   │   ├── admin/
-│   │   │   └── services/     # Admin Firestore access (reports, specialist review)
+│   │   ├── admin/services/            # Reports + specialist verification Firestore logic
+│   │   ├── ai/
+│   │   │   ├── components/
+│   │   │   │   └── PrivacyGuardModal.jsx  # Consent modal shown before AI submission
+│   │   │   └── services/
+│   │   │       ├── aiService.js       # Firebase callable wrappers + system prompt builder
+│   │   │       └── privacyGuard.js    # PII detection + text redaction before AI calls
 │   │   ├── community/
-│   │   │   └── services/     # Community posts, comment subcollections, reports
+│   │   │   ├── components/            # AuthorLine, AuthorProfileModal, modals, UserAvatar
+│   │   │   ├── hooks/                 # useCommunityPosts, useFollowedPosts, useNewPost, etc.
+│   │   │   └── services/
+│   │   │       ├── amaService.js      # AMA post create/list
+│   │   │       └── communityService.js  # Posts, comments, reports
 │   │   ├── home/
-│   │   │   └── services/     # Read-only Home summary + field signal helpers
-│   │   ├── support/
-│   │   │   └── services/     # Support request workflow queries/mutations
+│   │   │   ├── hooks/useHomeData.js   # Field signal + journalist/specialist data loading
+│   │   │   └── services/
+│   │   │       ├── homeService.js     # Firebase data fetching for Home
+│   │   │       └── homePageModel.jsx  # Brief builders (returns JSX nodes)
+│   │   ├── news/
+│   │   │   ├── NewsSidebar.jsx        # External security news sidebar component
+│   │   │   └── useNewsArticles.js     # RSS feed aggregation hook
+│   │   ├── notifications/
+│   │   │   ├── hooks/useNotifications.js    # Notification count + panel state
+│   │   │   └── services/notificationService.js  # Firestore notification queries
+│   │   ├── resources/
+│   │   │   └── OSMockup.jsx           # Animated OS UI mockup for Resources guides
+│   │   ├── setup/data/setupTasks.js   # Static task data, allTasks, TASKS_BY_ID
+│   │   ├── simulations/services/
+│   │   │   └── simulationService.js   # Simulation progress Firestore reads/writes
+│   │   ├── support/services/
+│   │   │   └── supportService.js      # Support request workflow + case messaging
 │   │   └── users/
-│   │       └── services/     # Private user + public profile helpers
+│   │       ├── accountRouting.js      # Post-auth path logic (Welcome, specialist verification)
+│   │       ├── verification.js        # Specialist verification status constants
+│   │       └── services/userService.js  # Private user + public profile helpers
 │   ├── utils/
-│   │   └── userUtils.js      # Anonymous identity generation
+│   │   ├── externalLinks.js           # External link helpers
+│   │   ├── logger.js                  # Dev-only error logging (silent in production)
+│   │   ├── time.js                    # Time formatting utilities
+│   │   └── userUtils.js               # Anonymous identity generation
 │   ├── pages/
-│   │   ├── Home.jsx          # Landing page
-│   │   ├── Dashboard.jsx     # Journalist dashboard (scores, requests, feedback)
-│   │   ├── SpecialistDashboard.jsx # Specialist dashboard (queue, stats, profile)
-│   │   ├── SecurityScore.jsx # Security quiz (31 questions, 6 categories)
-│   │   ├── SecureSetup.jsx   # Interactive 31-task checklist
-│   │   ├── Resources.jsx     # OS guides, tools, AI security (3 tabs)
-│   │   ├── Community.jsx     # Discussions, stories, Q&A (3 tabs) with reporting + moderation
-│   │   ├── SourceProtection.jsx # 5-tab investigative playbook with interactive scenarios
-│   │   ├── RequestSupport.jsx # Crisis support request form
-│   │   ├── AdminDashboard.jsx # Specialist verification + community reports management
-│   │   ├── Settings.jsx      # User settings
-│   │   ├── Login.jsx         # Login page
-│   │   └── Signup.jsx        # Registration (journalist or specialist)
-│   ├── App.jsx               # Route definitions
-│   ├── main.jsx              # Entry point
-│   └── index.css             # Global styles + Tailwind v4 @theme
-├── .env                      # Firebase credentials (not in git)
-├── firestore.rules           # Firestore security rules (deployed)
-├── firestore.indexes.json    # Firestore composite indexes (deployed)
+│   │   ├── Home.jsx                   # Dual-state landing (public editorial / signed-in brief)
+│   │   ├── AIAdvisor.jsx              # AI chat advisor (protected, /ai-advisor)
+│   │   ├── ThreatModel.jsx            # AI threat model generator (protected, /threat-model)
+│   │   ├── Simulations.jsx            # Security scenario training (/simulations)
+│   │   ├── MyCases.jsx                # Journalist support request history (/my-cases)
+│   │   ├── SupportCaseDesk.jsx        # Journalist case detail + messaging (/support-cases/:id)
+│   │   ├── SpecialistCaseFile.jsx     # Specialist case file + messaging (/specialist-cases/:id)
+│   │   ├── SpecialistDashboard.jsx    # Specialist dashboard (/specialist-dashboard)
+│   │   ├── SpecialistVerification.jsx # Specialist dossier form (/specialist-verification)
+│   │   ├── SecurityScore.jsx          # Security quiz (31 questions, 6 categories)
+│   │   ├── SecureSetup.jsx            # Interactive 31-task checklist
+│   │   ├── Resources.jsx              # OS guides, tools, AI security, source protection (tabs)
+│   │   ├── Community.jsx              # Discussions, Q&A, AMA with reporting + moderation
+│   │   ├── CommunityPostDetail.jsx    # Individual post + comments (/community/:postId)
+│   │   ├── CreatePost.jsx             # New community post (/community/new)
+│   │   ├── RequestSupport.jsx         # Crisis support request form
+│   │   ├── AdminDashboard.jsx         # Specialist verification + reports (/admin)
+│   │   ├── Welcome.jsx                # Post-signup onboarding for new journalists
+│   │   ├── Settings.jsx               # User settings (protected)
+│   │   ├── Login.jsx                  # Login page
+│   │   ├── Signup.jsx                 # Registration (journalist or specialist)
+│   │   └── SourceProtection.jsx       # Redirect → /resources?tab=source-protection
+│   ├── App.jsx                        # Route definitions
+│   ├── main.jsx                       # Entry point
+│   └── index.css                      # Global styles + Tailwind v4 @theme
+├── .env                               # Firebase credentials (not in git)
+├── firestore.rules                    # Firestore security rules (deployed)
+├── firestore.indexes.json             # Firestore composite indexes (deployed)
 └── TECHNICAL_DOCUMENTATION.md
 ```
 
@@ -112,21 +163,31 @@ safepress/
 
 | Page | Route | Protected | Description |
 |------|-------|-----------|-------------|
-| Home | `/` | No | Landing page |
-| Dashboard | `/dashboard` | Yes | Journalist: gamified progress rings, rank label, stat cards, Up Next, requests, feedback |
-| Specialist Dashboard | `/specialist-dashboard` | Yes (specialist) | Tabbed request queue, stats, profile, feedback |
+| Home | `/` | No | Dual-state landing: editorial orientation for visitors, signed-in brief for journalists/specialists |
+| Specialist Dashboard | `/specialist-dashboard` | Yes (specialist) | Tabbed request queue, stats, profile sidebar, feedback reviews |
 | Security Quiz | `/security-score` | No | 31-question assessment with risk profiling |
 | Secure Setup | `/secure-setup` | No | Interactive checklist (31 tasks, progress tracking) |
-| Resources | `/resources` | No | OS guides, security tools, AI safety (3 tabs) |
-| Community | `/community` | No | Discussions, anonymous stories, Q&A (3 tabs) — with sort, reporting, accepted-answer, role labels |
-| Source Protection | `/source-protection` | No | Investigative-journalism playbook (5 tabs) with interactive scenarios |
-| Request Support | `/request-support` | No (view), Yes (submit) | View support workflow info; signed-in users can submit a crisis request |
+| Resources | `/resources` | No | OS guides, security tools, AI safety, source protection (tabs) |
+| Community | `/community` | No | Discussions, Q&A, AMA — sort, reporting, accepted-answer, role labels |
+| Community Post Detail | `/community/:postId` | No | Individual post with comments |
+| Create Post | `/community/new` | Yes (email verified) | New community post form |
+| Simulations | `/simulations` | No | Step-through security scenario training with confidence tracking |
+| AI Advisor | `/ai-advisor` | Yes | Chat with Aegis for tailored security guidance |
+| Threat Model | `/threat-model` | Yes | AI-driven journalist threat analysis with adversary mapping |
+| Request Support | `/request-support` | No (view), Yes (submit) | Crisis support request form |
+| My Cases | `/my-cases` | Yes | Journalist's support request history |
+| Support Case Desk | `/support-cases/:requestId` | Yes | Journalist case detail with bi-directional messaging |
+| Specialist Case File | `/specialist-cases/:requestId` | Yes (specialist) | Specialist case file with messaging and resolution tools |
+| Specialist Verification | `/specialist-verification` | Yes (specialist) | Specialist dossier submission form |
+| Welcome | `/welcome` | Yes | Post-signup onboarding for new journalists |
 | Settings | `/settings` | Yes | Profile & password management |
-| Admin | `/admin` | Admin Only | Specialist verification dashboard |
+| Admin | `/admin` | Admin Only | Specialist verification + community reports management |
 | Login | `/login` | No | User authentication |
 | Signup | `/signup` | No | Account creation (journalist or specialist) |
 
 > **Crisis Mode** is not a page — it's a fullscreen overlay triggered by the pill toggle in the header. Available on all pages.
+> `/dashboard` and `/crisis` redirect to `/`. The journalist view is now integrated into the signed-in Home state.
+> `/source-protection` redirects to `/resources?tab=source-protection`.
 
 ## Firebase Setup
 
@@ -299,19 +360,19 @@ safepress/
 }
 ```
 
-**`support-requests/{requestId}`** — Crisis support workflow
+**`support-requests/{requestId}/messages/{messageId}`** — Case messaging thread
 ```json
 {
-  "requesterId": "uid",
-  "requesterName": "Jane Doe",
-  "crisisType": "hacked",
-  "urgency": "urgent",
-  "status": "open",
-  "claimedBy": null,
-  "feedback": null,
-  "createdAt": "2026-02-12T..."
+  "authorId": "uid",
+  "authorRole": "journalist",
+  "authorName": "SecureReporter_4829",
+  "content": "message text",
+  "createdAt": "2026-05-10T...",
+  "marker": "awaiting_specialist"
 }
 ```
+
+> `marker` governs case workflow state. Values: `awaiting_specialist`, `awaiting_reporter`, `monitoring`, `ready_to_file`. The latest message marker wins.
 
 ## Design System
 
@@ -328,12 +389,14 @@ See [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md) for complete archit
 
 1. **Sign up** — Create account at `/signup` (journalist or specialist)
 2. **Take quiz** — Complete 31-question security assessment
-3. **View dashboard** — See personalized score, recommendations, quick links
+3. **View home brief** — See personalized score, rank, Up Next recommendations (signed-in state of `/`)
 4. **Secure setup** — Check off security tasks, track progress
-5. **Browse resources** — OS guides, tools (filtered by risk level), AI safety
-6. **Community** — Post discussions, share anonymous stories, ask questions
-7. **Request support** — Submit crisis request, track status on dashboard
-8. **Rate specialist** — After resolution, rate with 1-5 stars
+5. **Browse resources** — OS guides, tools (filtered by risk level), AI safety, source protection
+6. **Community** — Post discussions, ask questions, join AMA sessions with specialists
+7. **Try simulations** — Step through security scenarios at `/simulations`
+8. **Run threat model** — Submit your context at `/threat-model` for an AI threat analysis
+9. **Request support** — Submit crisis request; track it at `/my-cases`
+10. **Rate specialist** — After resolution, rate with 1-5 stars from the case desk
 
 ## Common Tasks
 

@@ -362,7 +362,7 @@ const CrisisOverlay = () => {
               boxShadow: '0 8px 24px -12px rgba(21,17,12,0.18)',
             }}
           >
-            <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] text-[color:var(--color-oxblood)]">
+            <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] text-oxblood">
               Crisis · active
             </span>
             <button

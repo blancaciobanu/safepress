@@ -231,6 +231,9 @@ const CommunityPostDetail = () => {
   const liked = post.likedBy?.includes(user?.uid);
   const commentCount = Math.max(getPostCommentCount(post), comments.length);
   const isAuthor = post.authorId === user?.uid;
+  const replyLabel = isAMA ? 'Your question' : isQuestion ? 'Your answer' : 'Your reply';
+  const replyAction = isAMA ? 'ask' : isQuestion ? 'answer' : 'reply';
+  const emptyReplyCue = isAMA ? 'first question' : isQuestion ? 'first answer' : 'first reply';
 
   const orderedComments = (() => {
     const list = [...comments];
@@ -290,19 +293,10 @@ const CommunityPostDetail = () => {
                         : 'border-l-ink/20'}`
                 }`}
               >
-                {/* AMA specialist banner */}
                 {isAMA && (
-                  <div className="flex items-start gap-4 mb-5 pb-4 border-b border-ink/8">
-                    <div className="w-12 h-12 bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-base text-ink flex-shrink-0">
-                      {(post.authorName || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="eyebrow sm text-oxblood mb-1">Ask Me Anything</p>
-                      <p className="font-semibold text-base text-brass">{post.authorName}</p>
-                      {post.specialistBio && (
-                        <p className="text-xs text-smoke-dim italic mt-1 leading-relaxed">{post.specialistBio}</p>
-                      )}
-                    </div>
+                  <div className="community-ama-strip">
+                    <span className="eyebrow sm text-oxblood">Ask Me Anything</span>
+                    <span className="eyebrow sm text-smoke-dim">specialist thread</span>
                   </div>
                 )}
                 <div className="flex items-center gap-3 mb-4">
@@ -452,28 +446,35 @@ const CommunityPostDetail = () => {
                     <span className="eyebrow sm text-smoke-dim">thread closed — this question has been answered</span>
                   </div>
                 ) : user ? (
-                  <NewsPanel className="p-4 mb-4">
-                    <div className="flex gap-3 items-start">
+                  <NewsPanel
+                    as="form"
+                    className="community-reply-composer mb-4"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleAddComment();
+                    }}
+                  >
+                    <div className="community-reply-composer__header">
                       <UserAvatar name={user.username || ''} accountType={user.accountType} size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <NewsTextarea
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          placeholder={isAMA ? 'ask your question...' : isQuestion ? 'write your answer...' : 'add a reply...'}
-                          rows="2"
-                          className="leading-relaxed"
-                        />
-                        <div className="flex justify-end mt-2">
-                          <button
-                            onClick={handleAddComment}
-                            disabled={!newComment.trim() || submitting}
-                            className="flex items-center gap-1.5 px-3 py-1.5 btn disabled:opacity-40 text-xs font-semibold uppercase tracking-wide transition-all"
-                          >
-                            <Send className="w-3 h-3" />
-                            {submitting ? '...' : isAMA ? 'ask' : isQuestion ? 'answer' : 'reply'}
-                          </button>
-                        </div>
-                      </div>
+                      <p className="eyebrow sm text-smoke">{replyLabel}</p>
+                    </div>
+                    <NewsTextarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder={isAMA ? 'ask your question...' : isQuestion ? 'write your answer...' : 'add a reply...'}
+                      rows="3"
+                      className="community-reply-composer__textarea leading-relaxed"
+                    />
+                    <div className="community-reply-composer__footer">
+                      <span className="eyebrow sm text-smoke-dim">{commentCount === 0 ? emptyReplyCue : 'join thread'}</span>
+                      <button
+                        type="submit"
+                        disabled={!newComment.trim() || submitting}
+                        className="btn mono disabled:opacity-40"
+                      >
+                        <Send className="w-3 h-3" />
+                        {submitting ? '...' : replyAction}
+                      </button>
                     </div>
                     {error && <p className="text-xs text-oxblood mt-2">{error}</p>}
                   </NewsPanel>

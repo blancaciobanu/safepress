@@ -77,7 +77,7 @@ const Intro = ({ onDone }) => {
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.55, ease }}
-        className="w-16 h-16 rounded-full bg-oxblood/[0.08] border border-oxblood/20 flex items-center justify-center mb-8"
+        className="w-16 h-16 bg-oxblood/[0.08] border border-oxblood/20 flex items-center justify-center mb-8"
       >
         <Shield className="w-8 h-8 text-oxblood" />
       </motion.div>
@@ -139,11 +139,6 @@ const Intro = ({ onDone }) => {
   );
 };
 
-const fmt = (iso) => {
-  try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
-  catch { return null; }
-};
-
 const scoreColor = (s) => s >= 70 ? 'text-ink' : s >= 50 ? 'text-brass' : 'text-oxblood';
 const scoreLabel = (s) => s >= 70 ? 'strong' : s >= 50 ? 'moderate' : 'weak';
 
@@ -152,7 +147,7 @@ const CATEGORY_ORDER = ['password', 'device', 'communication', 'data', 'physical
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const Avatar = () => (
-  <div className="w-8 h-8 rounded-full bg-oxblood flex items-center justify-center flex-shrink-0">
+  <div className="w-8 h-8 bg-oxblood flex items-center justify-center flex-shrink-0">
     <Shield className="w-4 h-4 text-paper" />
   </div>
 );
@@ -172,10 +167,39 @@ const AiMessage = ({ content, streaming }) => (
 
 const UserMessage = ({ content }) => (
   <div className="flex justify-end">
-    <div className="max-w-[55%] bg-oxblood text-paper px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed">
+    <div className="max-w-[85%] sm:max-w-[55%] bg-oxblood text-paper px-4 py-3 rounded-sm text-sm leading-relaxed">
       {content}
     </div>
   </div>
+);
+
+const AegisDeskPlate = ({ hasScores, latest }) => (
+  <section className="aegis-desk-plate">
+    <div className="news-page-topline">
+      <span className="eyebrow sm text-oxblood">Aegis desk</span>
+      <span className="eyebrow sm text-smoke">Digital security advisor for journalists</span>
+    </div>
+
+    <div className="aegis-desk-plate__body">
+      <Avatar />
+      <div className="min-w-0">
+        <h1 className="display-soft text-3xl md:text-4xl leading-none text-ink">
+          Aegis<span className="italic-ox">.</span>
+        </h1>
+        <p className="mt-3 max-w-[42rem] text-sm md:text-base leading-relaxed text-smoke">
+          A quiet advisory desk for turning your SafePress profile into practical security judgment.
+        </p>
+      </div>
+      {hasScores && (
+        <div className="aegis-desk-plate__score">
+          <p className={`display-soft text-2xl num leading-none ${scoreColor(latest.score)}`}>
+            {latest.score}<span className="text-smoke text-sm">/100</span>
+          </p>
+          <p className="eyebrow sm text-smoke mt-1">{latest.riskLevel ?? ''} risk</p>
+        </div>
+      )}
+    </div>
+  </section>
 );
 
 // ── Page ─────────────────────────────────────────────────────────────────────
@@ -336,30 +360,6 @@ const AIAdvisor = () => {
         {showIntro && <Intro onDone={() => setShowIntro(false)} />}
       </AnimatePresence>
 
-      {/* ── Global header ────────────────────────────────────────────── */}
-      <div className="flex-none border-b border-ink/[0.12] bg-paper-soft/90 backdrop-blur-sm px-6 md:px-10 lg:px-14">
-        <div className="max-w-[1400px] mx-auto py-3 flex items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <Avatar />
-            <div>
-              <p className="display-soft text-[1.05rem] text-ink leading-none">
-                Aegis&nbsp;
-                <span className="text-smoke font-sans text-sm font-normal">by SafePress</span>
-              </p>
-              <p className="eyebrow sm text-smoke mt-0.5">Digital security advisor for journalists</p>
-            </div>
-          </div>
-          {hasScores && (
-            <div className="hidden sm:flex items-center gap-6 text-right">
-              <div>
-                <p className={`display-soft text-2xl num leading-none ${scoreColor(latest.score)}`}>{latest.score}<span className="text-smoke text-sm">/100</span></p>
-                <p className="eyebrow sm text-smoke mt-0.5">{latest.riskLevel ?? ''} risk · {fmt(latest.completedAt)}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* ── Body: chat + sidebar ─────────────────────────────────────── */}
       <div className="flex-1 overflow-hidden flex max-w-[1400px] w-full mx-auto">
 
@@ -368,6 +368,7 @@ const AIAdvisor = () => {
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 md:px-10 lg:px-14 py-8 space-y-6">
+            <AegisDeskPlate hasScores={hasScores} latest={latest} />
 
             {/* No-quiz notice */}
             {!hasScores && (
@@ -409,7 +410,7 @@ const AIAdvisor = () => {
 
           {/* Input */}
           <div className="flex-none border-t border-ink/[0.1] bg-paper px-6 md:px-10 lg:px-14 py-4">
-            <div className="flex gap-3 items-end border border-ink/[0.14] bg-paper-soft rounded-2xl px-4 py-3 focus-within:border-oxblood/40 transition-colors">
+            <div className="flex gap-3 items-end border border-ink/[0.14] bg-paper-soft rounded-sm px-4 py-3 focus-within:border-oxblood/40 transition-colors">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -426,7 +427,7 @@ const AIAdvisor = () => {
               <button
                 onClick={() => handleSend(input)}
                 disabled={streaming || !input.trim()}
-                className="flex-shrink-0 w-8 h-8 rounded-full bg-oxblood flex items-center justify-center text-paper hover:opacity-85 disabled:opacity-30 transition-opacity"
+                className="flex-shrink-0 w-8 h-8 rounded-sm bg-oxblood flex items-center justify-center text-paper hover:opacity-85 disabled:opacity-30 transition-opacity"
                 aria-label="Send"
               >
                 <ArrowUp className="w-4 h-4" />
@@ -481,7 +482,7 @@ const AIAdvisor = () => {
           )}
 
           {/* Suggested questions */}
-          {briefDone && chips.length > 0 && (
+          {hasScores && briefDone && chips.length > 0 && (
             <div>
               <p className="eyebrow sm text-smoke border-b border-ink/[0.12] pb-3 mb-4">Quick questions</p>
               <ul className="space-y-2">

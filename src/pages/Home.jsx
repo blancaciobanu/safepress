@@ -62,16 +62,16 @@ const RailInstrument = ({ instrument, index }) => (
     className="py-5 first:pt-0 last:pb-0"
   >
     <Link to={instrument.to} className="group block">
-      <p className="caption uppercase tracking-[0.2em] text-[0.62rem] text-[color:var(--color-ink)]/65 group-hover:text-[color:var(--color-oxblood)] transition-colors">
+      <p className="caption uppercase tracking-[0.2em] text-[0.62rem] text-ink/65 group-hover:text-oxblood transition-colors">
         {instrument.kicker}
       </p>
-      <h3 className="display-soft text-xl text-[color:var(--color-ink)] mt-2 group-hover:text-[color:var(--color-oxblood)] transition-colors leading-tight">
+      <h3 className="display-soft text-xl text-ink mt-2 group-hover:text-oxblood transition-colors leading-tight">
         {instrument.title}
       </h3>
-      <p className="mt-2 text-sm leading-relaxed text-[color:var(--color-ink-soft)]">
+      <p className="mt-2 text-sm leading-relaxed text-ink-soft">
         {instrument.body}
       </p>
-      <span className="mt-3 inline-flex items-center gap-1 caption uppercase tracking-[0.18em] text-[0.65rem] text-[color:var(--color-ink)]/85 group-hover:text-[color:var(--color-oxblood)] transition-colors whitespace-nowrap">
+      <span className="mt-3 inline-flex items-center gap-1 caption uppercase tracking-[0.18em] text-[0.65rem] text-ink/85 group-hover:text-oxblood transition-colors whitespace-nowrap">
         {instrument.cta}
         <ArrowRight className="w-3 h-3" />
       </span>
@@ -81,11 +81,11 @@ const RailInstrument = ({ instrument, index }) => (
 
 const SidebarStat = ({ label, value, detail, tone }) => (
   <li className="py-5 first:pt-0 last:pb-0">
-    <p className="eyebrow text-[color:var(--color-smoke)] text-[0.62rem]">{label}</p>
+    <p className="eyebrow text-smoke text-[0.62rem]">{label}</p>
     <p className="display-soft num mt-2 text-3xl md:text-[2rem]" style={{ color: tone || 'var(--color-ink)' }}>
       {value}
     </p>
-    <p className="mt-2 text-sm leading-snug text-[color:var(--color-smoke)]">
+    <p className="mt-2 text-sm leading-snug text-smoke">
       {detail}
     </p>
   </li>
@@ -99,21 +99,21 @@ const CompactFieldSignal = ({ label, title, excerpt, href, meta, external = fals
 
   return (
     <Wrapper {...props} className="group block py-5 first:pt-0 last:pb-0">
-      <p className="caption uppercase tracking-[0.2em] text-[0.62rem] text-[color:var(--color-ink)]/65 group-hover:text-[color:var(--color-oxblood)] transition-colors">
+      <p className="caption uppercase tracking-[0.2em] text-[0.62rem] text-ink/65 group-hover:text-oxblood transition-colors">
         {label}
       </p>
-      <h4 className="display-soft mt-2 text-lg text-[color:var(--color-ink)] group-hover:text-[color:var(--color-oxblood)] transition-colors leading-tight">
+      <h4 className="display-soft mt-2 text-lg text-ink group-hover:text-oxblood transition-colors leading-tight">
         {title}
       </h4>
-      <p className="mt-2 text-sm leading-snug text-[color:var(--color-ink-soft)]">
+      <p className="mt-2 text-sm leading-snug text-ink-soft">
         {excerpt}
       </p>
       {meta && (
-        <p className="mt-2 caption uppercase tracking-[0.18em] text-[0.6rem] text-[color:var(--color-smoke)]">
+        <p className="mt-2 caption uppercase tracking-[0.18em] text-[0.6rem] text-smoke">
           {meta}
         </p>
       )}
-      <span className="mt-3 inline-flex items-center gap-1 caption uppercase tracking-[0.18em] text-[0.65rem] text-[color:var(--color-ink)]/85 group-hover:text-[color:var(--color-oxblood)] transition-colors whitespace-nowrap">
+      <span className="mt-3 inline-flex items-center gap-1 caption uppercase tracking-[0.18em] text-[0.65rem] text-ink/85 group-hover:text-oxblood transition-colors whitespace-nowrap">
         {actionLabel}
         <ArrowUpRight className="w-3 h-3" />
       </span>
@@ -176,7 +176,7 @@ const Home = () => {
   const mastheadDateline = formatMastheadDate(new Date());
 
   return (
-    <div className="surface-paper -mt-20 pt-20 min-h-screen text-[color:var(--color-ink-soft)]">
+    <div className="surface-paper -mt-20 pt-20 min-h-screen text-ink-soft">
 
       {/* ─── §01  Front page (broadsheet) ─────────────────────────────── */}
       <section className="pt-6 md:pt-10 pb-16 md:pb-20">
@@ -190,10 +190,10 @@ const Home = () => {
             className="broadsheet-masthead"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-y-2 pt-3 pb-3">
-              <span className="caption uppercase tracking-[0.22em] text-[color:var(--color-smoke)] text-[0.65rem] md:text-[0.7rem]">
+              <span className="caption uppercase tracking-[0.22em] text-smoke text-[0.65rem] md:text-[0.7rem]">
                 {mastheadDateline || 'Monday, May 11, 2026'}
               </span>
-              <span className="caption uppercase tracking-[0.22em] text-[color:var(--color-smoke)] text-[0.65rem] md:text-[0.7rem]">
+              <span className="caption uppercase tracking-[0.22em] text-smoke text-[0.65rem] md:text-[0.7rem]">
                 Vol. I &nbsp;·&nbsp; № 01
               </span>
             </div>
@@ -208,31 +208,31 @@ const Home = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8, height: 0, marginTop: 0 }}
                 transition={{ duration: 0.4, ease }}
-                className="mt-8 md:mt-10 bg-[color:var(--color-ink)] text-[color:var(--color-paper)] rounded-[1rem] px-5 py-4 md:px-7 md:py-5 grid md:grid-cols-12 gap-4 md:gap-8 items-center"
+                className="mt-8 md:mt-10 bg-ink text-paper rounded-sm px-5 py-4 md:px-7 md:py-5 grid md:grid-cols-12 gap-4 md:gap-8 items-center"
               >
                 <div className="md:col-span-2 flex items-center gap-3">
-                  <AlertTriangle className="w-4 h-4 text-[color:var(--color-brass-soft)]" />
-                  <span className="eyebrow text-[color:var(--color-paper-dim)]">Emergency rail</span>
+                  <AlertTriangle className="w-4 h-4 text-brass-soft" />
+                  <span className="eyebrow text-paper-dim">Emergency rail</span>
                 </div>
                 <div className="md:col-span-7">
-                  <p className="display-soft text-[color:var(--color-paper)] text-xl md:text-[1.75rem] leading-tight max-w-[34ch]">
+                  <p className="display-soft text-paper text-xl md:text-[1.75rem] leading-tight max-w-[34ch]">
                     Source exposed? Account compromised? Go straight to crisis mode.
                   </p>
-                  <p className="mt-2 md:mt-3 text-sm leading-relaxed text-[color:var(--color-paper-dim)] max-w-[42rem]">
+                  <p className="mt-2 md:mt-3 text-sm leading-relaxed text-paper-dim max-w-[42rem]">
                     Four scenario protocols, written for the first ten minutes and kept available without an account.
                   </p>
                 </div>
                 <div className="md:col-span-3 flex md:flex-col md:items-end md:justify-between gap-3 md:gap-2">
                   <button
                     onClick={openOverlay}
-                    className="group inline-flex items-center gap-2 px-3.5 py-2 rounded-full border border-[color:var(--color-paper)]/20 text-[color:var(--color-paper)] hover:bg-[color:var(--color-paper)]/8 transition-colors whitespace-nowrap"
+                    className="group inline-flex items-center gap-2 px-3.5 py-2 rounded-sm border border-paper/20 text-paper hover:bg-paper/8 transition-colors whitespace-nowrap"
                   >
                     <span className="display-soft text-base">Open crisis mode</span>
                     <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                   </button>
                   <button
                     onClick={dismissEmergency}
-                    className="caption uppercase tracking-[0.18em] text-[color:var(--color-paper-dim)]/65 hover:text-[color:var(--color-paper)] transition-colors inline-flex items-center gap-1.5 whitespace-nowrap"
+                    className="caption uppercase tracking-[0.18em] text-paper-dim/65 hover:text-paper transition-colors inline-flex items-center gap-1.5 whitespace-nowrap"
                     aria-label="Dismiss emergency rail"
                   >
                     <X className="w-3 h-3" /> Not in crisis
@@ -247,24 +247,24 @@ const Home = () => {
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.1, delay: 0.15, ease }}
-            className="display text-[color:var(--color-ink)] mt-12 md:mt-16 text-[2.5rem] sm:text-5xl md:text-7xl lg:text-[6.25rem] xl:text-[7.25rem] max-w-[22ch] leading-[0.96] tracking-[-0.015em]"
+            className="display text-ink mt-12 md:mt-16 text-[2.5rem] sm:text-5xl md:text-7xl lg:text-[6.25rem] xl:text-[7.25rem] max-w-[22ch] leading-[0.96] tracking-[-0.015em]"
           >
             {heroHeadingNode}
             {!user && <span className="ink-caret" aria-hidden="true" />}
           </motion.h1>
 
           {/* Broadsheet body: rail | center lead | sidebar */}
-          <div className="mt-10 md:mt-14 grid md:grid-cols-12 gap-y-12 gap-x-0 md:border-t md:border-[color:var(--color-ink)]/25">
+          <div className="mt-10 md:mt-14 grid md:grid-cols-12 gap-y-12 gap-x-0 md:border-t md:border-ink/25">
 
             {/* LEFT — instruments rail */}
             <motion.aside
               {...fadeUp}
-              className="md:col-span-3 md:order-1 order-2 md:border-r md:border-[color:var(--color-ink)]/15 md:pr-6 lg:pr-8 md:pt-7"
+              className="md:col-span-3 md:order-1 order-2 md:border-r md:border-ink/15 md:pr-6 lg:pr-8 md:pt-7"
             >
-              <p className="caption uppercase tracking-[0.22em] text-[color:var(--color-smoke)] text-[0.65rem] pb-3 border-b border-[color:var(--color-ink)]/25">
+              <p className="caption uppercase tracking-[0.22em] text-smoke text-[0.65rem] pb-3 border-b border-ink/25">
                 The instruments
               </p>
-              <ol className="mt-2 divide-y divide-[color:var(--color-ink)]/15">
+              <ol className="mt-2 divide-y divide-ink/15">
                 {pageModel.instruments.map((instrument, index) => (
                   <RailInstrument key={instrument.title} instrument={instrument} index={index} />
                 ))}
@@ -280,8 +280,8 @@ const Home = () => {
                 transition={{ duration: 0.9, ease }}
               >
                 <div className="halftone-placeholder" />
-                <figcaption className="mt-3 leading-snug text-sm text-[color:var(--color-smoke)] italic">
-                  <span className="not-italic caption uppercase tracking-[0.22em] text-[color:var(--color-ink)]/75 text-[0.65rem] mr-2">
+                <figcaption className="mt-3 leading-snug text-sm text-smoke italic">
+                  <span className="not-italic caption uppercase tracking-[0.22em] text-ink/75 text-[0.65rem] mr-2">
                     Photo
                   </span>
                   A reporter&apos;s desk in the quiet before filing.
@@ -290,7 +290,7 @@ const Home = () => {
 
               <motion.div
                 {...fadeUp}
-                className="broadsheet-columns mt-8 md:mt-10 text-base leading-relaxed text-[color:var(--color-ink-soft)]"
+                className="broadsheet-columns mt-8 md:mt-10 text-base leading-relaxed text-ink-soft"
               >
                 <p>{heroLede}</p>
                 {heroLedeBody ? <p>{heroLedeBody}</p> : null}
@@ -299,13 +299,13 @@ const Home = () => {
               {user ? (
                 <motion.div
                   {...fadeUp}
-                  className="mt-8 md:mt-10 pt-7 border-t border-[color:var(--color-ink)]/25"
+                  className="mt-8 md:mt-10 pt-7 border-t border-ink/25"
                 >
-                  <p className="eyebrow text-[color:var(--color-smoke)]">{pageModel.activity.label}</p>
-                  <p className="display-soft mt-2 text-xl md:text-2xl text-[color:var(--color-ink)] leading-snug max-w-[34ch]">
+                  <p className="eyebrow text-smoke">{pageModel.activity.label}</p>
+                  <p className="display-soft mt-2 text-xl md:text-2xl text-ink leading-snug max-w-[34ch]">
                     {pageModel.activity.title}
                   </p>
-                  <p className="mt-3 text-sm md:text-base leading-relaxed text-[color:var(--color-smoke)] max-w-[42rem]">
+                  <p className="mt-3 text-sm md:text-base leading-relaxed text-smoke max-w-[42rem]">
                     {pageModel.activity.detail}
                   </p>
                   {pageModel.nextAction && (
@@ -318,7 +318,7 @@ const Home = () => {
               ) : (
                 <motion.div
                   {...fadeUp}
-                  className="mt-8 md:mt-10 pt-7 border-t border-[color:var(--color-ink)]/25 flex flex-wrap items-baseline gap-x-8 gap-y-3"
+                  className="mt-8 md:mt-10 pt-7 border-t border-ink/25 flex flex-wrap items-baseline gap-x-8 gap-y-3"
                 >
                   {pageModel.hero.actions.map((action) => (
                     <Link
@@ -337,13 +337,13 @@ const Home = () => {
             {/* RIGHT — sidebar */}
             <motion.aside
               {...fadeUp}
-              className="md:col-span-3 md:order-3 order-3 md:border-l md:border-[color:var(--color-ink)]/15 md:pl-6 lg:pl-8 md:pt-7"
+              className="md:col-span-3 md:order-3 order-3 md:border-l md:border-ink/15 md:pl-6 lg:pl-8 md:pt-7"
             >
               <div>
-                <p className="caption uppercase tracking-[0.22em] text-[color:var(--color-smoke)] text-[0.65rem] pb-3 border-b border-[color:var(--color-ink)]/25">
+                <p className="caption uppercase tracking-[0.22em] text-smoke text-[0.65rem] pb-3 border-b border-ink/25">
                   By the numbers
                 </p>
-                <ul className="mt-2 divide-y divide-[color:var(--color-ink)]/15">
+                <ul className="mt-2 divide-y divide-ink/15">
                   {pageModel.metrics.map((metric) => (
                     <SidebarStat
                       key={metric.label}
@@ -356,11 +356,11 @@ const Home = () => {
                 </ul>
               </div>
 
-              <div className="mt-10 pt-7 border-t border-[color:var(--color-ink)]/25">
-                <p className="caption uppercase tracking-[0.22em] text-[color:var(--color-smoke)] text-[0.65rem] pb-3 border-b border-[color:var(--color-ink)]/25">
+              <div className="mt-10 pt-7 border-t border-ink/25">
+                <p className="caption uppercase tracking-[0.22em] text-smoke text-[0.65rem] pb-3 border-b border-ink/25">
                   From the field
                 </p>
-                <div className="mt-2 divide-y divide-[color:var(--color-ink)]/15">
+                <div className="mt-2 divide-y divide-ink/15">
                   <CompactFieldSignal
                     label={externalSignal.label}
                     title={externalSignal.title}
@@ -394,7 +394,7 @@ const Home = () => {
       </section>
 
       {/* ─── Continue ──────────────────────────────────────────────────── */}
-      <section className="-mx-6 md:-mx-10 lg:-mx-14 px-6 md:px-10 lg:px-14 pt-16 md:pt-24 pb-16 md:pb-20 bg-[color:var(--color-ink)] text-[color:var(--color-paper)]">
+      <section className="-mx-6 md:-mx-10 lg:-mx-14 px-6 md:px-10 lg:px-14 pt-16 md:pt-24 pb-16 md:pb-20 bg-ink text-paper">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-12 gap-8 md:gap-10">
 
           <motion.div {...fadeUp} className="md:col-span-3">
@@ -407,10 +407,10 @@ const Home = () => {
           </motion.div>
 
           <motion.div {...fadeUp} className="md:col-span-9">
-            <p className="display text-[color:var(--color-paper)] text-4xl md:text-5xl lg:text-6xl max-w-[16ch] leading-[0.98]">
+            <p className="display text-paper text-4xl md:text-5xl lg:text-6xl max-w-[16ch] leading-[0.98]">
               {pageModel.closing.heading}
             </p>
-            <p className="mt-6 text-base md:text-lg leading-relaxed text-[color:var(--color-paper-dim)] max-w-[42rem]">
+            <p className="mt-6 text-base md:text-lg leading-relaxed text-paper-dim max-w-[42rem]">
               {pageModel.closing.lead}
             </p>
             <Link

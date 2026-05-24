@@ -223,12 +223,12 @@ const Community = () => {
         {/* ── Header ─────────────────────────────────────────────── */}
         <motion.header initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
-          <div className="flex items-baseline justify-between pb-3">
+          <div className="news-page-topline">
             <span className="eyebrow sm text-oxblood">The newsroom board</span>
             <span className="eyebrow sm">{!loading && `${posts.length} posts`}</span>
           </div>
           <NewsRule />
-          <div className="mt-8 max-w-prose">
+          <div className="mt-10 max-w-prose">
             <h1 className="display text-4xl md:text-6xl leading-none">
               Letters to <em className="italic-ox">the editor.</em>
             </h1>

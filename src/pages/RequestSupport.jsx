@@ -197,13 +197,13 @@ const RequestSupport = () => {
     });
 
     return (
-      <NewsPage >
+      <NewsPage>
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="flex items-baseline justify-between pb-3">
+          <div className="news-page-topline">
             <span className="eyebrow sm text-oxblood">Form SP-S · Request filed</span>
             <span className="eyebrow sm">
               Filed · {filedStr} UTC
@@ -277,7 +277,7 @@ const RequestSupport = () => {
     : 'Specialists on call';
 
   return (
-    <NewsPage >
+    <NewsPage>
       <PrivacyGuardModal
         open={Boolean(pendingPrivacyReview)}
         title="Review the redacted drafting notes"
@@ -300,7 +300,7 @@ const RequestSupport = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex items-baseline justify-between pb-3">
+        <div className="news-page-topline">
           <span className="eyebrow sm text-oxblood">
             Form SP-S — Specialist support request
           </span>

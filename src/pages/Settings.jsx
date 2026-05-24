@@ -240,21 +240,21 @@ const Settings = () => {
   const currentSection = SECTIONS.find((s) => s.id === section);
 
   return (
-    <NewsPage >
+    <NewsPage>
       {/* Personnel header — typographic only. No manila tab, no shadow stack. */}
       <motion.header
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex items-baseline justify-between pb-3">
+        <div className="news-page-topline">
           <span className="eyebrow sm">Personnel · {user.username || 'Unverified'}</span>
           <span className="eyebrow sm">Account file</span>
         </div>
         <NewsRule />
 
-        <div className="mt-6 mb-8 max-w-prose">
-          <h1 className="display text-3xl md:text-4xl leading-none">
+        <div className="mt-10 mb-10 max-w-prose">
+          <h1 className="display text-4xl md:text-5xl leading-none">
             Account settings<span className="italic-ox">.</span>
           </h1>
           <p className="mt-3 text-base leading-relaxed text-smoke">

@@ -158,7 +158,7 @@ const SupportCaseDesk = () => {
     return (
       <NewsPage className="specialist-casefile" max="reading">
         <div className="space-y-6">
-          <div className="flex items-baseline justify-between pb-3">
+          <div className="news-page-topline">
             <span className="eyebrow sm text-oxblood">Support case desk</span>
             <button onClick={() => navigate('/request-support')} className="eyebrow sm text-smoke hover:text-ink-soft transition-colors">
               back to support
@@ -182,7 +182,7 @@ const SupportCaseDesk = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex items-baseline justify-between pb-3">
+        <div className="news-page-topline">
           <span className="eyebrow sm text-oxblood">Support case desk</span>
           <Link to="/request-support" className="eyebrow sm text-smoke hover:text-ink-soft transition-colors">
             request another case

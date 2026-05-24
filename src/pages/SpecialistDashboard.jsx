@@ -314,7 +314,7 @@ const SpecialistDashboard = () => {
 
   if (loading || !isSpecialist) {
     return (
-      <NewsPage >
+      <NewsPage>
         <div className="flex items-center justify-center py-32">
           <div className="text-center">
             <div className="w-6 h-6 border-2 border-ink border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -579,7 +579,7 @@ const SpecialistDashboard = () => {
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           className="specialist-desk__header"
         >
-          <div className="flex items-baseline justify-between pb-3">
+          <div className="news-page-topline">
             <span className="eyebrow sm text-oxblood">Specialist Desk · Casework queue</span>
             <span className="eyebrow sm">{openReqs.length + myActiveReqs.length + resolved.length} tracked cases</span>
           </div>

@@ -295,7 +295,7 @@ const SpecialistCaseFile = () => {
     return (
       <NewsPage className="specialist-casefile" max="reading">
         <div className="space-y-6">
-          <div className="flex items-baseline justify-between pb-3">
+          <div className="news-page-topline">
             <span className="eyebrow sm text-oxblood">Specialist Desk · Case file</span>
             <Link to="/specialist-dashboard" className="eyebrow sm text-smoke hover:text-ink-soft transition-colors">
               back to desk
@@ -326,7 +326,7 @@ const SpecialistCaseFile = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex items-baseline justify-between pb-3">
+        <div className="news-page-topline">
           <span className="eyebrow sm text-oxblood">Specialist Desk · Case file</span>
           <button onClick={() => navigate('/specialist-dashboard')} className="eyebrow sm text-smoke hover:text-ink-soft transition-colors">
             back to desk

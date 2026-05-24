@@ -37,11 +37,12 @@
 - **Tailwind CSS v4** - Utility-first styling with CSS-native `@theme`
 
 ### AI
-- **@anthropic-ai/sdk** - Claude API integration (client-side, `dangerouslyAllowBrowser: true`)
-  - Model: `claude-haiku-4-5-20251001`
-  - Streaming via `client.messages.stream()` + `.on('text', handler)`
-  - API key: `VITE_ANTHROPIC_API_KEY` in `.env` (never commit this file)
-  - For production: move to a Firebase Cloud Function to avoid key exposure
+- **Firebase Cloud Functions** — all Claude API calls are server-side (no client-side API key)
+  - AI Advisor: `streamMessage` callable streams a chat response back to the browser
+  - Threat Model: `requestThreatModelReport` callable returns a structured threat analysis
+  - Support drafting: callable redacts PII from user notes before passing to the model
+  - Model: `claude-haiku-4-5-20251001` (configured in the function, not the client)
+- **Privacy Guard** — `src/features/ai/services/privacyGuard.js` runs client-side before any submission: detects email, phone, URL, location, and name patterns; produces a redacted preview; `PrivacyGuardModal.jsx` shows this preview and requires explicit confirmation
 
 ### Backend & Services
 - **Firebase** - Backend-as-a-Service
@@ -77,10 +78,14 @@
 │  └──────────────────────────────────────────────────┘   │
 │                          │                               │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  Feature Services                                │   │
-│  │  - supportService (support request workflow)     │   │
+│  │  Feature Services & Hooks                        │   │
+│  │  - supportService (workflow + case messaging)    │   │
 │  │  - adminService (reports + verification)         │   │
-│  │  - userService (profile reads / reapply)         │   │
+│  │  - aiService (Firebase callable wrappers)        │   │
+│  │  - privacyGuard (client-side PII detection)      │   │
+│  │  - communityService (posts, comments, reports)   │   │
+│  │  - simulationService (confidence progress)       │   │
+│  │  - userService + accountRouting (profile, auth)  │   │
 │  └──────────────────────────────────────────────────┘   │
 │                          │                               │
 │  ┌──────────────────────────────────────────────────┐   │
@@ -122,9 +127,9 @@
    Save to Firestore → Update Dashboard
    ```
 
-3. **Dashboard Display**:
+3. **Home Brief (signed-in state)**:
    ```
-   User Login → Dashboard → Fetch from Firestore → Display Scores/Recommendations
+   User Login → Home → useHomeData → Fetch from Firestore → Display Brief + Scores
    ```
 
 4. **Support Workflow**:
@@ -327,90 +332,118 @@ safepress/
 ├── src/
 │   ├── components/
 │   │   ├── layout/
-│   │   │   ├── Header.jsx           # Navigation header with auth UI
-│   │   │   ├── Footer.jsx           # Footer component
-│   │   │   └── MainLayout.jsx       # Layout wrapper (Outlet)
-│   │   ├── ProtectedRoute.jsx       # Route guard for auth
-│   │   ├── ProtectedAdminRoute.jsx  # Admin-only route guard
-│   │   └── VerifiedBadge.jsx        # Specialist verification badge
+│   │   │   ├── Header.jsx               # Navigation header with auth UI + notifications
+│   │   │   └── MainLayout.jsx           # Layout wrapper (Outlet)
+│   │   ├── editorial/
+│   │   │   ├── NewsPage.jsx             # Shared editorial design-system primitives (NewsCard, NewsButton, etc.)
+│   │   │   └── RotatingType.jsx         # Rotating typography animation used on Home
+│   │   ├── CrisisOverlay.jsx            # Fullscreen crisis mode overlay (4 scenarios)
+│   │   ├── PageLoader.jsx               # Full-page loading spinner
+│   │   ├── ProtectedRoute.jsx           # Route guard: redirect to /login if unauthenticated
+│   │   ├── ProtectedAdminRoute.jsx      # Route guard: redirect unless admin custom claim
+│   │   ├── RouteLoader.jsx              # Shared Suspense fallback for lazy routes
+│   │   └── VerifiedBadge.jsx            # Specialist verification badge
+│   │
+│   ├── config/
+│   │   ├── externalResources.js         # RSS feed URLs used by useNewsArticles
+│   │   ├── firebaseCollections.js       # Centralized Firestore collection name constants
+│   │   └── security.js                  # Password rules, support types, community categories
 │   │
 │   ├── contexts/
-│   │   └── AuthContext.jsx          # Authentication state & methods
+│   │   ├── AuthContext.jsx              # Authentication state & methods
+│   │   └── CrisisContext.jsx            # Crisis overlay open/scenario state
 │   │
 │   ├── firebase/
-│   │   └── config.js                # Firebase initialization (uses env vars)
+│   │   └── config.js                    # Firebase initialization (uses env vars)
 │   │
 │   ├── features/
-│   │   ├── admin/
-│   │   │   └── services/
-│   │   │       └── adminService.js      # Reports + specialist verification Firestore logic
-│   │   ├── community/
-│   │   │   ├── components/             # AuthorLine, AuthorProfileModal, modals, UserAvatar
-│   │   │   ├── hooks/                  # useCommunityPosts, useFollowedPosts, useNewPost, etc.
-│   │   │   └── services/
-│   │   │       └── communityService.js  # Posts, comments subcollection, reports
+│   │   ├── admin/services/
+│   │   │   └── adminService.js          # Reports + specialist verification Firestore logic
 │   │   ├── ai/
+│   │   │   ├── components/
+│   │   │   │   └── PrivacyGuardModal.jsx  # Consent modal: shows redacted preview, requires confirmation
 │   │   │   └── services/
-│   │   │       └── aiService.js         # Anthropic client, system prompt builder, stream handler
-│   │   ├── dashboard/
-│   │   │   └── hooks/
-│   │   │       └── useDashboardData.js  # myRequests state, feedback, email verification handlers
+│   │   │       ├── aiService.js         # Firebase callable wrappers + system prompt builder
+│   │   │       └── privacyGuard.js      # PII detection rules + text redaction
+│   │   ├── community/
+│   │   │   ├── components/              # AuthorLine, AuthorProfileModal, DeleteConfirmModal, ReportModal, UserAvatar
+│   │   │   ├── hooks/                   # useAMAs, useAuthorProfile, useCommunityPosts, useFollowedPosts, useNewPost, usePostComments, useReportDialog
+│   │   │   └── services/
+│   │   │       ├── amaService.js        # AMA post create/list (type='ama' community posts)
+│   │   │       └── communityService.js  # Posts, comments subcollection, reports
 │   │   ├── home/
 │   │   │   ├── hooks/
-│   │   │   │   └── useHomeData.js      # Field signal + journalist/specialist data loading
+│   │   │   │   └── useHomeData.js       # Field signal + journalist/specialist data loading
 │   │   │   └── services/
-│   │   │       ├── homeService.js      # Firebase data fetching for Home page
-│   │   │       └── homePageModel.jsx   # Pure brief builders + instruments data (no Firebase)
+│   │   │       ├── homeService.js       # Firebase data fetching for Home page
+│   │   │       └── homePageModel.jsx    # Pure brief builders returning JSX nodes (no Firebase)
 │   │   ├── news/
-│   │   │   ├── NewsSidebar.jsx         # External news sidebar component
-│   │   │   └── useNewsArticles.js      # News articles hook
+│   │   │   ├── NewsSidebar.jsx          # Security news sidebar rendered on Home/Community
+│   │   │   └── useNewsArticles.js       # RSS feed aggregation hook (merges multiple feeds)
 │   │   ├── notifications/
 │   │   │   ├── hooks/
-│   │   │   │   └── useNotifications.js # Notification count + panel state hook
+│   │   │   │   └── useNotifications.js  # Notification count + panel state
 │   │   │   └── services/
-│   │   │       └── notificationService.js # Firestore notification queries
-│   │   ├── setup/
-│   │   │   └── data/
-│   │   │       └── setupTasks.js       # Static task data, allTasks, TASKS_BY_ID, DEFAULT_TASK_ORDER
-│   │   ├── support/
-│   │   │   └── services/
-│   │   │       └── supportService.js   # Support request workflow Firestore logic
+│   │   │       └── notificationService.js  # Batched Firestore notification queries
+│   │   ├── resources/
+│   │   │   └── OSMockup.jsx             # Animated OS UI mockup for Resources OS guides
+│   │   ├── setup/data/
+│   │   │   └── setupTasks.js            # Static task data: allTasks, TASKS_BY_ID, DEFAULT_TASK_ORDER
+│   │   ├── simulations/services/
+│   │   │   └── simulationService.js     # Simulation confidence reads/writes to users/{uid}.simulationProgress
+│   │   ├── support/services/
+│   │   │   └── supportService.js        # Support request workflow + case messaging + SUPPORT_CASE_MARKERS
 │   │   └── users/
+│   │       ├── accountRouting.js        # Post-auth path: Welcome for new journalists, /specialist-verification redirect
+│   │       ├── verification.js          # SPECIALIST_VERIFICATION_STATUSES + dossier routing constants
 │   │       └── services/
-│   │           └── userService.js      # Private user + public profile helpers
+│   │           └── userService.js       # Private user reads, public profile writes, reapply callable
 │   │
 │   ├── utils/
-│   │   └── userUtils.js             # Anonymous identity generation
+│   │   ├── externalLinks.js             # External link helpers (CPJ, RSF, EFF, etc.)
+│   │   ├── logger.js                    # logError() — console.error in dev only, silent in production
+│   │   ├── time.js                      # Time formatting utilities
+│   │   └── userUtils.js                 # Anonymous identity generation (username + avatarIcon)
 │   │
 │   ├── pages/
-│   │   ├── Home.jsx                 # Landing page
-│   │   ├── AIAdvisor.jsx            # AI Security Advisor (protected, /ai-advisor)
-│   │   ├── Dashboard.jsx            # User dashboard (score + setup at a glance)
-│   │   ├── SecurityScore.jsx        # Security quiz (31 questions, 6 categories)
-│   │   ├── CrisisMode.jsx           # Emergency guidance (4 scenarios)
-│   │   ├── SecureSetup.jsx          # Interactive 31-task checklist
-│   │   ├── Resources.jsx            # OS guides, tools, AI security (3 tabs)
-│   │   ├── Community.jsx            # Discussions, stories, Q&A (3 tabs)
-│   │   ├── RequestSupport.jsx       # Crisis support request form
-│   │   ├── AdminDashboard.jsx       # Specialist verification management
-│   │   ├── Login.jsx                # Login page
-│   │   ├── Signup.jsx               # Registration (journalist or specialist)
-│   │   └── Settings.jsx             # User settings (protected)
+│   │   ├── Home.jsx                     # Dual-state landing (public editorial / signed-in brief)
+│   │   ├── AIAdvisor.jsx                # AI chat advisor — Aegis persona (protected, /ai-advisor)
+│   │   ├── ThreatModel.jsx              # AI threat model generator (protected, /threat-model)
+│   │   ├── Simulations.jsx              # Step-through security scenario training (/simulations)
+│   │   ├── MyCases.jsx                  # Journalist support request history (/my-cases)
+│   │   ├── SupportCaseDesk.jsx          # Journalist case detail + messaging (/support-cases/:requestId)
+│   │   ├── SpecialistCaseFile.jsx       # Specialist case file + messaging (/specialist-cases/:requestId)
+│   │   ├── SpecialistDashboard.jsx      # Specialist dashboard (/specialist-dashboard)
+│   │   ├── SpecialistVerification.jsx   # Specialist dossier form (/specialist-verification)
+│   │   ├── SecurityScore.jsx            # Security quiz (31 questions, 6 categories)
+│   │   ├── SecureSetup.jsx              # Interactive 31-task checklist
+│   │   ├── Resources.jsx                # OS guides, tools, AI security, source protection (tabs)
+│   │   ├── Community.jsx                # Discussions, Q&A, AMA with reporting + moderation
+│   │   ├── CommunityPostDetail.jsx      # Individual post + comments (/community/:postId)
+│   │   ├── CreatePost.jsx               # New community post form (/community/new)
+│   │   ├── RequestSupport.jsx           # Crisis support request form
+│   │   ├── AdminDashboard.jsx           # Specialist verification + community reports (/admin)
+│   │   ├── Welcome.jsx                  # Post-signup onboarding for new journalists (/welcome)
+│   │   ├── Settings.jsx                 # User settings (protected)
+│   │   ├── Login.jsx                    # Login page
+│   │   ├── Signup.jsx                   # Registration (journalist or specialist)
+│   │   ├── SourceProtection.jsx         # Redirect → /resources?tab=source-protection
+│   │   └── simulations.data.js          # Static scenario + confidence option data for Simulations
 │   │
-│   ├── App.jsx                      # Route definitions
-│   ├── main.jsx                     # App entry point
-│   └── index.css                    # Global styles + Tailwind v4 @theme
+│   ├── App.jsx                          # Route definitions (lazy-loaded pages + redirects)
+│   ├── main.jsx                         # App entry point
+│   └── index.css                        # Global styles + Tailwind v4 @theme
 │
-├── public/                          # Static assets
-├── .env                             # Firebase credentials (not in git)
-├── .firebaserc                      # Firebase project link
-├── firebase.json                    # Firebase CLI config
-├── firestore.rules                  # Firestore security rules
-├── firestore.indexes.json           # Firestore composite indexes
-├── index.html                       # HTML template
-├── package.json                     # Dependencies
-├── vite.config.js                   # Vite configuration
-└── TECHNICAL_DOCUMENTATION.md       # This file
+├── public/                              # Static assets
+├── .env                                 # Firebase credentials (not in git)
+├── .firebaserc                          # Firebase project link
+├── firebase.json                        # Firebase CLI config
+├── firestore.rules                      # Firestore security rules (deployed)
+├── firestore.indexes.json               # Firestore composite indexes (deployed)
+├── index.html                           # HTML template
+├── package.json                         # Dependencies
+├── vite.config.js                       # Vite configuration
+└── TECHNICAL_DOCUMENTATION.md          # This file
 ```
 
 ---
@@ -435,10 +468,15 @@ setDoc(doc(db, 'users', uid), {
   createdAt: ISO string,
   securityScores: [],
   accountType: 'journalist' | 'specialist',
-  // realName + verification fields only for specialists
+  // realName + verificationStatus only for specialists
 })
   ↓
-// Redirect to Dashboard
+// Post-auth routing (accountRouting.js)
+getPostAuthPath(user)
+  - journalist first login  → /welcome
+  - specialist unverified   → /specialist-verification
+  - specialist approved     → /specialist-dashboard
+  - otherwise               → /
 ```
 
 ### 2. User Login
@@ -456,7 +494,7 @@ getDoc(doc(db, 'users', uid))
 // Merge auth + Firestore data into context
 setUser({ uid, email, metadata, ...firestoreData })
   ↓
-// Redirect to Dashboard
+// Post-auth routing (same logic as signup)
 ```
 
 ### 3. Protected Routes
@@ -648,6 +686,37 @@ onAuthStateChanged(auth, async (user) => {
 }
 ```
 
+### Support Case Message Document
+**Collection**: `support-requests/{requestId}/messages`
+**Document ID**: Auto-generated (Firestore)
+
+```javascript
+{
+  authorId: string,                   // User UID
+  authorRole: 'journalist' | 'specialist',
+  authorName: string,
+  content: string,
+  createdAt: string (ISO 8601),
+  marker: 'awaiting_specialist' | 'awaiting_reporter' | 'monitoring' | 'ready_to_file' | null
+}
+```
+
+`SUPPORT_CASE_MARKERS` in `supportService.js` defines the four state values. Each message optionally carries a marker that overrides the case's current workflow state; the latest marker wins.
+
+### Simulation Progress (field on User Document)
+**Field**: `users/{uid}.simulationProgress`
+
+```javascript
+{
+  simulationProgress: {
+    [scenarioId: string]: {
+      confidence: number (1-5),       // User's self-assessed confidence
+      recordedAt: string (ISO 8601)
+    }
+  }
+}
+```
+
 ### Quiz Questions Structure
 
 ```javascript
@@ -672,25 +741,24 @@ onAuthStateChanged(auth, async (user) => {
 ## Component Organization
 
 ### Page Components
-Each page is a self-contained component with:
-- Local state management
-- Data fetching (if needed)
-- User interactions
-- Layout/styling
+Each page is a self-contained component with local state, feature-service calls, and layout using the editorial design system primitives (`NewsPage`, `NewsCard`, etc.).
 
-**Example: Dashboard.jsx**
+**Example: ThreatModel.jsx (AI-powered, protected route)**
 ```javascript
-const Dashboard = () => {
-  const { user } = useAuth();                    // Get current user
-  const [userData, setUserData] = useState(null); // Local state
+const ThreatModel = () => {
+  const { user } = useAuth();
+  const [report, setReport] = useState(null);
 
-  useEffect(() => {
-    // Fetch user data from Firestore
-    fetchUserData();
-  }, [user]);
+  const handleSubmit = async (formData) => {
+    // 1. Run privacy guard — detect/redact PII
+    const { flags } = analyzePrivacyPayload(formData);
+    if (flags.length) { setShowPrivacyModal(true); return; }
+    // 2. Call Firebase Function
+    const result = await requestThreatModelReport(formData);
+    setReport(result);
+  };
 
-  // Render personalized dashboard
-  return (/* JSX */);
+  return <NewsPage>…</NewsPage>;
 };
 ```
 
@@ -781,29 +849,37 @@ const calculateScore = () => {
 };
 ```
 
-### 2. Dashboard (Everything at a Glance)
-**File**: `src/pages/Dashboard.jsx`
+### 2. Signed-in Home Brief
+**File**: `src/pages/Home.jsx` (signed-in state) — `/dashboard` redirects here
 
-**Layout**:
-- Centered "hello, username" header with avatar icon box
-- Two side-by-side metric cards:
-  - **Security Score**: Last score with mini category progress bars
-  - **Secure Setup**: Progress bar showing X/31 completed tasks
-- **"Up Next" section**: Smart recommendations sorted by weakest quiz categories, prompts for untaken quiz/unstarted setup, "lessons — coming soon" placeholder
-- **"My Support Requests"** (journalists): Track submitted requests with status (open/claimed/resolved), rate specialist after resolution with 1-5 stars + comment
-- **"Support Requests"** (verified specialists): View and claim open requests, expand for full details + contact info, mark as resolved
-- **"Your Feedback"** (verified specialists): Average star rating, recent feedback from resolved requests
+The journalist/specialist brief is assembled by `useHomeData` from already-authorised data sources (no new Firestore writes or rule changes needed):
+- Animated progress rings and security rank label ("security aware" / "security hardened")
+- Two metric cards: Security Score (last result + category bars) and Secure Setup (X/31 tasks)
+- Quest-style "Up Next" list sorted by weakest quiz categories
 - Explore grid: resources, community, get help, crisis mode
+- Role-specific content: journalists see support request status; specialists see queue summary
+
+**Route note**: `/dashboard` and `/crisis` both redirect to `/` via `<Navigate>` in App.jsx.
 
 ### 3. Crisis Mode
-**File**: `src/pages/CrisisMode.jsx`
+**File**: `src/components/CrisisOverlay.jsx` (overlay, not a page)
 
 **Features**:
-- 4 emergency scenarios (hacked, source exposed, doxxed, phishing)
-- Immediate action checklists
-- Emergency contact information
-- Security protocols
+- Fullscreen overlay triggered by the pill toggle in the header (not a route)
+- 4 emergency scenarios: hacked, source exposed, doxxed, phishing
+- Per-step checklist with progress bar and "how?" expansion
+- Direct-call links to CPJ, RSF, and EFF
 - Link to specialist support request
+
+### 4. Threat Modeling
+**File**: `src/pages/ThreatModel.jsx` (`/threat-model`, protected)
+
+Journalists describe their context (beat, location, devices, adversaries). The form data is passed through `privacyGuard` before submission. The `requestThreatModelReport` Firebase callable returns a structured report: threat level, adversary list, prioritised recommendations. `PrivacyGuardModal` shows a redacted preview and requires confirmation before any data leaves the client.
+
+### 5. Security Simulations
+**File**: `src/pages/Simulations.jsx` (`/simulations`)
+
+Step-through security scenario training across 4 tracks (phishing, source exposure, device seizure, doxxing). Each track has multiple steps with decision branches; users self-assess confidence (1-5) after each step. Progress is saved to `users/{uid}.simulationProgress` via `simulationService.js`. Score tone is calculated from the ratio of correct/total choices.
 
 ### 4. User Settings
 **File**: `src/pages/Settings.jsx`
@@ -2570,7 +2646,7 @@ User dropped the lowercase-forcing convention from product copy. All editorial p
 
 ### 24.1.2 Architecture clarification
 
-User flagged that the rewrite was inlining `style={{ color: 'var(--color-oxblood)' }}` and `className="text-[color:var(--color-ink-soft)]"` (Tailwind's escape-hatch arbitrary-value syntax) everywhere — which made the global file in [src/index.css](src/index.css) look like it wasn't doing its job.
+User flagged that the rewrite was inlining token colors and using Tailwind arbitrary-value color syntax everywhere — which made the global file in [src/index.css](src/index.css) look like it wasn't doing its job.
 
 The answer: it IS the global file, but I wasn't using it cleanly. Tailwind v4's `@theme` block auto-generates utilities from color tokens. So `text-ink`, `bg-paper-soft`, `border-oxblood`, `text-smoke`, `border-ink/12` all work directly without escape-hatch syntax.
 
@@ -2578,13 +2654,13 @@ The answer: it IS the global file, but I wasn't using it cleanly. Tailwind v4's 
 1. **Tokens** → use Tailwind utilities from `@theme` (`text-ink`, `bg-paper-soft`, `border-oxblood/35`)
 2. **Repeated patterns** → editorial classes in [src/index.css](src/index.css) (`.eyebrow`, `.italic-ox`, `.btn`, `.f-row`, `.news-notice` with `--brass`/`--danger`/`--info` tone variants)
 3. **Composition primitives** → JSX wrappers in [src/components/editorial/NewsPage.jsx](src/components/editorial/NewsPage.jsx) (`NewsPage`, `NewsRule`, `NewsField`, `NewsButton`, `NewsNotice`, `NewsTabs`, etc.)
-4. **No inline `style={{...}}`** for tokenized colors. No `text-[color:var(--color-X)]` escape-hatch when `text-X` works.
+4. **No inline `style={{...}}`** for tokenized colors. No arbitrary var-color escape hatch when the token utility works.
 
 ### 24.1.3 Settings refactor
 
 [src/pages/Settings.jsx](src/pages/Settings.jsx) was refactored end-to-end against the architecture above:
 - All inline `style` props for color → Tailwind utilities
-- All `text-[color:var(...)]` → short form
+- All arbitrary var-color utilities → short form
 - The 5 repeated "info notice with left bar" patterns → the existing `.news-notice` class with new `news-notice--brass` and `news-notice--info` tone variants (added to global CSS)
 - All copy from `lowercase` → sentence case
 - Same functionality, same copy intent, much shorter file
@@ -2628,6 +2704,62 @@ Remaining: Source Protection, Security Score, Secure Setup, Community, Specialis
 
 ---
 
-**Last Updated**: May 15, 2026
-**Version**: 3.9.1
+## Recent Updates (May 2026)
+
+### Phase 25: AI Features — Threat Modeling + Simulations + Case Messaging
+
+#### Threat Modeling (`/threat-model`)
+- New protected page that collects journalist context (beat, location, devices, adversaries) and returns a structured AI threat analysis.
+- All submissions pass through `privacyGuard.js` (client-side PII detection + redaction) before hitting the `requestThreatModelReport` Firebase callable.
+- `PrivacyGuardModal.jsx` shows the redacted payload and requires explicit confirmation before data leaves the browser.
+- Result: threat level (low/moderate/high/critical), adversary list, prioritised recommendations.
+
+#### Security Simulations (`/simulations`)
+- Step-through security scenario training: 4 tracks (phishing, source exposure, device seizure, doxxing), each with multi-step decision branches.
+- Users self-assess confidence (1–5 scale) after completing each scenario; scores saved to `users/{uid}.simulationProgress` via `simulationService.js`.
+- Static scenario data lives in `src/pages/simulations.data.js`.
+- No auth required to view; Firestore progress saving requires auth.
+
+#### Case Messaging
+- Bi-directional messaging thread added to every support case.
+- `support-requests/{requestId}/messages` — new Firestore subcollection.
+- `SUPPORT_CASE_MARKERS` in `supportService.js` defines 4 workflow states: `awaiting_specialist`, `awaiting_reporter`, `monitoring`, `ready_to_file`. The latest message's marker governs case state.
+- **Journalist view**: `SupportCaseDesk` at `/support-cases/:requestId` — thread + status indicator + post-resolution feedback form.
+- **Specialist view**: `SpecialistCaseFile` at `/specialist-cases/:requestId` — thread + claim/resolve controls + resolution report form.
+- `MyCases` at `/my-cases` gives journalists a consolidated view of all their request history.
+
+### Phase 26: Post-Auth Routing + Specialist Verification Dossier
+
+- `accountRouting.js` centralises the post-auth path decision: new journalists → `/welcome` (typewriter onboarding), specialists without a dossier → `/specialist-verification`, approved specialists → `/specialist-dashboard`.
+- `SpecialistVerification.jsx` at `/specialist-verification` — full dossier form (expertise areas, availability, secure contact methods, bio). Submits via `submitSpecialistVerificationDossier` callable.
+- `verification.js` exports all status constants (`SPECIALIST_VERIFICATION_STATUSES`) and the `dossierRequiredStatuses` set used by routing logic.
+- `Welcome.jsx` — typewriter welcome screen for journalists; sets `welcomeCompletedAt` on the user doc to prevent re-showing.
+
+### Phase 27: Codebase Refactor (May 2026)
+
+Major cleanup before AI feature work — moved logic out of page files into services and hooks:
+
+| File | Before | After | What moved |
+|------|--------|-------|------------|
+| `Dashboard.jsx` | 979 lines | **Deleted** | Journalist view integrated into `Home.jsx` signed-in state; `/dashboard` route redirects to `/` |
+| `Home.jsx` | 1118 lines | 430 lines | 3 brief-builder functions → `homePageModel.jsx`; data loading → `useHomeData` |
+| `Header.jsx` | 635 lines | 471 lines | Firestore notification queries → `notificationService.js`; state → `useNotifications` |
+| `SecureSetup.jsx` | 1048 lines | 711 lines | 320-line static task object → `features/setup/data/setupTasks.js` |
+
+New files created in this phase: `useDashboardData.js`, `homePageModel.jsx`, `useHomeData.js`, `notificationService.js`, `useNotifications.js`, `setupTasks.js`.
+
+### Infrastructure additions (May 2026)
+
+- `src/config/firebaseCollections.js` — centralized collection name constants used by all services
+- `src/config/security.js` — shared constants: password rules, support types, urgencies, community categories
+- `src/config/externalResources.js` — RSS feed URLs for `useNewsArticles`
+- `src/utils/logger.js` — `logError()` wrapper: verbose in dev, silent in production builds
+- `src/utils/time.js` and `src/utils/externalLinks.js` — shared formatting + link helpers
+- `src/features/news/` — `NewsSidebar.jsx` + `useNewsArticles.js` for security news aggregation
+- `SourceProtection.jsx` converted to a redirect component (`<Navigate to="/resources?tab=source-protection" replace />`) — content now lives as a tab inside Resources
+
+---
+
+**Last Updated**: May 24, 2026
+**Version**: 4.0.0
 **Documentation**: Complete (includes Phases 1-24.1)

@@ -107,7 +107,7 @@ const CreatePost = () => {
         {/* ── Header — mirrors Community page structure ───────────── */}
         <motion.header initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
-          <div className="flex items-baseline justify-between pb-3">
+          <div className="news-page-topline">
             <button onClick={() => navigate('/community')}
               className="flex items-center gap-1.5 eyebrow sm text-smoke-dim hover:text-ink transition-colors">
               <ArrowLeft className="w-3 h-3" />
@@ -115,7 +115,7 @@ const CreatePost = () => {
             </button>
           </div>
           <NewsRule />
-          <div className="mt-8 max-w-prose">
+          <div className="mt-10 max-w-prose">
             <h1 className="display text-4xl md:text-6xl leading-none">
               {displayHeading}<em className="italic-ox">.</em>
             </h1>

@@ -245,7 +245,7 @@ const AdminDashboard = () => {
         transition={{ duration: 0.5 }}
         className="admin-review-desk__header"
       >
-        <div className="flex items-baseline justify-between pb-3">
+        <div className="news-page-topline">
           <span className="eyebrow sm text-oxblood">Admin review desk · verification and moderation</span>
           <span className="eyebrow sm">{verificationQueueCount + openReportCount} live items</span>
         </div>

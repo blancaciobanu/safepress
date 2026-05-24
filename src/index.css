@@ -5,14 +5,14 @@
    1.  Color tokens live in @theme (below). Tailwind v4 auto-generates
        utilities from them. Use them directly:
 
-         className="text-ink"            ← NOT text-[color:var(--color-ink)]
-         className="bg-paper-soft"       ← NOT bg-[color:var(--color-paper-soft)]
+         className="text-ink"            ← use the token utility
+         className="bg-paper-soft"       ← use the token utility
          className="border-oxblood/30"   ← opacity modifier works as expected
          className="text-smoke"
 
-       DO NOT use `style={{ color: 'var(--color-X)' }}` or
-       `text-[color:var(--color-X)]`. Those are escape hatches; if you find
-       yourself reaching for them, the token probably exists as a utility.
+       DO NOT use inline var() color styles or arbitrary var-color utilities.
+       Those are escape hatches; if you find yourself reaching for them, the
+       token probably exists as a utility.
 
    2.  Editorial classes (below @theme) bundle repeated patterns. Reach for:
          .eyebrow / .eyebrow.sm   — mono uppercase kicker / dateline
@@ -46,6 +46,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
 
 @import "tailwindcss";
+
+@source not "../dist/**";
 
 @theme {
   /* ─── Ink & Paper — editorial / marketing surfaces ─────────────────── */
@@ -575,6 +577,23 @@ body::before {
   padding-bottom: 2rem;
 }
 
+.news-page-topline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.55rem 1.25rem;
+  padding-bottom: 0.75rem;
+}
+
+.news-page-topline > * {
+  min-width: 0;
+}
+
+.news-page-topline .eyebrow {
+  line-height: 1.45;
+}
+
 .news-header__pair {
   margin-bottom: 0.95rem;
 }
@@ -811,7 +830,7 @@ body::before {
 .news-modal-card {
   background: var(--color-paper-soft);
   border: 1px solid var(--modal-border, rgba(21, 17, 12, 0.12));
-  border-radius: 1rem;
+  border-radius: 0.5rem;
   box-shadow: 0 20px 48px -24px rgba(21, 17, 12, 0.38);
 }
 
@@ -1237,6 +1256,98 @@ body::before {
   letter-spacing: 0;
   line-height: 1.1;
   margin-top: -0.1rem;
+}
+
+.resource-step-row:hover .resource-step-icon {
+  color: var(--accent);
+}
+
+/* ─── Community detail: post masthead + reply composer ─────────────── */
+.community-ama-strip {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  border-bottom: 1px solid rgba(21, 17, 12, 0.08);
+  padding-bottom: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.community-reply-composer {
+  padding: 1rem;
+}
+
+.community-reply-composer__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgba(21, 17, 12, 0.08);
+  padding-bottom: 0.75rem;
+}
+
+.community-reply-composer__textarea {
+  margin-top: 0.85rem;
+  min-height: 5.25rem;
+  background: rgba(250, 246, 238, 0.45);
+}
+
+.community-reply-composer__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.community-reply-composer__footer .btn {
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  .community-reply-composer__footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .community-reply-composer__footer .btn {
+    justify-content: center;
+  }
+}
+
+/* ─── Aegis: compact advisory desk plate inside the workspace ───────── */
+.aegis-desk-plate {
+  border-bottom: 1px solid rgba(21, 17, 12, 0.14);
+  padding-bottom: 1.35rem;
+}
+
+.aegis-desk-plate__body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  padding-top: 0.75rem;
+}
+
+.aegis-desk-plate__score {
+  min-width: 8rem;
+  border-left: 1px solid rgba(21, 17, 12, 0.12);
+  padding-left: 1rem;
+  text-align: right;
+}
+
+@media (max-width: 767px) {
+  .aegis-desk-plate__body {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .aegis-desk-plate__score {
+    grid-column: 2;
+    min-width: 0;
+    border-left: 0;
+    padding-left: 0;
+    text-align: left;
+  }
 }
 
 /* ── Cards — flat cream on cream, hairline border, quiet shadow ── */

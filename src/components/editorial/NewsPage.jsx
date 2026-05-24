@@ -18,6 +18,12 @@ export const NewsPage = ({ children, max = 'wide', className = '' }) => {
   );
 };
 
+export const NewsPageTopline = ({ children, className = '' }) => (
+  <div className={cx('news-page-topline', className)}>
+    {children}
+  </div>
+);
+
 export const NewsHeader = ({ kicker, title, lede, meta, icon: Icon, className = '' }) => (
   <header className={cx('news-header', className)}>
     <NewsRule className="news-header__pair" />

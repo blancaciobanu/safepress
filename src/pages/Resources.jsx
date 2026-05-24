@@ -605,7 +605,7 @@ const Resources = () => {
                         type="button"
                         onClick={() => setExpandedStep(isExpanded ? null : i)}
                         aria-expanded={isExpanded}
-                        className="news-ledger-row w-full text-left transition-colors hover:bg-paper-dim/40 group"
+                        className="news-ledger-row resource-step-row w-full text-left transition-colors hover:bg-paper-dim/40 group"
                         style={{ '--accent': currentOS.color }}
                       >
                         <span className="news-row-index" style={{ '--row-accent': currentOS.color }}>
@@ -622,7 +622,7 @@ const Resources = () => {
                               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
                             >
                               <StepIcon
-                                className="w-4 h-4 transition-colors text-smoke-dim group-hover:text-[color:var(--accent)]"
+                                className="resource-step-icon w-4 h-4 transition-colors text-smoke-dim"
                                 style={isExpanded ? { color: currentOS.color } : {}}
                               />
                             </motion.div>

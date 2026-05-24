@@ -89,7 +89,7 @@ const MyCases = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex items-baseline justify-between pb-3">
+        <div className="news-page-topline">
           <span className="eyebrow sm text-oxblood">Support · My cases</span>
           <span className="eyebrow sm">{cases.length} on file</span>
         </div>

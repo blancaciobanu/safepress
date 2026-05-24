@@ -523,7 +523,7 @@ const SecureSetup = () => {
 
   if (loading) {
     return (
-      <NewsPage >
+      <NewsPage>
         <p className="eyebrow sm text-smoke">Loading your setup progress…</p>
       </NewsPage>
     );
@@ -536,7 +536,7 @@ const SecureSetup = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="flex items-baseline justify-between pb-3">
+        <div className="news-page-topline">
           <span className="eyebrow sm text-oxblood">Workbench · Secure Setup</span>
           <span className="eyebrow sm">{completedCount} of {totalTasks} done</span>
         </div>

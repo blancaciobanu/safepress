@@ -28,6 +28,7 @@ const PAPER_SURFACE_PATHS = new Set([
   '/security-score',
   '/community',
   '/community/new',
+  '/specialist-verification',
   '/specialist-dashboard',
   '/specialist-cases',
   '/support-cases',
@@ -35,6 +36,7 @@ const PAPER_SURFACE_PATHS = new Set([
   '/admin',
   '/ai-advisor',
   '/threat-model',
+  '/welcome',
 ]);
 
 const notifTimeAgo = (iso) => {
@@ -98,7 +100,7 @@ const Header = () => {
     { name: 'Manual',         path: '/resources' },
     { name: 'Simulations',    path: '/simulations' },
     { name: 'Community',      path: '/community' },
-    ...(user ? [{ name: 'AI Advisor', path: '/ai-advisor' }] : []),
+    ...(user ? [{ name: 'Aegis', path: '/ai-advisor' }] : []),
     ...(user ? [{ name: 'Threat Model', path: '/threat-model' }] : []),
     ...(isAdmin ? [{ name: 'Admin', path: '/admin' }] : []),
   ];
@@ -116,29 +118,29 @@ const Header = () => {
 
   const t = isPaperSurface
     ? {
-        headerBg:     'bg-[color:var(--color-paper)]/95 backdrop-blur-md',
-        headerBorder: 'border-[color:var(--color-ink)]/10',
-        wordmark:     'text-[color:var(--color-ink)]',
-        navText:      'text-[color:var(--color-smoke)] group-hover:text-[color:var(--color-ink)]',
-        navTextActive:'text-[color:var(--color-ink)]',
+        headerBg:     'bg-paper/95 backdrop-blur-md',
+        headerBorder: 'border-ink/10',
+        wordmark:     'text-ink',
+        navText:      'text-smoke group-hover:text-ink',
+        navTextActive:'text-ink',
         navRule:      'var(--color-ink)',
-        controlBg:    'bg-transparent hover:bg-[color:var(--color-ink)]/[0.04]',
-        controlBorder:'border-[color:var(--color-ink)]/15',
-        controlIcon:  'text-[color:var(--color-ink-soft)]',
-        userText:     'text-[color:var(--color-ink-soft)]',
-        userChevron:  'text-[color:var(--color-smoke)]',
-        dropdownBg:   'bg-[color:var(--color-paper-soft)]',
-        dropdownBorder:'border-[color:var(--color-ink)]/10',
-        dropdownText: 'text-[color:var(--color-ink-soft)]',
-        dropdownHover:'hover:bg-[color:var(--color-ink)]/[0.04] hover:text-[color:var(--color-ink)]',
-        dropdownDivider:'border-[color:var(--color-ink)]/10',
-        dropdownLabel:'text-[color:var(--color-smoke)]',
-        badgeBg:      'bg-[color:var(--color-oxblood)]',
+        controlBg:    'bg-transparent hover:bg-ink/[0.04]',
+        controlBorder:'border-ink/15',
+        controlIcon:  'text-ink-soft',
+        userText:     'text-ink-soft',
+        userChevron:  'text-smoke',
+        dropdownBg:   'bg-paper-soft',
+        dropdownBorder:'border-ink/10',
+        dropdownText: 'text-ink-soft',
+        dropdownHover:'hover:bg-ink/[0.04] hover:text-ink',
+        dropdownDivider:'border-ink/10',
+        dropdownLabel:'text-smoke',
+        badgeBg:      'bg-oxblood',
       }
     : {
         headerBg:     'bg-dark-900/95 backdrop-blur-md',
         headerBorder: 'border-white/[0.06]',
-        wordmark:     'text-[color:var(--color-paper)]',
+        wordmark:     'text-paper',
         navText:      'text-gray-500 group-hover:text-gray-200',
         navTextActive:'text-white',
         navRule:      'var(--color-paper)',
@@ -153,7 +155,7 @@ const Header = () => {
         dropdownHover:'hover:bg-white/[0.04] hover:text-white',
         dropdownDivider:'border-white/[0.06]',
         dropdownLabel:'text-gray-500',
-        badgeBg:      'bg-[color:var(--color-oxblood)]',
+        badgeBg:      'bg-oxblood',
       };
 
   return (
@@ -246,7 +248,7 @@ const Header = () => {
                             </div>
                             {notifLoading ? (
                               <div className="px-5 py-8 flex justify-center">
-                                <div className={`w-4 h-4 border-2 ${isPaperSurface ? 'border-[color:var(--color-ink)]' : 'border-white'} border-t-transparent rounded-full animate-spin`} />
+                                <div className={`w-4 h-4 border-2 ${isPaperSurface ? 'border-ink' : 'border-white'} border-t-transparent rounded-full animate-spin`} />
                               </div>
                             ) : notifications.length === 0 ? (
                               <div className="px-5 py-8 text-center">
@@ -367,7 +369,7 @@ const Header = () => {
                     </Link>
                     <Link
                       to="/signup"
-                      className={`font-mono text-[11px] uppercase tracking-[0.18em] px-3.5 h-9 inline-flex items-center border ${isPaperSurface ? 'border-[color:var(--color-ink)] text-[color:var(--color-ink)] hover:bg-[color:var(--color-ink)] hover:text-[color:var(--color-paper)]' : 'border-white/40 text-white hover:bg-white hover:text-dark-900'} transition-colors`}
+                      className={`font-mono text-[11px] uppercase tracking-[0.18em] px-3.5 h-9 inline-flex items-center border ${isPaperSurface ? 'border-ink text-ink hover:bg-ink hover:text-paper' : 'border-white/40 text-white hover:bg-white hover:text-dark-900'} transition-colors`}
                     >
                       Sign up
                     </Link>
@@ -424,7 +426,7 @@ const Header = () => {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{    height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden bg-[color:var(--color-oxblood)] border-b border-[color:var(--color-oxblood-soft)] px-6 md:px-10 lg:px-14"
+            className="overflow-hidden bg-oxblood border-b border-oxblood-soft px-6 md:px-10 lg:px-14"
           >
             <div className="max-w-[1400px] mx-auto py-2.5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
@@ -476,8 +478,8 @@ const Header = () => {
         <span
           className={`hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
             isInCrisis
-              ? 'text-[color:var(--color-oxblood)]'
-              : isPaperSurface ? 'text-[color:var(--color-smoke)]' : 'text-gray-400'
+              ? 'text-oxblood'
+              : isPaperSurface ? 'text-smoke' : 'text-gray-400'
           }`}
         >
           {isInCrisis ? 'Crisis · active' : 'Crisis mode'}
