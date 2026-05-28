@@ -279,13 +279,11 @@ const Home = () => {
                 viewport={{ once: true, amount: 0.2 }}
                 transition={{ duration: 0.9, ease }}
               >
-                <div className="halftone-placeholder" />
-                <figcaption className="mt-3 leading-snug text-sm text-smoke italic">
-                  <span className="not-italic caption uppercase tracking-[0.22em] text-ink/75 text-[0.65rem] mr-2">
-                    Photo
-                  </span>
-                  A reporter&apos;s desk in the quiet before filing.
-                </figcaption>
+                <img
+                  src="/safepress-hero.jpg"
+                  alt="A hand holds a microphone facing another hand holding a dove tangled in the microphone cable."
+                  className="w-full h-auto block"
+                />
               </motion.figure>
 
               <motion.div
