@@ -3,7 +3,8 @@ import { getInitials } from '../../../utils/userUtils';
 const AVATAR_SIZES = {
   xs: { dim: 20, fontSize: 8 },
   sm: { dim: 28, fontSize: 11 },
-  md: { dim: 36, fontSize: 13 },
+  reply: { dim: 42, fontSize: 14 },
+  md: { dim: 40, fontSize: 14 },
   lg: { dim: 44, fontSize: 16 },
 };
 
@@ -28,7 +29,7 @@ export const UserAvatar = ({
   return (
     <div
       style={{ width: dim, height: dim, fontSize, flexShrink: 0 }}
-      className="bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-ink flex-shrink-0"
+      className="rounded-full bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-ink flex-shrink-0"
     >
       {getInitials(name)}
     </div>

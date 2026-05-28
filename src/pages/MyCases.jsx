@@ -10,6 +10,7 @@ import {
 import { logError } from '../utils/logger';
 import { NewsNotice, NewsPage, NewsRule } from '../components/editorial/NewsPage';
 import PageLoader from '../components/PageLoader';
+import { caseFileRef } from '../utils/caseRef';
 
 const CRISIS_LABELS = {
   hacked: 'hacked account',
@@ -17,12 +18,6 @@ const CRISIS_LABELS = {
   doxxed: 'doxxing incident',
   phishing: 'phishing attempt',
   other: 'security concern',
-};
-
-const STATUS_CONFIG = {
-  open: { label: 'waiting in intake', color: 'text-brass', border: 'border-brass/30', bg: 'bg-brass/8' },
-  claimed: { label: 'with a specialist', color: 'text-oxblood', border: 'border-oxblood/30', bg: 'bg-oxblood/8' },
-  resolved: { label: 'resolution filed', color: 'text-smoke', border: 'border-ink/20', bg: 'bg-paper-soft/80' },
 };
 
 const URGENCY_LABELS = {
@@ -40,16 +35,13 @@ const CASE_MARKER_LABELS = {
 
 const MyCases = () => {
   const { user } = useAuth();
-
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!user) return;
-
     let cancelled = false;
-
     const unsubscribe = listenToSupportRequestsByRequester({
       requesterId: user.uid,
       onData: (result) => {
@@ -65,7 +57,6 @@ const MyCases = () => {
         }
       },
     });
-
     return () => {
       cancelled = true;
       unsubscribe();
@@ -76,14 +67,18 @@ const MyCases = () => {
 
   if (loading) {
     return (
-      <NewsPage className="specialist-casefile" max="reading">
+      <NewsPage>
         <PageLoader text="Loading your cases…" />
       </NewsPage>
     );
   }
 
+  const openCount = cases.filter((c) => c.status === 'open').length;
+  const activeCount = cases.filter((c) => c.status === 'claimed').length;
+  const resolvedCount = cases.filter((c) => c.status === 'resolved').length;
+
   return (
-    <NewsPage className="specialist-casefile" max="reading">
+    <NewsPage>
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -97,12 +92,27 @@ const MyCases = () => {
 
         <div className="mt-10 max-w-prose">
           <h1 className="display text-4xl md:text-6xl leading-none">
-            Your support cases<span className="italic-ox">.</span>
+            Your case desk<span className="italic-ox">.</span>
           </h1>
-          <p className="mt-5 text-base text-smoke leading-relaxed">
-            Open a desk to follow the thread, answer specialist questions, and read the final report.
+          <p className="mt-5 text-base text-ink-soft leading-relaxed">
+            Open a desk to follow the thread, answer specialist questions, and keep the resolution on file.
           </p>
         </div>
+
+        {cases.length > 0 && (
+          <div className="specialist-desk__stats mt-10">
+            {[
+              { value: openCount,    label: 'in intake',          tone: 'brass'   },
+              { value: activeCount,  label: 'with a specialist',  tone: 'oxblood' },
+              { value: resolvedCount,label: 'resolved',            tone: 'olive'   },
+            ].map((stat) => (
+              <div key={stat.label} className={`specialist-stat specialist-stat--${stat.tone}`}>
+                <p className="specialist-stat__kicker">{stat.label}</p>
+                <p className="specialist-stat__value">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {error && (
           <NewsNotice tone="danger" icon={AlertTriangle} className="mt-8">
@@ -111,9 +121,9 @@ const MyCases = () => {
         )}
 
         {!error && cases.length === 0 && (
-          <div className="mt-16 text-center">
+          <div className="mt-16">
             <p className="eyebrow sm text-smoke-dim mb-4">no cases on file</p>
-            <p className="text-sm text-smoke mb-8">
+            <p className="text-sm text-smoke mb-8 max-w-prose">
               You haven't filed a support request yet. If you're facing a security incident, open one now.
             </p>
             <Link to="/request-support" className="link-handdrawn">
@@ -123,9 +133,8 @@ const MyCases = () => {
         )}
 
         {cases.length > 0 && (
-          <div className="mt-10 space-y-4">
+          <div className="mt-10 space-y-3">
             {cases.map((caseItem, index) => {
-              const status = STATUS_CONFIG[caseItem.status] || STATUS_CONFIG.open;
               const urgency = URGENCY_LABELS[caseItem.urgency] || caseItem.urgency;
               const crisisLabel = CRISIS_LABELS[caseItem.crisisType] || caseItem.crisisType;
               const markerLabel = CASE_MARKER_LABELS[caseItem.caseMarker];
@@ -135,63 +144,62 @@ const MyCases = () => {
                 year: 'numeric',
               });
 
+              const statusLabel =
+                caseItem.status === 'open'
+                  ? 'in intake'
+                  : caseItem.status === 'claimed'
+                    ? 'with a specialist'
+                    : 'resolution filed';
+
               return (
                 <motion.div
                   key={caseItem.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
-                  className="border border-ink/12 bg-paper-soft p-6 group"
+                  className={`my-cases-card my-cases-card--${caseItem.status}`}
                 >
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${status.bg} ${status.color} ${status.border}`}>
-                          {status.label}
-                        </span>
-                        <span className="text-[10px] text-smoke-dim uppercase tracking-widest">
-                          {urgency}
-                        </span>
-                        {markerLabel && (
-                          <span className="text-[10px] text-ink-soft uppercase tracking-widest">
-                            {markerLabel}
-                          </span>
-                        )}
-                        {caseItem.feedback && (
-                          <span className="text-[10px] text-[#375E5A] uppercase tracking-widest">
-                            feedback filed
-                          </span>
-                        )}
-                      </div>
+                  <div className="my-cases-card__head">
+                    <span className="eyebrow sm text-oxblood">
+                      {statusLabel} · {caseFileRef(caseItem)}
+                    </span>
+                    <span className="eyebrow sm text-smoke-dim">{urgency}</span>
+                  </div>
 
-                      <h2 className="text-xl font-display font-bold text-ink leading-snug mb-2">
-                        {crisisLabel}<span className="italic-ox">.</span>
-                      </h2>
+                  <h2 className="display-soft text-2xl md:text-3xl leading-tight mt-2">
+                    {crisisLabel}<span className="italic-ox">.</span>
+                  </h2>
 
-                      {caseItem.description && (
-                        <p className="text-sm text-smoke leading-relaxed line-clamp-2 mb-3">
-                          {caseItem.description}
-                        </p>
-                      )}
+                  {caseItem.description && (
+                    <p className="my-cases-card__excerpt">
+                      &ldquo;{caseItem.description.length > 140
+                        ? caseItem.description.slice(0, 140) + '…'
+                        : caseItem.description}&rdquo;
+                    </p>
+                  )}
 
-                      <div className="flex flex-wrap gap-x-5 gap-y-1 text-[10px] text-smoke-dim uppercase tracking-widest">
-                        <span>filed {date}</span>
-                        {caseItem.claimedByName && (
-                          <span>specialist · {caseItem.claimedByName}</span>
-                        )}
-                        {caseItem.resolvedAt && (
-                          <span>
-                            resolved {new Date(caseItem.resolvedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                  <div className="my-cases-card__meta">
+                    <span>filed {date}</span>
+                    {caseItem.claimedByName && (
+                      <span>specialist · {caseItem.claimedByName}</span>
+                    )}
+                    {markerLabel && <span>{markerLabel}</span>}
+                    {caseItem.resolvedAt && (
+                      <span>
+                        resolved {new Date(caseItem.resolvedAt).toLocaleDateString('en-US', {
+                          month: 'short', day: 'numeric', year: 'numeric',
+                        })}
+                      </span>
+                    )}
+                    {caseItem.feedback && <span>feedback filed</span>}
+                  </div>
 
+                  <div className="my-cases-card__footer">
                     <Link
                       to={`/support-cases/${caseItem.id}`}
-                      className="flex-shrink-0 eyebrow sm text-oxblood hover:text-ink transition-colors whitespace-nowrap"
+                      className="my-cases-card__link"
                     >
-                      open desk →
+                      open case desk →
                     </Link>
                   </div>
                 </motion.div>
@@ -200,7 +208,9 @@ const MyCases = () => {
           </div>
         )}
 
-        <div className="mt-16 pt-6 border-t border-ink/8 flex items-center justify-between">
+        <div className="asterism mt-12 mb-6">⁂</div>
+
+        <div className="flex items-center gap-6 pb-4">
           <Link to="/request-support" className="link-handdrawn text-sm">
             File a new request →
           </Link>

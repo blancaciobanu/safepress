@@ -123,7 +123,8 @@ const buildSessionUser = async (firebaseUser) => {
   let tokenResult = initialTokenResult;
 
   const issuedAtMs = new Date(tokenResult.issuedAtTime).getTime();
-  if (claimsUpdatedAtMs(profile) > issuedAtMs) {
+  const tokenEmailVerified = tokenResult.claims.email_verified === true;
+  if (claimsUpdatedAtMs(profile) > issuedAtMs || (firebaseUser.emailVerified && !tokenEmailVerified)) {
     tokenResult = await getIdTokenResult(firebaseUser, true);
   }
 

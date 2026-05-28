@@ -42,7 +42,7 @@
   - Threat Model: `requestThreatModelReport` callable returns a structured threat analysis
   - Support drafting: callable redacts PII from user notes before passing to the model
   - Model: `claude-haiku-4-5-20251001` (configured in the function, not the client)
-- **Privacy Guard** — `src/features/ai/services/privacyGuard.js` runs client-side before any submission: detects email, phone, URL, location, and name patterns; produces a redacted preview; `PrivacyGuardModal.jsx` shows this preview and requires explicit confirmation
+- **Privacy Guard** — `src/features/ai/services/privacyGuard.js` runs client-side before any submission: detects and redacts email, phone, URL, name (self-identified and role-introduced e.g. "Editor is …"), employer/affiliation (including non-English org names via Unicode-aware patterns), month+year dates, and prefix-based locations (e.g. "based in …", "colleague in …"); produces a redacted preview; `PrivacyGuardModal.jsx` shows this preview and requires explicit confirmation. Server-side `redactSensitiveDetails` in `functions/index.js` mirrors these rules. Regex-based NER has known limits: comma-separated country lists, relative time phrases ("six weeks"), and story-angle descriptions are not caught.
 
 ### Backend & Services
 - **Firebase** - Backend-as-a-Service
@@ -277,6 +277,7 @@ Two important platform settings now exist outside the codebase:
 - `community-posts/{postId}/comments`
   - reads are public
   - authenticated users can create comments only as themselves
+  - comment authors can edit their own non-deleted comments (only `content`, `edited`, `editedAt` fields)
   - comment authors can only soft-delete their own comments
   - admins can hard-delete comment documents if needed
 
@@ -2725,7 +2726,9 @@ Remaining: Source Protection, Security Score, Secure Setup, Community, Specialis
 - `support-requests/{requestId}/messages` — new Firestore subcollection.
 - `SUPPORT_CASE_MARKERS` in `supportService.js` defines 4 workflow states: `awaiting_specialist`, `awaiting_reporter`, `monitoring`, `ready_to_file`. The latest message's marker governs case state.
 - **Journalist view**: `SupportCaseDesk` at `/support-cases/:requestId` — thread + status indicator + post-resolution feedback form.
-- **Specialist view**: `SpecialistCaseFile` at `/specialist-cases/:requestId` — thread + claim/resolve controls + resolution report form.
+- **Specialist view**: `SpecialistCaseFile` at `/specialist-cases/:requestId` — full-width page with two distinct states:
+  - **Redacted intake (open/unclaimed)**: intake header + 3-card meta strip (case type / urgency + time-in-queue / contact preference), then a two-column intake grid: left = incident overview card with static per-crisis descriptions and numbered requirements list, right = "Before you claim" card (commitment note + time-sensitivity note + claim button) and filed-details clipcard. Reveals only non-identity fields available in the queue doc (`crisisType`, `urgency`, `contactMethod`, `createdAt`).
+  - **Active / resolved**: hero (big title + marker badge + clipcard with dates) → incident brief + contact ledger grid → workspace with operational marker, then a two-column layout of secure thread and resolution report form side by side.
 - `MyCases` at `/my-cases` gives journalists a consolidated view of all their request history.
 
 ### Phase 26: Post-Auth Routing + Specialist Verification Dossier
@@ -2758,8 +2761,218 @@ New files created in this phase: `useDashboardData.js`, `homePageModel.jsx`, `us
 - `src/features/news/` — `NewsSidebar.jsx` + `useNewsArticles.js` for security news aggregation
 - `SourceProtection.jsx` converted to a redirect component (`<Navigate to="/resources?tab=source-protection" replace />`) — content now lives as a tab inside Resources
 
+### Phase 28: Threat Model report — editorial realignment + persistence (May 2026)
+
+The generated threat report at `/threat-model` was redesigned to match the SecurityScore results page vocabulary so the two ML-backed artefacts read as the same family of paper-form objects:
+
+- Topline + `NewsRule` masthead, three-card `scoreMetaGrid` (assignment / threat level / primary focus), and a full `scoreSheet` hero with the giant display threat label, italic-ox headline, summary copy, action buttons, and the four-column `scoreStats` footer (source sensitivity, public visibility, travel profile, setup completed).
+- `scoreSide` column hosts three cards: Source Risk, Privacy Guard (conditional on redaction running), and Immediate Actions (first 4 items from `report.immediateActions`, with "+N more" overflow label). The column uses flex-column layout (`display:flex; flex-direction:column`) and the last child gets `flex:1` so the column fills the full scoreHero row height (`.threat-dossier .scoreHero { align-items: stretch }`), eliminating dead whitespace when the assessment card is tall.
+- Adversaries, attack surfaces, immediate actions, and longer-term protections render as numbered editorial cards (`.threatBlockCard` / `.threatList`) — dashed-rule separators, mono `01·` heads, ink-soft body — instead of bare bullet rectangles.
+- Guided routes use the same numbered-card pattern with `scoreLink` CTAs.
+- Old `.threat-report-*` / `.threat-list-card` / `.threat-route-card` classes removed; new `.threatBlockGrid`, `.threatBlockCard`, `.threatList`, `.threatRouteGrid`, `.threatRouteCard` styles added under the Threat Desk section in `src/index.css`.
+
+**Persistence.** The most recent report is written to `users/{uid}.latestThreatModel` as `{ generatedAt, formData, report, redaction }` via `persistLatestThreatModel(uid, payload)` in `aiService.js`. `AuthContext.buildSessionUser` spreads it onto the session user, so the page hydrates the form, the rendered report, the redaction notice, and the filed-on date directly from the auth context on refresh. Only the latest report is kept — each new generation overwrites the previous one. `firestore.rules` was updated to allow `latestThreatModel` as a settable key on the owner's own user document (validated as a map with ISO `generatedAt`, map `report`, and map `formData`).
+
+**Hero layout + summary cap.** The hero body was split into a two-column `threatSheetBody` grid (display title left, summary copy + actions right) so the wide card no longer leaves dead horizontal space and the hero height now reads close to the combined sidecard column. On the cloud function side, the summary cap in `normalizeThreatReport` was raised from 500 chars to 1600 (with matching `sourceRisk` 320 → 480), and the existing `clampText` slice is replaced by a `clampProse` helper that rolls back to the nearest sentence end or whitespace so the visible output never ends mid-word. `requestThreatModel`'s `maxTokens` was bumped 900 → 1800 to give the model headroom for the prompt-requested 120–220 word summary plus the rest of the JSON payload.
+
 ---
 
-**Last Updated**: May 24, 2026
-**Version**: 4.0.0
-**Documentation**: Complete (includes Phases 1-24.1)
+### Phase 29: SpecialistCaseFile redesign + previewNote (May 2026)
+
+- Removed `max="reading"` constraint — page now uses the default `max="wide"` (1400px), matching SecurityScore / Simulations / Resources.
+- Redacted intake state completely redesigned: was a mostly empty page with "confidential" placeholder walls; now shows a substantive intake brief using the non-identity queue fields (`crisisType`, `urgency`, `contactMethod`, `createdAt`). New layout: full-width intake header → 3-card meta strip (type / urgency + time-in-queue / contact preference) → two-column intake grid (incident overview + requirements checklist | before-you-claim card + filed details clipcard).
+- `CRISIS_DETAILS` map added: per-type `overview`, `scope`, numbered `requires` list, and `timeNote` for the five crisis types (hacked / source / doxxed / phishing / other).
+- Active/claimed state: same hero structure but full-width; workspace now uses a two-column `specialist-casefile__workspace-cols` grid (thread left, report right) instead of stacking cards single-column.
+- New CSS classes: `specialist-casefile__intake-header`, `specialist-casefile__metastrip`, `specialist-casefile__metacard`, `specialist-casefile__intake-grid`, `specialist-casefile__intake-rail`, `specialist-casefile__requirements`, `specialist-casefile__req-item`, `specialist-casefile__workspace-cols`, `specialist-casefile__preview-note`.
+- Responsive: meta strip collapses to 2-col at ≤1023px, 1-col at ≤767px; intake grid and workspace cols collapse to 1-col at ≤1023px.
+- **previewNote field**: `createSupportRequest` now writes `previewNote` (first 160 chars of description, trimmed to word boundary + `…`) to the queue doc alongside the existing metadata. Displayed in `SpecialistCaseFile` as an italicised pull-quote with a left border accent; shown in `SpecialistDashboard` queue cards as a single-line excerpt. Firestore rules updated: `requesterCanCreateSupportQueueEntry` now allows `previewNote` as an optional string (max 200 chars). Old queue entries without `previewNote` fall back to the static crisis-type overview text.
+- Meta strip display values use `capitalize` CSS class — "Source Exposed", "Urgent", "Signal" instead of all-lowercase.
+
+---
+
+### Phase 29.1: Community design pass — card spacing + comment inheritance (May 2026)
+
+Two targeted spacing fixes to the community section:
+
+**Feed cards (`src/pages/Community.jsx`)**
+- Discussion article cards restructured to mirror the DispatchCard hierarchy: category pills → title → italic preview → author meta row → action bar. Previously the author/time row appeared at the top of the card.
+- Card vertical padding increased from `py-4` to `py-6` for both discussion and Q&A cards.
+- Preview text made italic to match the Dispatch card editorial tone.
+- Author meta row now uses the exact same pattern as the Dispatch card (`name · time · ↑ likes · N replies`, `font-mono text-[11px]`) — no avatar, no "edited" label. Name is a clickable button that opens the author profile via `openProfile`.
+
+**Comments (`src/pages/CommunityPostDetail.jsx`)**
+- Comment list gap widened from `space-y-3` to `space-y-4`.
+- Top-level comment card padding changed to `p-5` (exactly matching the post card) so the visual weight is consistent throughout.
+- Nested comment padding set to `p-4` for a compact but proportional step down.
+- Nested reply indent increased from `mt-3` → `mt-4`.
+
+No schema, rule, or service changes.
+
+---
+
+### Phase 29.5: Nameplate polish + duty ledger + role standardization (May 2026)
+
+Follow-ups on Phase 29.4 from a design review:
+- Avatar corner pin was rendering clipped inside the photo well because the well had `overflow: hidden` (needed for image cover + inset bevel).
+- The 3-column nameplate had the stat counts and expertise chips fighting for space, so the chips wrapped to two lines.
+- The "field credentials" sidecard was small mono labels stacked on top of each other — not editorial.
+- Specialist role display didn't match the community standard (`AuthorLine` uses `getRoleColor` + `VerifiedBadge`).
+
+**Nameplate (`src/index.css` `.specialist-plate*`)**
+- Photo enlarged from 5.5 rem to 7.5 rem (responsive: 6 rem on ≤720 px).
+- Restructured the photo into an outer `.specialist-plate__photo-frame` wrapper (no overflow) holding the photo well plus an "On duty" tag below it with olive pip. Drops the clipped corner-pin.
+- Nameplate is now 2 columns (photo · identity) — the stats column is gone, freeing horizontal space so the expertise chips stay on one row.
+
+**Role standardization to match Community**
+- Specialist name in the nameplate is rendered with `getRoleColor('specialist', true)` (brass for verified), the same util used by `AuthorLine` in Community.
+- `VerifiedBadge` sits beside the name (unchanged), so the verified pattern is identical to a comment author or post byline.
+- Header user pill (Phase 29.4) already uses `avatarUrl` when available.
+- Eyebrow above the name now reads "Specialist · Verified by review desk" instead of just "Specialist on duty" — the on-duty status moved to the badge under the photo.
+
+**Duty ledger (`.duty-ledger`)**
+New band sitting between the nameplate and the workspace grid. Renders the three stat cells (cases resolved / avg rating / active now) with proper editorial weight:
+- Band header: "Duty ledger" + "As of {today}" eyebrows separated by an ink hairline.
+- 3-column grid of cells, each with a colored left rule (ink / brass / oxblood) and: mono kicker → 2.55 rem display value (color-coded) → small smoke note line explaining what the number means.
+- ≤720 px stacks to a single column.
+
+**Field credentials (`.credentials-sheet`)**
+Replaced the small mono sidecard with a structured paper sheet:
+- Brass-and-ink head row: "Field credentials" eyebrow + "edit →" mono link.
+- Italic ink-soft bio paragraph (or empty-state placeholder) separated by a dashed rule.
+- "Certifications" section: brass mono label + a numbered list with `01 / 02` mono prefixes and hairlines between rows — same numbered pattern used in Simulations transcripts.
+- "Verified credentials" section: brass mono label + paragraph.
+- Sections separated by dashed rules so each block reads as its own filed sheet.
+
+**Files touched**
+- `src/pages/SpecialistDashboard.jsx` (nameplate restructure, duty ledger render, credentials sheet markup, `getRoleColor` import, drop unused `Award` icon)
+- `src/index.css` (replaced `.specialist-plate*`, added `.specialist-plate__photo-frame`, `.specialist-plate__duty-tag/pip`, `.specialist-plate__chips`, `.duty-ledger*`, `.credentials-sheet*`)
+
+No data model, route, or service changes.
+
+---
+
+### Phase 29.4: Specialist Desk identity — nameplate, filing-drawer, case folders (May 2026)
+
+Phase 29.3 made the dashboard tidy but generic — it leaned on `NewsCard` and `NewsTabs` like every other page. This phase gives the Specialist Desk its own newsroom-object identity (matching the bespoke `sim-cuecard`, `workbench-task-card`, `notebook-card` motifs of the reference pages) and propagates the specialist's avatar across the app.
+
+**Avatars everywhere**
+- `src/components/layout/Header.jsx` user pill now renders `user.avatarUrl` when present, falling back to `getInitials()` only if no photo is uploaded. Existing `<img>` patterns already used elsewhere (`Settings.jsx`, `UserAvatar.jsx`) — this just unifies the header.
+- `src/pages/SpecialistDashboard.jsx` nameplate displays a 5.5 rem avatar photo with brass corner pin, falling back to mono monogram.
+
+**New utility: `src/utils/caseRef.js`**
+- `caseFileRef(case)` returns a stable display id `SP-YYYY-XXXX` (4-char slug from the Firestore doc id, year from `createdAt`).
+- Used by SpecialistDashboard case-folder tabs, SpecialistCaseFile topline, SupportCaseDesk topline, and MyCases card kicker so journalists and specialists see the same reference across views.
+
+**Specialist nameplate (`.specialist-plate`)**
+Custom header block replacing the previous `.specialist-desk__hero` / chip / note / stats grid:
+- Brass-framed 3-column band (photo · copy · counts) with double inset rules at the left and right edges (the brass nameplate detail).
+- 5.5 rem photo well: inset white bevel, oxblood corner indicator dot, image cover or mono monogram fallback.
+- Copy column: `eyebrow` "Specialist on duty" kicker → display name + `italic-ox` + `VerifiedBadge` → role + organization line → expertise chips with brass mono styling.
+- Counts column: right-aligned grid of three large display-number stats (resolved / avg rating / active now), separated by an ink hairline. Numbers color-coded (ink / brass / oxblood) for tone-coded scanning.
+- Below 880 px the counts row drops below the photo+copy block.
+
+**Filing-drawer tabs (`.filing-drawer`)**
+Replaces `NewsTabs` for casework lanes. Visual: three index-card tabs sitting on top of a 2 px ink rule (the drawer rim). Each tab:
+- Has its own `--tab-accent` (oxblood / brass / olive) used for the active bottom rule + icon color + active count weight.
+- Inactive tabs are recessed (translucent cream); active tab lifts 2 px and gains ink border + accent rule against the drawer rim.
+- 3-column grid per tab: icon · label (display soft) + mono caps desc · zero-padded count separated by hairline.
+- Below 720 px the tabs stack vertically.
+
+**Case folder cards (`.case-folder`)**
+Complete redesign of the casework cards as physical manila folders:
+- Folder tab sticker attached to the top edge (oxblood/brass/olive depending on lane) displays the `SP-YYYY-XXXX` case ref in mono caps.
+- Manila gradient background, 4 px left accent edge, soft inner bevel + drop shadow.
+- Topline: lane kicker (Redacted intake / Active case file / Filed note) + mono "in queue" or "claimed/filed" date stamp, separated by a dashed rule below — the dashed rules read like a filed form.
+- Right side of topline on resolved cards: rotated "FILED" stamp in olive, 2 px box border, mimicking an inked rubber stamp.
+- 1.85 rem display headline with `italic-ox` full stop.
+- Mono meta row (urgency, marker, "on your desk").
+- Italic excerpt block for redacted intakes (with accent left rule).
+- 2-column reporter ledger for active/resolved (name · contact method + email).
+- Inline 5-star rating + comment for resolved cards with feedback.
+- Footer: mono "open case file →" link in the folder's accent color + editorial `.btn` for primary action (Claim / Mark resolved).
+
+**CSS replaced**
+- Removed `.specialist-desk__hero`, `__identity`, `__avatar`, `__avatar-mark`, `__chip`, `__note`, `__stats`, and all `.specialist-stat*` classes.
+- Removed the short-lived `.specialist-case*` block from 29.3.
+- Added `.specialist-plate*` (8 selectors), `.filing-drawer*` (8 selectors), `.case-folder*` (16 selectors).
+- `.specialist-empty-state` retained but restyled with dashed border + ivory tint to read as an empty drawer.
+
+**Files touched**
+- `src/components/layout/Header.jsx`
+- `src/pages/SpecialistDashboard.jsx` (full rewrite of authenticated branch)
+- `src/pages/SpecialistCaseFile.jsx` (topline now includes `caseFileRef`)
+- `src/pages/SupportCaseDesk.jsx` (topline now includes `caseFileRef`)
+- `src/pages/MyCases.jsx` (card kicker now includes `caseFileRef`)
+- `src/utils/caseRef.js` (new)
+- `src/index.css` (specialist desk identity block replaced)
+
+No schema, Firestore rule, callable, or service changes.
+
+---
+
+### Phase 29.3: Specialist Dashboard — first editorial pass (May 2026)
+
+Follow-up after the first design pass: the 3-column kanban lanes squeezed each card to ~340 px wide, producing cramped pill badges, an awkwardly-wrapping inline "claim" button, and an overall amateur look that clashed with the reference pages (Simulations, Resources, Secure Setup, Security Score). Replaced kanban with the editorial Simulations pattern: tabs + single-column rich cards.
+
+**`src/pages/SpecialistDashboard.jsx`** — rewrite
+- 3-column `.specialist-board` kanban dropped. Replaced with `NewsTabs` (Intake tray / Active folio / Filed notes), each tab driving a single-column stack of cards.
+- Drag-and-drop handlers, state (`dragState`, `activeDropLane`), and helpers (`beginDeskDrag`, `endDeskDrag`, `canDropIntoLane`, `allowLaneDrop`, `leaveLaneDrop`, `dropInLane`) removed. Claim/resolve are now explicit `NewsButton` actions inside each card.
+- New `CaseCard` component built on `NewsCard` with accent (oxblood/brass/olive per lane):
+  - Topline: kicker + queue time / claim date / file date.
+  - Body: 2.75 rem editorial crisis icon (tinted to lane accent) + `display-soft` ~28 px crisis headline with `italic-ox` full stop + mono meta row (urgency / marker / status).
+  - Redacted intake cards show the `previewNote` as an italic pull-quote with oxblood left rule.
+  - Active/resolved cards show a 2-column reporter ledger (name / contact channel + email).
+  - Resolved cards inline the star rating + comment if feedback was filed.
+  - Footer: `open case file →` mono link + `.btn` (editorial filled button) for the lane's primary action.
+- Successful claim/resolve auto-switches `activeLane` to the destination tab so the workflow is visible.
+- Pending/verification-status branch unchanged from Phase 29.2 (newsroom topline + display headline).
+- Side rail (pinned note + field credentials + feedback + reference shelf) stays sticky on the right, unchanged.
+
+**`src/index.css`**
+- Removed `.specialist-board`, `.specialist-lane*`, `.specialist-queue-head`, `.specialist-queue-panel`, `.specialist-routing-note*`, `.specialist-request-list`, `.specialist-request-card*` (all kanban-era styles).
+- Added `.specialist-case-stack`, `.specialist-case`, `.specialist-case__topline`, `__body`, `__icon` (CSS `color-mix` against lane accent), `__meta`, `__excerpt`, `__contact`, `__feedback`, `__footer`, `__link`.
+- Kept `.specialist-empty-state` (now used for the per-tab empty card) and the existing `.specialist-desk__*`, `.specialist-stat*`, `.specialist-side-*`, `.specialist-sidecard*` classes.
+- Responsive override (≤1023 px) cleaned: no longer references the dropped `.specialist-queue-head` / `.specialist-board` selectors.
+
+No schema, Firestore rule, callable, or service changes.
+
+---
+
+### Phase 29.2: Support flow — editorial design pass (May 2026)
+
+Design pass across the full specialist–journalist support request flow. Inspired by Simulations, SecurityScore, and SecureSetup as reference pages for newsroom motif usage.
+
+**Width audit**
+- `MyCases` and `SupportCaseDesk` were using `max="reading"` (980 px). Changed to `max="wide"` (1400 px) — consistent with all other operational pages.
+
+**`src/pages/MyCases.jsx`**
+- Removed `max="reading"` and `className="specialist-casefile"` from the page shell.
+- Added a stat summary row (in intake / with specialist / resolved) using `.specialist-stat` classes — mirrors the SpecialistDashboard stat bar.
+- Replaced plain `border bg-paper-soft` case list items with the new `.my-cases-card` component: left-border accent (brass = open, oxblood = claimed, olive = resolved), `display-soft` crisis headline, italic description excerpt, mono meta row, `open case desk →` link.
+- Empty state: removed badges, uses plain eyebrow + prose + handdrawn link.
+- Added `⁂` asterism separator before the footer action.
+
+**`src/pages/SupportCaseDesk.jsx`** (journalist's view of their case)
+- Width: `max="reading"` → `max="wide"` in all three render paths (loading, error, main).
+- Thread + Resolution report cards wrapped in `.specialist-casefile__workspace-cols` for side-by-side layout on wide screens — matching the SpecialistCaseFile layout.
+- Feedback card remains below, spanning full width.
+
+**`src/pages/SpecialistDashboard.jsx`** (pending / unverified state)
+- Pending state now opens with the standard newsroom header: `news-page-topline` → `NewsRule` → icon + `.display` headline → `italic-ox` full stop → ink-soft lede.
+- Status strings moved to named variables (`statusKicker`, `statusHeadline`, `statusDesc`) and converted to sentence case.
+- Icon resized from `w-14 h-14` to `w-11 h-11`; placed inline beside the headline instead of centered above it.
+- Detail sheet gains `mt-10` top margin to breathe after the header block.
+
+**`src/index.css`** — new `.my-cases-card` component
+- `.my-cases-card` — base card with gradient background, border, drop shadow, `3px` left accent strip.
+- `.my-cases-card--claimed` — oxblood accent.
+- `.my-cases-card--resolved` — olive accent.
+- `.my-cases-card__head`, `__excerpt`, `__meta`, `__footer`, `__link` — editorial sub-elements.
+
+No schema, Firestore rule, or service changes.
+
+---
+
+**Last Updated**: May 29, 2026
+**Version**: 4.0.7
+**Documentation**: Complete (includes Phases 1-29.5)

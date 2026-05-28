@@ -1,5 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../../../firebase/config';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db, functions } from '../../../firebase/config';
+import { COLLECTIONS } from '../../../config/firebaseCollections';
 
 const scoreLabel = (s) => s >= 70 ? 'strong' : s >= 50 ? 'moderate' : 'needs work';
 
@@ -165,4 +167,11 @@ export async function requestThreatModelReport(profile) {
   const callable = httpsCallable(functions, 'generateThreatModel');
   const result = await callable({ profile });
   return result.data;
+}
+
+export async function persistLatestThreatModel(uid, payload) {
+  if (!uid || !payload) return;
+  await updateDoc(doc(db, COLLECTIONS.USERS, uid), {
+    latestThreatModel: payload,
+  });
 }

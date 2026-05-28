@@ -27,6 +27,7 @@ import { DeleteConfirmModal } from '../features/community/components/DeleteConfi
 import { ReportModal } from '../features/community/components/ReportModal';
 import { AuthorProfileModal } from '../features/community/components/AuthorProfileModal';
 import { NewsInput, NewsPage, NewsRule } from '../components/editorial/NewsPage';
+import { stripCommunityFormatting } from '../features/community/utils/richTextFormatting';
 
 const categories = [
   { id: 'all',              name: 'all'      },
@@ -43,6 +44,8 @@ const categories = [
    single-string `category` and new multi-value `categories` field. */
 const getPostCatIds = (post) =>
   (post.categories?.length > 0 ? post.categories : [post.category]).filter(Boolean);
+
+const getPreviewText = (content = '') => stripCommunityFormatting(content);
 
 /* ─── Dispatch card ──────────────────────────────────────────────── */
 
@@ -75,7 +78,7 @@ const DispatchCard = ({ post, onNavigate }) => {
         <h2 className="display text-2xl md:text-3xl leading-tight mb-3 group-hover:text-oxblood transition-colors">
           {post.title}
         </h2>
-        <p className="text-sm text-smoke leading-relaxed line-clamp-2 mb-4 italic">{post.content}</p>
+        <p className="text-sm text-smoke leading-relaxed line-clamp-2 mb-4 italic">{getPreviewText(post.content)}</p>
         <div className="flex items-center gap-3 font-mono text-xs text-smoke-dim">
           <span className={post.isAnonymous ? 'text-smoke-dim' : (post.authorType === 'specialist' && post.isVerified ? 'text-brass' : 'text-smoke')}>
             {post.isAnonymous ? 'Anonymous' : (post.authorName || 'Anonymous')}
@@ -477,7 +480,7 @@ const Community = () => {
                           return (
                             <article key={post.id}
                               onClick={() => navigate(`/community/${post.id}`)}
-                              className="group border-t border-ink/10 py-4 cursor-pointer hover:bg-paper-soft/25 transition-colors"
+                              className="group border-t border-ink/10 py-6 cursor-pointer hover:bg-paper-soft/25 transition-colors"
                             >
                               <div className="flex gap-5">
                                 <div className="flex flex-col items-center gap-1 pt-0.5 w-11 shrink-0">
@@ -499,7 +502,7 @@ const Community = () => {
                                   <h3 className="display-soft text-base md:text-lg text-ink mb-1.5 group-hover:text-oxblood transition-colors leading-snug">
                                     {post.title}
                                   </h3>
-                                  <p className="text-sm text-smoke line-clamp-2 mb-2 leading-relaxed">{post.content}</p>
+                                  <p className="text-sm text-smoke line-clamp-2 mb-2 leading-relaxed">{getPreviewText(post.content)}</p>
                                   <CategoryPills post={post} />
                                   <div className="flex items-center gap-4 text-xs text-smoke-dim flex-wrap mt-3">
                                     <div className="flex items-center gap-1.5">
@@ -525,23 +528,28 @@ const Community = () => {
                         return (
                           <article key={post.id}
                             onClick={() => navigate(`/community/${post.id}`)}
-                            className="group border-t border-ink/10 py-4 cursor-pointer hover:bg-paper-soft/25 transition-colors"
+                            className="group border-t border-ink/10 py-6 cursor-pointer hover:bg-paper-soft/25 transition-colors"
                           >
-                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                              <div className="flex items-center gap-1.5">
-                                <UserAvatar name={post.authorName} accountType={post.authorType} anonymous={post.isAnonymous} size="xs" />
-                                <AuthorLine item={post} onOpenProfile={openProfile} />
-                              </div>
-                              <span className="text-smoke-dim text-[10px]">·</span>
-                              <span className="eyebrow sm text-smoke-dim">{timeAgo(post.createdAt)}</span>
-                              {post.edited && <span className="eyebrow sm text-smoke-dim">(edited)</span>}
-                            </div>
-                            <h3 className="display-soft text-base md:text-lg text-ink mb-1.5 group-hover:text-oxblood transition-colors leading-snug">
+                            <CategoryPills post={post} />
+                            <h3 className={`display-soft text-base md:text-lg text-ink group-hover:text-oxblood transition-colors leading-snug ${getPostCatIds(post).length > 0 ? 'mt-2.5 mb-2' : 'mb-2'}`}>
                               {post.title}
                             </h3>
-                            <p className="text-sm text-smoke line-clamp-2 leading-relaxed mb-2">{post.content}</p>
-                            <CategoryPills post={post} />
-                            <div className="flex items-center gap-4 pt-3 border-t border-ink/8 mt-2">
+                            <p className="text-xs text-smoke-dim line-clamp-2 leading-relaxed mb-4">{getPreviewText(post.content)}</p>
+                            <div className="flex items-center gap-2.5 font-mono text-[11px] text-smoke-dim">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); if (!post.isAnonymous && post.authorId) openProfile(post.authorId, post.authorType); }}
+                                className={`hover:opacity-70 transition-opacity ${post.isAnonymous ? 'text-smoke-dim' : (post.authorType === 'specialist' && post.isVerified ? 'text-brass' : 'text-smoke')}`}
+                              >
+                                {post.isAnonymous ? 'anonymous' : (post.authorName || 'anonymous')}
+                              </button>
+                              <span>·</span>
+                              <span>{timeAgo(post.createdAt)}</span>
+                              <span>·</span>
+                              <span>↑ {post.likes || 0}</span>
+                              <span>·</span>
+                              <span>{getPostCommentCount(post)} {getPostCommentCount(post) === 1 ? 'reply' : 'replies'}</span>
+                            </div>
+                            <div className="flex items-center gap-4 pt-3 border-t border-ink/8 mt-3">
                               <button onClick={(e) => handleLike(e, post.id)}
                                 className={`flex items-center gap-1.5 text-xs transition-colors ${liked ? 'text-oxblood' : 'text-smoke-dim hover:text-oxblood'}`}>
                                 <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />

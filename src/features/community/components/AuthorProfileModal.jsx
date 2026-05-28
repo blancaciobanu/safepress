@@ -49,7 +49,12 @@ export const AuthorProfileModal = ({ profile, onSelectPost, onClose }) => {
             <>
               <div className="px-6 pt-6 pb-4 border-b border-ink/8">
                 <div className="flex items-center gap-3 mb-4">
-                  <UserAvatar name={profile.username} accountType={profile.type} size="lg" />
+                  <UserAvatar
+                    name={profile.username}
+                    avatarUrl={profile.avatarUrl}
+                    accountType={profile.type}
+                    size="lg"
+                  />
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-base font-semibold text-ink">

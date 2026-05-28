@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import {
   MessageSquare, Heart, Send, ArrowLeft, CheckCircle2, X,
   Search, Bookmark, BookmarkCheck, Pencil, Trash2, Flag,
-  AlertTriangle,
+  AlertTriangle, CornerDownRight,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -13,6 +13,7 @@ import {
   getCommunityPost,
   getPostCommentCount,
   softDeleteCommunityComment,
+  updateCommunityComment,
   updateCommunityPost,
   updateCommunityPostLike,
 } from '../features/community/services/communityService';
@@ -25,15 +26,17 @@ import { timeAgo } from '../utils/time';
 import { NewsSidebar } from '../features/news/NewsSidebar';
 import { UserAvatar } from '../features/community/components/UserAvatar';
 import { AuthorLine } from '../features/community/components/AuthorLine';
+import { CommunityRichText } from '../features/community/components/CommunityRichText';
+import { CommunityRichTextEditor } from '../features/community/components/CommunityRichTextEditor';
 import { DeleteConfirmModal } from '../features/community/components/DeleteConfirmModal';
 import { ReportModal } from '../features/community/components/ReportModal';
 import { AuthorProfileModal } from '../features/community/components/AuthorProfileModal';
+import { getPublicProfile } from '../features/users/services/userService';
 import { getDisplayName } from '../utils/userUtils';
 import {
   NewsInput,
   NewsPage,
   NewsPanel,
-  NewsTextarea,
 } from '../components/editorial/NewsPage';
 
 const CATEGORY_NAMES = {
@@ -45,6 +48,23 @@ const CATEGORY_NAMES = {
   'legal-rights': 'legal',
   'general': 'general',
 };
+
+// Keep this in sync with the Firestore rule for community comment content.
+const MAX_COMMUNITY_COMMENT_LENGTH = 5000;
+
+const getRoleLabel = (item, { anonymousLabel = 'Posted Anonymously' } = {}) => {
+  if (item?.isAnonymous) return anonymousLabel;
+  if (item?.authorType === 'specialist') {
+    return (item?.authorVerificationStatus === 'approved' || item?.isVerified)
+      ? 'Verified Security Specialist'
+      : 'Security Specialist';
+  }
+  return 'Journalist';
+};
+
+const AUTHOR_META_CLASS = 'mt-2 font-mono text-[9px] font-semibold uppercase leading-none tracking-[0.24em] text-smoke-dim';
+
+const getCommentParentId = (comment = {}) => comment.parentCommentId || null;
 
 const CommunityPostDetail = () => {
   const { postId } = useParams();
@@ -64,6 +84,13 @@ const CommunityPostDetail = () => {
   const [editForm, setEditForm] = useState({ title: '', content: '' });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [authorAvatars, setAuthorAvatars] = useState({});
+  const [replyTarget, setReplyTarget] = useState(null);
+  const [replyDraft, setReplyDraft] = useState('');
+  const [replyError, setReplyError] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editCommentDraft, setEditCommentDraft] = useState('');
+  const [editCommentError, setEditCommentError] = useState('');
 
   useEffect(() => {
     if (!postId) return;
@@ -80,6 +107,50 @@ const CommunityPostDetail = () => {
     };
     fetchPost();
   }, [postId]);
+
+  useEffect(() => {
+    const authorIds = [...new Set([
+      post?.isAnonymous ? null : post?.authorId,
+      ...comments.map((comment) => (comment.deleted ? null : comment.authorId)),
+    ].filter(Boolean))];
+
+    const missingIds = authorIds.filter((authorId) => !Object.prototype.hasOwnProperty.call(authorAvatars, authorId));
+    if (!missingIds.length) return;
+
+    let cancelled = false;
+
+    const fetchAuthorAvatars = async () => {
+      try {
+        const profiles = await Promise.all(
+          missingIds.map(async (authorId) => [authorId, await getPublicProfile(authorId)])
+        );
+
+        if (cancelled) return;
+
+        setAuthorAvatars((prev) => {
+          const next = { ...prev };
+          profiles.forEach(([authorId, profile]) => {
+            next[authorId] = profile?.avatarUrl || null;
+          });
+          return next;
+        });
+      } catch (err) {
+        logError('Error loading author avatars:', err);
+      }
+    };
+
+    fetchAuthorAvatars();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [post, comments, authorAvatars]);
+
+  const getAuthorAvatarUrl = (authorId) => {
+    if (!authorId) return null;
+    if (authorId === user?.uid && user?.avatarUrl) return user.avatarUrl;
+    return authorAvatars[authorId] || null;
+  };
 
   const handleLike = async (e) => {
     e.stopPropagation();
@@ -148,14 +219,24 @@ const CommunityPostDetail = () => {
     }
   };
 
-  const handleAddComment = async () => {
-    if (!user || !newComment.trim() || !post) return;
+  const submitComment = async ({
+    content,
+    parentComment = null,
+    onSuccess,
+    onError = setError,
+  }) => {
+    const trimmedComment = content.trim();
+    if (!user || !trimmedComment || !post) return;
     if (!user.emailVerified) {
-      setError('verify your email before replying in the community.');
+      onError('verify your email before replying in the community.');
+      return;
+    }
+    if (trimmedComment.length > MAX_COMMUNITY_COMMENT_LENGTH) {
+      onError(`reply is too long — ${trimmedComment.length}/${MAX_COMMUNITY_COMMENT_LENGTH} characters.`);
       return;
     }
     setSubmitting(true);
-    setError('');
+    onError('');
     try {
       const comment = {
         id: `${user.uid}-${Date.now()}`,
@@ -164,24 +245,53 @@ const CommunityPostDetail = () => {
         authorType: user.accountType || 'journalist',
         isVerified: user.verificationStatus === 'approved',
         authorVerificationStatus: user.accountType === 'specialist' ? (user.verificationStatus || 'pending') : null,
-        content: newComment.trim(),
+        content: trimmedComment,
         createdAt: new Date().toISOString(),
         deleted: false,
       };
+
+      if (parentComment) {
+        comment.parentCommentId = parentComment.id;
+        comment.replyToAuthorId = parentComment.authorId || null;
+        comment.replyToAuthorName = parentComment.authorName || 'deleted';
+      }
+
       await addCommunityComment({
         postId: post.id,
         comment,
         fallbackCount: getPostCommentCount(post),
       });
-      const nextCount = getPostCommentCount(post) + 1;
+      const nextCount = Math.max(getPostCommentCount(post), comments.length) + 1;
       setComments((prev) => [...prev, comment]);
       setPost((prev) => ({ ...prev, commentCount: nextCount, lastCommentAt: comment.createdAt }));
-      setNewComment('');
+      onSuccess?.();
     } catch (err) {
       logError('Error adding comment:', err);
-      setError('failed to add comment.');
+      onError('failed to add comment.');
     }
     setSubmitting(false);
+  };
+
+  const handleAddComment = async () => {
+    await submitComment({
+      content: newComment,
+      onSuccess: () => setNewComment(''),
+      onError: setError,
+    });
+  };
+
+  const handleAddCommentReply = async (targetComment) => {
+    if (!targetComment || targetComment.deleted) return;
+    await submitComment({
+      content: replyDraft,
+      parentComment: targetComment,
+      onSuccess: () => {
+        setReplyDraft('');
+        setReplyTarget(null);
+        setReplyError('');
+      },
+      onError: setReplyError,
+    });
   };
 
   const handleDeleteComment = async (pid, commentId) => {
@@ -194,9 +304,36 @@ const CommunityPostDetail = () => {
           ? { ...c, content: '[deleted]', authorName: 'deleted', authorId: null, deleted: true, authorType: 'journalist', isVerified: false, authorVerificationStatus: null }
           : c
       ));
+      if (replyTarget?.id === commentId) {
+        setReplyTarget(null);
+        setReplyDraft('');
+        setReplyError('');
+      }
     } catch (err) {
       logError('Error deleting comment:', err);
     }
+  };
+
+  const handleEditComment = async (comment) => {
+    const trimmed = editCommentDraft.trim();
+    if (!trimmed || trimmed.length > MAX_COMMUNITY_COMMENT_LENGTH) return;
+    setSubmitting(true);
+    setEditCommentError('');
+    try {
+      const patch = {
+        content: trimmed,
+        edited: true,
+        editedAt: new Date().toISOString(),
+      };
+      await updateCommunityComment({ postId: post.id, commentId: comment.id, patch });
+      setComments((prev) => prev.map((c) => c.id === comment.id ? { ...c, ...patch } : c));
+      setEditingCommentId(null);
+      setEditCommentDraft('');
+    } catch (err) {
+      logError('Error editing comment:', err);
+      setEditCommentError('failed to save edit — check your connection.');
+    }
+    setSubmitting(false);
   };
 
   if (pageLoading) {
@@ -234,15 +371,295 @@ const CommunityPostDetail = () => {
   const replyLabel = isAMA ? 'Your question' : isQuestion ? 'Your answer' : 'Your reply';
   const replyAction = isAMA ? 'ask' : isQuestion ? 'answer' : 'reply';
   const emptyReplyCue = isAMA ? 'first question' : isQuestion ? 'first answer' : 'first reply';
+  const trimmedComment = newComment.trim();
+  const commentLength = trimmedComment.length;
+  const commentOverLimit = commentLength > MAX_COMMUNITY_COMMENT_LENGTH;
+  const trimmedReplyDraft = replyDraft.trim();
+  const replyDraftLength = trimmedReplyDraft.length;
+  const replyDraftOverLimit = replyDraftLength > MAX_COMMUNITY_COMMENT_LENGTH;
+  const postRoleLabel = getRoleLabel(post || {}, { anonymousLabel: 'Posted Anonymously' });
 
-  const orderedComments = (() => {
-    const list = [...comments];
-    const acceptedId = post.acceptedCommentId;
-    if (!acceptedId) return list;
-    const accepted = list.find((c) => c.id === acceptedId);
-    const rest = list.filter((c) => c.id !== acceptedId);
-    return accepted ? [accepted, ...rest] : list;
+  const commentsById = new Map(comments.map((comment) => [comment.id, comment]));
+  const repliesByParent = new Map();
+  const topLevelComments = [];
+
+  comments.forEach((comment) => {
+    const parentId = getCommentParentId(comment);
+    if (parentId && commentsById.has(parentId)) {
+      const replies = repliesByParent.get(parentId) || [];
+      replies.push(comment);
+      repliesByParent.set(parentId, replies);
+      return;
+    }
+    topLevelComments.push(comment);
+  });
+
+  const acceptedComment = post.acceptedCommentId ? commentsById.get(post.acceptedCommentId) : null;
+  const acceptedTopLevelId = acceptedComment
+    ? (getCommentParentId(acceptedComment) || acceptedComment.id)
+    : null;
+  const orderedTopLevelComments = (() => {
+    if (!acceptedTopLevelId) return topLevelComments;
+    const acceptedThread = topLevelComments.find((comment) => comment.id === acceptedTopLevelId);
+    if (!acceptedThread) return topLevelComments;
+    return [
+      acceptedThread,
+      ...topLevelComments.filter((comment) => comment.id !== acceptedTopLevelId),
+    ];
   })();
+
+  const renderComment = (comment, depth = 0) => {
+    const isAccepted = post.acceptedCommentId && comment.id === post.acceptedCommentId;
+    const canAccept = isQuestion && isAuthor && !comment.deleted;
+    const canDelete = user && comment.authorId === user.uid && !comment.deleted;
+    const canEdit = user && comment.authorId === user.uid && !comment.deleted;
+    const canReport = user && comment.authorId && comment.authorId !== user.uid && !comment.deleted;
+    const canReply = user && !isClosed && !comment.deleted;
+    const isNested = depth > 0;
+    const isActiveReply = replyTarget?.id === comment.id;
+    const isActiveEdit = editingCommentId === comment.id;
+    const editDraftTrimmed = editCommentDraft.trim();
+    const editDraftOverLimit = editDraftTrimmed.length > MAX_COMMUNITY_COMMENT_LENGTH;
+    const childReplies = repliesByParent.get(comment.id) || [];
+    const commentParagraphs = comment.content
+      .split(/\n{2,}/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean);
+    const renderedParagraphs = commentParagraphs.length ? commentParagraphs : [comment.content];
+    const commentRoleLabel = comment.deleted ? null : getRoleLabel(comment);
+
+    return (
+      <div
+        key={comment.id ?? comment.createdAt ?? comment.content}
+        className={isNested ? 'mt-4 ml-4 border-l border-ink/10 pl-4 md:ml-6 md:pl-5' : ''}
+      >
+        <div
+          className={`bg-paper-soft border border-ink/12 ${
+            isNested ? 'p-4 border-l-2' : 'p-5 border-l-4'
+          } ${isAccepted ? 'border-l-olive-500' : 'border-l-ink/10'}`}
+        >
+          {isAccepted && (
+            <div className="flex items-center gap-1.5 mb-3">
+              <CheckCircle2 className="w-3.5 h-3.5 text-olive-500" />
+              <span className="text-[10px] font-bold tracking-widest uppercase text-olive-400">accepted answer</span>
+            </div>
+          )}
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <UserAvatar
+                name={comment.authorName}
+                avatarUrl={comment.deleted ? null : getAuthorAvatarUrl(comment.authorId)}
+                accountType={comment.authorType}
+                anonymous={comment.deleted}
+                size={isNested ? 'md' : 'reply'}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {comment.deleted ? (
+                      <span className="text-[14px] font-semibold leading-none text-smoke-dim italic">deleted</span>
+                    ) : (
+                      <AuthorLine item={comment} onOpenProfile={openProfile} variant="comment" />
+                    )}
+                  </div>
+                  {commentRoleLabel && (
+                    <p className={AUTHOR_META_CLASS}>
+                      {commentRoleLabel}
+                    </p>
+                  )}
+                </div>
+                <span className="text-[11px] text-smoke-dim leading-none whitespace-nowrap pt-0.5 flex items-center gap-1">
+                  {timeAgo(comment.createdAt)}
+                  {comment.edited && <span className="text-[10px]">(edited)</span>}
+                </span>
+              </div>
+
+              {comment.replyToAuthorName && (
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-smoke-dim">
+                  <CornerDownRight className="w-3 h-3" />
+                  <span>replying to {comment.replyToAuthorName}</span>
+                </div>
+              )}
+
+              {isActiveEdit ? (
+                <>
+                  <CommunityRichTextEditor
+                    value={editCommentDraft}
+                    onChange={(nextValue) => {
+                      setEditCommentDraft(nextValue);
+                      if (editCommentError) setEditCommentError('');
+                    }}
+                    placeholder="Edit your comment..."
+                    rows="2"
+                    className="mt-2 community-inline-reply-editor"
+                    ariaInvalid={editDraftOverLimit}
+                  />
+                  <div className="community-reply-composer__footer">
+                    <span className={`eyebrow sm ${editDraftOverLimit ? 'text-oxblood' : 'text-smoke-dim'}`}>
+                      {editDraftTrimmed.length}/{MAX_COMMUNITY_COMMENT_LENGTH}
+                    </span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingCommentId(null);
+                          setEditCommentDraft('');
+                          setEditCommentError('');
+                        }}
+                        className="text-[11px] text-smoke-dim hover:text-ink transition-colors"
+                      >
+                        cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditComment(comment)}
+                        disabled={!editDraftTrimmed || editDraftOverLimit || submitting}
+                        className="btn mono disabled:opacity-40"
+                      >
+                        {submitting ? '...' : 'save'}
+                      </button>
+                    </div>
+                  </div>
+                  {editCommentError && <p className="text-xs text-oxblood mt-2">{editCommentError}</p>}
+                </>
+              ) : (
+                <>
+                  <CommunityRichText
+                    content={renderedParagraphs.join('\n\n')}
+                    className={`mt-2 break-words ${
+                      comment.deleted
+                        ? 'text-sm text-smoke-dim italic leading-relaxed'
+                        : 'text-[15px] md:text-base text-ink-soft leading-[1.62]'
+                    }`}
+                    paragraphClassName="leading-[1.62]"
+                    listClassName={comment.deleted
+                      ? 'text-sm text-smoke-dim italic leading-relaxed'
+                      : 'text-[15px] md:text-base text-ink-soft leading-[1.62]'}
+                  />
+
+                  {(canReply || canAccept || canEdit || canDelete || canReport) && (
+                    <div className="flex items-center gap-3 mt-3 flex-wrap">
+                      {canEdit && (
+                        <button
+                          onClick={() => {
+                            setEditingCommentId(comment.id);
+                            setEditCommentDraft(comment.content);
+                            setEditCommentError('');
+                          }}
+                          className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-ink transition-colors"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          edit
+                        </button>
+                      )}
+                      {canReply && (
+                        <button
+                          onClick={() => {
+                            setReplyTarget(comment);
+                            setReplyDraft('');
+                            setReplyError('');
+                            setError('');
+                          }}
+                          className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-ink transition-colors"
+                        >
+                          <CornerDownRight className="w-3 h-3" />
+                          reply
+                        </button>
+                      )}
+                      {canAccept && (
+                        <button
+                          onClick={() => handleAcceptAnswer(comment.id)}
+                          className={`flex items-center gap-1 text-[11px] transition-colors ${
+                            isAccepted ? 'text-olive-400' : 'text-smoke-dim hover:text-olive-400'
+                          }`}
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          {isAccepted ? 'unmark answer' : 'mark as answer'}
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => setDeleteTarget({ type: 'comment', id: post.id, commentId: comment.id })}
+                          className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          delete
+                        </button>
+                      )}
+                      {canReport && (
+                        <button
+                          onClick={() => setReportDialog({ type: 'comment', postId: post.id, commentId: comment.id })}
+                          className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors"
+                        >
+                          <Flag className="w-3 h-3" />
+                          report
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {isActiveReply && (
+                    <div className="mt-3 border-t border-ink/8 pt-3">
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <p className="text-[11px] text-smoke">
+                          replying to <span className="font-semibold text-ink">{comment.authorName}</span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReplyTarget(null);
+                            setReplyDraft('');
+                            setReplyError('');
+                          }}
+                          className="text-[11px] text-smoke-dim hover:text-ink transition-colors"
+                        >
+                          cancel
+                        </button>
+                      </div>
+                      <CommunityRichTextEditor
+                        value={replyDraft}
+                        onChange={(nextValue) => {
+                          setReplyDraft(nextValue);
+                          if (replyError) setReplyError('');
+                        }}
+                        placeholder={`Reply to ${comment.authorName}...`}
+                        rows="2"
+                        className="community-inline-reply-editor"
+                        ariaInvalid={replyDraftOverLimit}
+                      />
+                      <div className="community-reply-composer__footer">
+                        <span className={`eyebrow sm ${replyDraftOverLimit ? 'text-oxblood' : 'text-smoke-dim'}`}>
+                          {replyDraftLength}/{MAX_COMMUNITY_COMMENT_LENGTH}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleAddCommentReply(comment)}
+                          disabled={!trimmedReplyDraft || replyDraftOverLimit || submitting}
+                          className="btn mono disabled:opacity-40"
+                        >
+                          <Send className="w-3 h-3" />
+                          {submitting ? '...' : 'reply'}
+                        </button>
+                      </div>
+                      {replyError && <p className="text-xs text-oxblood mt-2">{replyError}</p>}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {childReplies.length > 0 && (
+          <div>
+            {childReplies.map((reply) => renderComment(reply, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -302,16 +719,15 @@ const CommunityPostDetail = () => {
                 <div className="flex items-center gap-3 mb-4">
                   <UserAvatar
                     name={post.authorName}
+                    avatarUrl={post.isAnonymous ? null : getAuthorAvatarUrl(post.authorId)}
                     accountType={post.authorType}
                     anonymous={post.isAnonymous}
                     size="md"
                   />
                   <div className="flex-1 min-w-0">
                     <AuthorLine item={post} onOpenProfile={openProfile} />
-                    <p className="text-[11px] text-smoke-dim mt-0.5">
-                      {post.isAnonymous
-                        ? 'posted anonymously'
-                        : (post.authorType === 'specialist' ? 'security specialist' : 'journalist')}
+                    <p className={AUTHOR_META_CLASS}>
+                      {postRoleLabel}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -353,13 +769,14 @@ const CommunityPostDetail = () => {
                     <input
                       value={editForm.title}
                       onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))}
-                      className="w-full px-0 py-2 bg-transparent border-b border-ink/10 text-ink text-xl font-display font-bold placeholder-smoke focus:outline-none focus:border-ink/40 transition-colors mb-3"
+                      className="w-full px-0 py-2 bg-transparent border-b border-ink/10 text-ink text-2xl md:text-[1.7rem] font-display font-bold placeholder-smoke focus:outline-none focus:border-ink/40 transition-colors mb-3"
                     />
-                    <textarea
+                    <CommunityRichTextEditor
                       value={editForm.content}
-                      onChange={(e) => setEditForm((p) => ({ ...p, content: e.target.value }))}
+                      onChange={(nextValue) => setEditForm((prev) => ({ ...prev, content: nextValue }))}
+                      placeholder="Update the thread context..."
                       rows="4"
-                      className="w-full px-0 py-2 bg-transparent text-sm text-ink-soft placeholder-smoke focus:outline-none transition-colors resize-none leading-relaxed mb-3"
+                      className="mb-3"
                     />
                     <div className="flex items-start gap-2 px-3 py-2.5 mb-4 bg-amber-500/[0.08] border border-amber-500/20">
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -386,15 +803,18 @@ const CommunityPostDetail = () => {
                   </>
                 ) : (
                   <>
-                    <h1 className="text-xl font-display font-bold mb-3 leading-snug text-ink">
+                    <h1 className="text-2xl md:text-[1.7rem] font-display font-bold mb-3 leading-snug text-ink">
                       {post.title}
-                      {post.edited && (
-                        <span className="ml-2 text-[10px] font-normal text-smoke-dim align-middle">(edited)</span>
-                      )}
                     </h1>
-                    <p className="text-sm text-ink-soft leading-relaxed whitespace-pre-wrap mb-4">
-                      {post.content}
-                    </p>
+                    <CommunityRichText
+                      content={post.content}
+                      className="mb-2 text-[15px] md:text-base text-ink-soft leading-[1.62]"
+                      paragraphClassName="leading-[1.62]"
+                      listClassName="text-[15px] md:text-base text-ink-soft leading-[1.62]"
+                    />
+                    {post.edited && (
+                      <p className="text-[10px] font-mono text-smoke-dim mb-3">edited</p>
+                    )}
                   </>
                 )}
 
@@ -455,21 +875,34 @@ const CommunityPostDetail = () => {
                     }}
                   >
                     <div className="community-reply-composer__header">
-                      <UserAvatar name={user.username || ''} accountType={user.accountType} size="sm" />
+                      <UserAvatar
+                        name={user.username || ''}
+                        avatarUrl={user.avatarUrl || null}
+                        accountType={user.accountType}
+                        size="sm"
+                      />
                       <p className="eyebrow sm text-smoke">{replyLabel}</p>
                     </div>
-                    <NewsTextarea
+                    <CommunityRichTextEditor
                       value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder={isAMA ? 'ask your question...' : isQuestion ? 'write your answer...' : 'add a reply...'}
+                      onChange={(nextValue) => {
+                        setNewComment(nextValue);
+                        if (error) setError('');
+                      }}
+                      placeholder={isAMA ? 'Ask your question...' : isQuestion ? 'Write your answer...' : 'Add a reply...'}
                       rows="3"
-                      className="community-reply-composer__textarea leading-relaxed"
+                      ariaInvalid={commentOverLimit}
                     />
                     <div className="community-reply-composer__footer">
-                      <span className="eyebrow sm text-smoke-dim">{commentCount === 0 ? emptyReplyCue : 'join thread'}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="eyebrow sm text-smoke-dim">{commentCount === 0 ? emptyReplyCue : 'join thread'}</span>
+                        <span className={`eyebrow sm ${commentOverLimit ? 'text-oxblood' : 'text-smoke-dim'}`}>
+                          {commentLength}/{MAX_COMMUNITY_COMMENT_LENGTH}
+                        </span>
+                      </div>
                       <button
                         type="submit"
-                        disabled={!newComment.trim() || submitting}
+                        disabled={!trimmedComment || commentOverLimit || submitting}
                         className="btn mono disabled:opacity-40"
                       >
                         <Send className="w-3 h-3" />
@@ -500,89 +933,13 @@ const CommunityPostDetail = () => {
                   </p>
                 )}
 
-                <div className="space-y-2">
+                <div className="space-y-4">
                   {commentsLoading && (
                     <div className="flex justify-center py-2">
                       <div className="w-4 h-4 border-2 border-midnight-400 border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
-                  {orderedComments.map((comment) => {
-                    const isAccepted = post.acceptedCommentId && comment.id === post.acceptedCommentId;
-                    const canAccept = isQuestion && isAuthor && !comment.deleted;
-                    const canDelete = user && comment.authorId === user.uid && !comment.deleted;
-                    const canReport = user && comment.authorId && comment.authorId !== user.uid && !comment.deleted;
-                    return (
-                      <div
-                        key={comment.id ?? comment.createdAt ?? comment.content}
-                        className={`bg-paper-soft border border-ink/12 px-4 py-3 border-l-4 ${
-                          isAccepted ? 'border-l-olive-500' : 'border-l-ink/10'
-                        }`}
-                      >
-                        {isAccepted && (
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-olive-500" />
-                            <span className="text-[10px] font-bold tracking-widest uppercase text-olive-400">accepted answer</span>
-                          </div>
-                        )}
-                        <div className="flex gap-3 items-start">
-                          <div className="flex-shrink-0 mt-0.5">
-                            <UserAvatar
-                              name={comment.authorName}
-                              accountType={comment.authorType}
-                              anonymous={comment.deleted}
-                              size="sm"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                              {comment.deleted ? (
-                                <span className="text-xs font-semibold text-smoke-dim italic">deleted</span>
-                              ) : (
-                                <AuthorLine item={comment} onOpenProfile={openProfile} />
-                              )}
-                              <span className="text-[10px] text-smoke-dim ml-auto">{timeAgo(comment.createdAt)}</span>
-                            </div>
-                            <p className={`text-sm leading-relaxed ${comment.deleted ? 'text-smoke-dim italic' : 'text-smoke'}`}>
-                              {comment.content}
-                            </p>
-                            {(canAccept || canDelete || canReport) && (
-                              <div className="flex items-center gap-3 mt-2">
-                                {canAccept && (
-                                  <button
-                                    onClick={() => handleAcceptAnswer(comment.id)}
-                                    className={`flex items-center gap-1 text-[11px] transition-colors ${
-                                      isAccepted ? 'text-olive-400' : 'text-smoke-dim hover:text-olive-400'
-                                    }`}
-                                  >
-                                    <CheckCircle2 className="w-3 h-3" />
-                                    {isAccepted ? 'unmark answer' : 'mark as answer'}
-                                  </button>
-                                )}
-                                {canDelete && (
-                                  <button
-                                    onClick={() => setDeleteTarget({ type: 'comment', id: post.id, commentId: comment.id })}
-                                    className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-oxblood transition-colors"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                    delete
-                                  </button>
-                                )}
-                                {canReport && (
-                                  <button
-                                    onClick={() => setReportDialog({ type: 'comment', postId: post.id, commentId: comment.id })}
-                                    className="flex items-center gap-1 text-[11px] text-smoke-dim hover:text-brass transition-colors"
-                                  >
-                                    <Flag className="w-3 h-3" />
-                                    report
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {orderedTopLevelComments.map((comment) => renderComment(comment))}
 
                   {commentCount === 0 && (
                     <p className="text-center text-smoke-dim text-xs py-6">
@@ -602,14 +959,14 @@ const CommunityPostDetail = () => {
                     navigate('/community');
                   }}
                 >
-                  <div className="relative">
+                  <div className="relative community-post-detail__sidebar-search">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-smoke-dim pointer-events-none" />
                     <NewsInput
                       type="text"
                       value={sidebarSearch}
                       onChange={(e) => setSidebarSearch(e.target.value)}
-                      placeholder="search discussions..."
-                      className="pl-9 pr-4 py-2.5"
+                      placeholder="Search discussions..."
+                      className="pr-4 py-2.5"
                     />
                   </div>
                 </form>

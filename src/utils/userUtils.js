@@ -28,8 +28,8 @@ export const generateUserIdentity = () => ({ username: generateUsername() });
 export const getDisplayName = (user) => {
   if (!user) return '';
   if (user.isAdmin) return user.displayName || user.username || 'Admin';
-  if (user.accountType === 'specialist') return user.realName || user.username || 'Specialist';
-  return user.username || 'Private account';
+  if (user.accountType === 'specialist') return user.displayName || user.realName || user.username || 'Specialist';
+  return user.displayName || user.username || 'Private account';
 };
 
 export const getRoleColor = (accountType, isVerified = false) => {

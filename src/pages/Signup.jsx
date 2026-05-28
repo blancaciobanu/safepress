@@ -96,15 +96,12 @@ const Signup = () => {
             <h1 className="broadsheet-wordmark login-split__wordmark">
               <em>Safe</em>Press
             </h1>
-          </div>
-          <p className="login-split__lede">
-            Open a quieter account for source protection, drills, field guidance, and help that does not announce who you are.
-          </p>
+          </div>ß
           <div className="login-split__typebox">
             <p className="display-soft login-split__typecopy">
               <RotatingType lines={SIGNUP_COPY} />
             </p>
-          </div>
+          </div>ß
         </section>
 
         <section className="login-split__formpanel">

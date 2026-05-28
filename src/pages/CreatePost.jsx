@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { createCommunityPost } from '../features/community/services/communityService';
 import { createAMA } from '../features/community/services/amaService';
 import { NewsPage, NewsRule } from '../components/editorial/NewsPage';
+import { CommunityRichTextEditor } from '../features/community/components/CommunityRichTextEditor';
 import { logError } from '../utils/logger';
 import { getDisplayName } from '../utils/userUtils';
 
@@ -177,9 +178,9 @@ const CreatePost = () => {
                   {isAMA ? 'your speciality & intro' : 'content'}
                 </label>
               </div>
-              <textarea
+              <CommunityRichTextEditor
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={setContent}
                 placeholder={
                   isAMA
                     ? 'Tell journalists what you specialise in and why they should ask you…'
@@ -187,9 +188,9 @@ const CreatePost = () => {
                       ? 'Add context or background to help the community answer…'
                       : 'Share your thoughts, experience, or resources…'
                 }
-                required={!isAMA}
                 rows={isAMA ? 5 : 10}
-                className="w-full px-4 py-3.5 bg-transparent text-ink text-sm leading-relaxed placeholder-smoke-dim focus:outline-none resize-none"
+                className="border-0 bg-transparent mt-0"
+                editorClassName="text-sm"
               />
             </div>
 

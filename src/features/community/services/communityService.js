@@ -28,7 +28,7 @@ const getCommentsCollection = (postId) =>
   collection(db, COMMUNITY_POSTS_COLLECTION, postId, 'comments');
 
 const mapSnapshotDocs = (snapshot) =>
-  snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+  snapshot.docs.map((entry) => ({ ...entry.data(), id: entry.id }));
 
 const chunkItems = (items = [], size = FIRESTORE_IN_LIMIT) => {
   const chunks = [];
@@ -88,7 +88,7 @@ export const createCommunityPost = async (postData) => {
     lastCommentAt: postData.lastCommentAt ?? null,
   };
   const docRef = await addDoc(collection(db, COMMUNITY_POSTS_COLLECTION), payload);
-  return { id: docRef.id, ...payload };
+  return { ...payload, id: docRef.id };
 };
 
 export const listCommunityComments = async (postId, legacyComments = []) => {
@@ -115,6 +115,7 @@ export const listCommunityComments = async (postId, legacyComments = []) => {
 export const addCommunityComment = async ({ postId, comment, fallbackCount = 0 }) => {
   const postRef = doc(db, COMMUNITY_POSTS_COLLECTION, postId);
   const commentRef = doc(db, COMMUNITY_POSTS_COLLECTION, postId, 'comments', comment.id);
+  const { id: _commentId, ...commentPayload } = comment;
 
   await runTransaction(db, async (transaction) => {
     const postSnapshot = await transaction.get(postRef);
@@ -123,12 +124,16 @@ export const addCommunityComment = async ({ postId, comment, fallbackCount = 0 }
     const postData = postSnapshot.data() || {};
     const currentCount = postData.commentCount ?? postData.comments?.length ?? fallbackCount;
 
-    transaction.set(commentRef, comment);
+    transaction.set(commentRef, commentPayload);
     transaction.update(postRef, {
       commentCount: currentCount + 1,
       lastCommentAt: comment.createdAt,
     });
   });
+};
+
+export const updateCommunityComment = async ({ postId, commentId, patch }) => {
+  await updateDoc(doc(db, COMMUNITY_POSTS_COLLECTION, postId, 'comments', commentId), patch);
 };
 
 export const softDeleteCommunityComment = async ({ postId, commentId }) => {
@@ -156,7 +161,7 @@ export const createCommunityReport = async (reportData) => {
 
 export const getCommunityComment = async (postId, commentId) => {
   const snapshot = await getDoc(doc(db, COMMUNITY_POSTS_COLLECTION, postId, 'comments', commentId));
-  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+  return snapshot.exists() ? { ...snapshot.data(), id: snapshot.id } : null;
 };
 
 export const countNewCommunityComments = async ({ postId, lastSeen, currentUserId, legacyComments = [] }) => {
@@ -191,7 +196,9 @@ export const updateCommunityPost = async (postId, payload) => {
 
 export const getCommunityPost = async (postId) => {
   const snapshot = await getDoc(doc(db, COMMUNITY_POSTS_COLLECTION, postId));
-  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data(), commentCount: getPostCommentCount(snapshot.data()) } : null;
+  return snapshot.exists()
+    ? { ...snapshot.data(), id: snapshot.id, commentCount: getPostCommentCount(snapshot.data()) }
+    : null;
 };
 
 /* Build the read-only author profile view used by the AuthorProfileModal.
@@ -206,7 +213,7 @@ export const getAuthorProfile = async (uid, getPublicProfile, fallbackType = 'jo
   );
   const userPosts = postsSnap.docs.map((entry) => {
     const data = entry.data();
-    return { id: entry.id, ...data, commentCount: getPostCommentCount(data) };
+    return { ...data, id: entry.id, commentCount: getPostCommentCount(data) };
   });
   const visiblePosts = userPosts.filter((p) => !p.isAnonymous);
   const recentPosts = visiblePosts

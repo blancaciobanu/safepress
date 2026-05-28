@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, forwardRef } from 'react';
 
 const cx = (...classes) => classes.filter(Boolean).join(' ');
 
@@ -127,9 +127,9 @@ export const NewsInput = ({ className = '', ...rest }) => (
   <input className={cx('news-input', className)} {...rest} />
 );
 
-export const NewsTextarea = ({ className = '', ...rest }) => (
-  <textarea className={cx('news-textarea', className)} {...rest} />
-);
+export const NewsTextarea = forwardRef(({ className = '', ...rest }, ref) => (
+  <textarea ref={ref} className={cx('news-textarea', className)} {...rest} />
+));
 
 export const NewsSelect = ({ className = '', children, ...rest }) => (
   <select className={cx('news-select', className)} {...rest}>

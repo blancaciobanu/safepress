@@ -159,8 +159,19 @@ service cloud.firestore {
           'setupProgress',
           'followedPosts',
           'notifLastSeen',
-          'welcomeCompletedAt'
+          'welcomeCompletedAt',
+          'latestThreatModel'
         ])
+        && (
+          !('latestThreatModel' in request.resource.data)
+          || request.resource.data.latestThreatModel == null
+          || (
+            request.resource.data.latestThreatModel is map
+            && isIsoString(request.resource.data.latestThreatModel.generatedAt)
+            && request.resource.data.latestThreatModel.report is map
+            && request.resource.data.latestThreatModel.formData is map
+          )
+        )
         && (
           resource.data.accountType != 'specialist'
           || isRequiredString(request.resource.data.realName, 120)
@@ -444,6 +455,7 @@ service cloud.firestore {
         && request.resource.data.caseMarker == 'awaiting_specialist'
         && isIsoString(request.resource.data.createdAt)
         && request.resource.data.lastCaseActivityAt == request.resource.data.createdAt
+        && isOptionalString(request.resource.data.previewNote, 200)
         && request.resource.data.keys().hasOnly([
           'requesterId',
           'crisisType',
@@ -456,7 +468,8 @@ service cloud.firestore {
           'resolvedAt',
           'caseMarker',
           'createdAt',
-          'lastCaseActivityAt'
+          'lastCaseActivityAt',
+          'previewNote'
         ]);
     }
 
@@ -704,7 +717,22 @@ service cloud.firestore {
         && isIsoString(request.resource.data.lastCommentAt);
     }
 
-    function commentAuthorCanCreate() {
+    function commentThreadFieldsAreValid(postId, commentId) {
+      return (
+          !('parentCommentId' in request.resource.data)
+          && !('replyToAuthorId' in request.resource.data)
+          && !('replyToAuthorName' in request.resource.data)
+        )
+        || (
+          isRequiredString(request.resource.data.parentCommentId, 120)
+          && request.resource.data.parentCommentId != commentId
+          && exists(/databases/$(database)/documents/community-posts/$(postId)/comments/$(request.resource.data.parentCommentId))
+          && isOptionalString(request.resource.data.replyToAuthorId, 120)
+          && isRequiredString(request.resource.data.replyToAuthorName, 120)
+        );
+    }
+
+    function commentAuthorCanCreate(postId, commentId) {
       return isVerifiedEmailAuth()
         && currentUserDocExists()
         && request.resource.data.authorId == request.auth.uid
@@ -717,10 +745,14 @@ service cloud.firestore {
           'authorVerificationStatus',
           'content',
           'createdAt',
-          'deleted'
+          'deleted',
+          'parentCommentId',
+          'replyToAuthorId',
+          'replyToAuthorName'
         ])
         && authorFieldsMatchCurrentUserForComment()
-        && isRequiredString(request.resource.data.content, 2000)
+        && commentThreadFieldsAreValid(postId, commentId)
+        && isRequiredString(request.resource.data.content, 5000)
         && isIsoString(request.resource.data.createdAt);
     }
 
@@ -741,6 +773,20 @@ service cloud.firestore {
         && request.resource.data.authorName == 'deleted'
         && request.resource.data.authorId == null
         && request.resource.data.deleted == true;
+    }
+
+    function commentAuthorCanEdit() {
+      return isVerifiedEmailAuth()
+        && resource.data.authorId == request.auth.uid
+        && resource.data.deleted == false
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'content',
+          'edited',
+          'editedAt'
+        ])
+        && isRequiredString(request.resource.data.content, 5000)
+        && request.resource.data.edited == true
+        && isIsoString(request.resource.data.editedAt);
     }
 
     match /users/{userId} {
@@ -852,8 +898,8 @@ service cloud.firestore {
 
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if commentAuthorCanCreate();
-        allow update: if commentAuthorCanSoftDelete();
+        allow create: if commentAuthorCanCreate(postId, commentId);
+        allow update: if commentAuthorCanSoftDelete() || commentAuthorCanEdit();
         allow delete: if isAdmin();
       }
     }

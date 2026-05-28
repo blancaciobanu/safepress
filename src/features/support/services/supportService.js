@@ -105,6 +105,10 @@ export const createSupportRequest = async ({
     createdAt,
     lastCaseActivityAt: createdAt,
   };
+  const previewNote = description
+    ? (description.length > 160 ? `${description.slice(0, 157).trimEnd()}…` : description)
+    : null;
+
   const queuePayload = {
     requesterId,
     crisisType,
@@ -118,6 +122,7 @@ export const createSupportRequest = async ({
     caseMarker: SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST,
     createdAt,
     lastCaseActivityAt: createdAt,
+    previewNote,
   };
 
   if (

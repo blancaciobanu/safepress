@@ -124,9 +124,6 @@ const Login = () => {
               <GoogleIcon />
               Continue with Google
             </button>
-            <p className="text-xs text-smoke-dim -mt-4">
-              Google or email both work here. Your sign-in method does not define whether the account is journalist or specialist.
-            </p>
 
             <div className="flex items-center gap-4">
               <div className="flex-1 border-t border-ink/[0.12]" />

@@ -11,7 +11,12 @@ import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { COLLECTIONS } from '../config/firebaseCollections';
 import { logError } from '../utils/logger';
-import { NewsPage, NewsRule } from '../components/editorial/NewsPage';
+import {
+  NewsBadge,
+  NewsCard,
+  NewsPage,
+  NewsRule,
+} from '../components/editorial/NewsPage';
 import { getDisplayName } from '../utils/userUtils';
 
 /* Assessment sheet — Form SP-A.
@@ -19,14 +24,124 @@ import { getDisplayName } from '../utils/userUtils';
    Editorial ink palette for scores: ink (strong) / brass (moderate) / oxblood (needs work). */
 
 const scoreStroke = (v) => v >= 80 ? 'var(--color-ink)' : v >= 60 ? 'var(--color-brass)' : 'var(--color-oxblood)';
-const scoreLabel = (v) => v >= 80 ? 'Strong' : v >= 60 ? 'Moderate' : v >= 40 ? 'Needs work' : 'Critical';
+const scoreLabel = (v) => v >= 80 ? 'Strong' : v >= 60 ? 'Moderate' : v >= 40 ? 'Needs Work' : 'Critical';
 const scoreTone  = (v) => v >= 80 ? 'text-ink' : v >= 60 ? 'text-brass' : 'text-oxblood';
+const formatFiledDate = (value = new Date()) =>
+  new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+const toTitleCase = (value = '') =>
+  value.replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 
 const riskInfo = {
-  low:      { Icon: CheckCircle2, label: 'Low risk',      tone: 'text-ink',     note: 'Your security practices are solid for your work context. Maintain these habits and stay updated on emerging threats.' },
-  medium:   { Icon: AlertTriangle, label: 'Medium risk',  tone: 'text-brass',   note: 'You have some good practices, but there are important gaps to address. Focus on the weak areas identified below.' },
-  high:     { Icon: XCircle,      label: 'High risk',     tone: 'text-oxblood', note: 'Significant security gaps exist that could compromise your work or sources. Prioritise addressing critical issues immediately.' },
-  critical: { Icon: Shield,       label: 'Critical risk', tone: 'text-oxblood', note: 'Your current security posture is inadequate for your threat level. Immediate action is required to protect yourself and sources.' },
+  low:      { Icon: CheckCircle2, label: 'Low Risk',      tone: 'text-ink',     accent: '#375E5A',              note: 'Your security practices are solid for your work context. Maintain them and review them when your reporting conditions change.' },
+  medium:   { Icon: AlertTriangle, label: 'Medium Risk',  tone: 'text-brass',   accent: 'var(--color-brass)',   note: 'Some of the basics are working, but there are still gaps large enough to matter on a sensitive story.' },
+  high:     { Icon: XCircle,      label: 'High Risk',     tone: 'text-oxblood', accent: 'var(--color-oxblood)', note: 'Several weak routines could compromise your work or your sources. This needs focused cleanup next.' },
+  critical: { Icon: Shield,       label: 'Critical Risk', tone: 'text-oxblood', accent: 'var(--color-oxblood)', note: 'Too many foundational safeguards are missing for this threat level. Immediate hardening should come first.' },
+};
+
+const CATEGORY_META = {
+  password: {
+    Icon: Lock,
+    accent: '#7B2E2E',
+    summary: 'Passwords, recovery paths, and two-factor protection.',
+    strength: 'Account hygiene is giving the rest of your stack a steadier foundation right now.',
+    caution: 'The basics are partly in place, but stronger password uniqueness and 2FA habits would make the stack less fragile.',
+    improvement: 'Password reuse, weak recovery paths, or missing 2FA can unravel the rest of your stack quickly.',
+    routeLabel: 'Open secure setup',
+    route: '/secure-setup',
+  },
+  device: {
+    Icon: Smartphone,
+    accent: '#8A6D2C',
+    summary: 'Updates, locks, malware protection, and device recovery.',
+    strength: 'Your device routines are giving the rest of your workflow a stronger floor.',
+    caution: 'A few device basics still need to become more consistent so theft or malware stays containable.',
+    improvement: 'Unpatched devices or weak locks make theft, malware, and border checks much harder to contain.',
+    routeLabel: 'Harden devices',
+    route: '/secure-setup',
+  },
+  communication: {
+    Icon: MessageSquare,
+    accent: '#7B2E2E',
+    summary: 'Source contact, verification, secure messaging, and VPN habits.',
+    strength: 'Your communication habits are giving sensitive contact a steadier baseline.',
+    caution: 'This area works some of the time, but it still needs more consistency when a conversation turns sensitive.',
+    improvement: 'Inconsistent secure communications can expose source identities or leak sensitive context during routine contact.',
+    routeLabel: 'Open source protection',
+    route: '/resources?tab=source-protection',
+  },
+  data: {
+    Icon: Database,
+    accent: '#375E5A',
+    summary: 'Backups, deletion, removable storage, and cloud handling.',
+    strength: 'Your data-handling routines should make recovery and containment easier if something goes wrong.',
+    caution: 'There are some good habits here, but backups and storage rules still need to hold up more reliably.',
+    improvement: 'Backup and storage gaps increase the cost of device loss, seizure, or account compromise.',
+    routeLabel: 'Improve data protection',
+    route: '/secure-setup',
+  },
+  physical: {
+    Icon: MapPin,
+    accent: '#15110C',
+    summary: 'Travel routines, screen privacy, device custody, and location exposure.',
+    strength: 'Your field habits are helping reduce opportunistic exposure when you move through the world.',
+    caution: 'This is not the weakest area, but it still needs stronger routines in public and travel-heavy situations.',
+    improvement: 'Physical habits often decide whether a minor incident turns into device or source exposure.',
+    routeLabel: 'Review field habits',
+    route: '/resources',
+  },
+};
+
+const postureNarrative = (value) => {
+  if (value >= 80) {
+    return 'Your routines line up well with the kinds of pressure this work creates. The next job is keeping them sharp as assignments change.';
+  }
+  if (value >= 60) {
+    return 'The essentials are visible here, but a few weaker habits could still compromise a sensitive story when pressure goes up.';
+  }
+  if (value >= 40) {
+    return 'Some core safeguards are missing, and those gaps are large enough to matter during real reporting pressure.';
+  }
+  return 'Too many foundational safeguards are missing for this workload. The next steps should focus on immediate hardening and containment.';
+};
+
+const getWorkContextMeta = (value) => {
+  if (value >= 70) {
+    return {
+      label: 'Lower exposure context',
+      color: 'var(--color-ink)',
+      note: 'The work itself is comparatively less hostile right now, which gives you room to tighten the basics methodically.',
+    };
+  }
+  if (value >= 40) {
+    return {
+      label: 'Moderate exposure context',
+      color: 'var(--color-brass)',
+      note: 'Your beat adds real pressure. Lower numbers here mean the context, sources, or geography increase the cost of weak routines elsewhere.',
+    };
+  }
+  return {
+    label: 'High exposure context',
+    color: 'var(--color-oxblood)',
+    note: 'This work carries elevated exposure. Lower numbers here mean the environment itself is adding pressure, so device, source, and data habits need to be tighter.',
+  };
+};
+
+const categoryNarrative = (key, value) => {
+  const meta = CATEGORY_META[key];
+  if (!meta) return '';
+  if (value >= 80) return meta.strength;
+  if (value >= 60) return meta.caution;
+  if (value >= 40) return meta.improvement;
+  return `This is one of the most exposed parts of your current routine. ${meta.improvement}`;
+};
+
+const recommendationNarrative = (key, value, priority) => {
+  const meta = CATEGORY_META[key];
+  if (!meta) return `This area scored ${value}/100 and should be addressed next.`;
+  if (priority === 'critical') {
+    return `This area scored ${value}/100. ${meta.improvement}`;
+  }
+  return `This area scored ${value}/100. ${meta.caution}`;
 };
 
 const Gauge = ({ value, size = 60 }) => {
@@ -84,27 +199,30 @@ const QUESTIONS = [
 
 const SecurityScore = () => {
   const { user } = useAuth();
-  const [view, setView] = useState('welcome');
+  const [view, setView] = useState('auto');
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [saving, setSaving] = useState(false);
   const questions = QUESTIONS;
   const answeredCount = Object.keys(answers).length;
+  const latestSavedScore = user?.securityScores?.length
+    ? user.securityScores[user.securityScores.length - 1]
+    : null;
 
   const total = questions.length;
 
-  const calculateScore = () => {
+  const calculateScore = (answerSet = answers) => {
     const maxPts = questions.reduce((s, q) => s + Math.max(...q.options.map(o => o.points)), 0);
-    const earned = Object.values(answers).reduce((s, a) => s + a.points, 0);
+    const earned = Object.values(answerSet).reduce((s, a) => s + a.points, 0);
     return Math.round((earned / maxPts) * 100);
   };
 
-  const calculateCategoryScores = () => {
+  const calculateCategoryScores = (answerSet = answers) => {
     const cats = {};
     questions.forEach(q => {
       if (!cats[q.category]) cats[q.category] = { name: q.categoryName, earned: 0, max: 0 };
       cats[q.category].max += Math.max(...q.options.map(o => o.points));
-      if (answers[q.id]) cats[q.category].earned += answers[q.id].points;
+      if (answerSet[q.id]) cats[q.category].earned += answerSet[q.id].points;
     });
     Object.keys(cats).forEach(k => {
       cats[k].score = Math.round((cats[k].earned / cats[k].max) * 100);
@@ -112,17 +230,14 @@ const SecurityScore = () => {
     return cats;
   };
 
-  const calculateRiskLevel = () => {
-    const overall = calculateScore();
-    const cats = calculateCategoryScores();
+  const calculateRiskLevel = (overall = calculateScore(), cats = calculateCategoryScores()) => {
     const work = cats.risk?.score ?? 50;
     if (work < 40) return overall < 50 ? 'critical' : overall < 70 ? 'high' : 'medium';
     if (work < 70) return overall < 50 ? 'high' : overall < 70 ? 'medium' : 'low';
     return overall < 50 ? 'medium' : 'low';
   };
 
-  const getRecommendations = () => {
-    const cats = calculateCategoryScores();
+  const getRecommendations = (cats = calculateCategoryScores()) => {
     const guidance = {
       password: { action: 'Set up secure passwords', link: '/secure-setup' },
       device: { action: 'Harden your devices', link: '/secure-setup' },
@@ -141,6 +256,19 @@ const SecurityScore = () => {
       }));
   };
 
+  const currentResult = answeredCount
+    ? {
+        score: calculateScore(),
+        categoryScores: calculateCategoryScores(),
+        riskLevel: calculateRiskLevel(),
+        completedAt: new Date().toISOString(),
+        totalQuestions: total,
+        answeredQuestions: answeredCount,
+      }
+    : null;
+  const report = view === 'results' ? currentResult : latestSavedScore;
+  const shouldShowSavedReport = view === 'auto' && latestSavedScore;
+
   const saveQuizResults = async () => {
     if (!user) return;
     setSaving(true);
@@ -148,7 +276,7 @@ const SecurityScore = () => {
       const result = {
         score: calculateScore(),
         categoryScores: calculateCategoryScores(),
-        riskLevel: calculateRiskLevel(),
+        riskLevel: calculateRiskLevel(calculateScore(), calculateCategoryScores()),
         completedAt: new Date().toISOString(),
         totalQuestions: total,
         answeredQuestions: answeredCount,
@@ -174,14 +302,14 @@ const SecurityScore = () => {
     else { await saveQuizResults(); setView('results'); }
   };
   const previousQuestion = () => { if (currentQuestion > 0) setCurrentQuestion(currentQuestion - 1); };
-  const restartQuiz = () => { setView('welcome'); setCurrentQuestion(0); setAnswers({}); };
+  const restartQuiz = () => { setView('quiz'); setCurrentQuestion(0); setAnswers({}); };
 
   /* ── Welcome view ──────────────────────────────────────────────────── */
-  if (view === 'welcome') {
-    const last = user?.securityScores?.[user.securityScores.length - 1];
-    const lastDate = last ? new Date(last.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+  if (view === 'welcome' || (!shouldShowSavedReport && view === 'auto')) {
+    const last = latestSavedScore;
+    const lastDate = last ? formatFiledDate(last.completedAt) : null;
     return (
-      <NewsPage>
+      <NewsPage className="scoreDossier">
         <Motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
           <div className="news-page-topline">
             <span className="eyebrow sm text-oxblood">Form SP-A — Security assessment</span>
@@ -242,7 +370,7 @@ const SecurityScore = () => {
     const answered = !!answers[q.id];
     const pct = Math.round((currentQuestion / total) * 100);
     return (
-      <NewsPage>
+      <NewsPage className="scoreDossier">
         <Motion.div
           key={currentQuestion}
           initial={{ opacity: 0, x: 8 }}
@@ -303,116 +431,218 @@ const SecurityScore = () => {
   }
 
   /* ── Results view ──────────────────────────────────────────────────── */
-  const score     = calculateScore();
-  const cats      = calculateCategoryScores();
-  const risk      = calculateRiskLevel();
+  const score     = report?.score ?? 0;
+  const cats      = report?.categoryScores ?? {};
+  const risk      = report?.riskLevel ?? calculateRiskLevel(score, cats);
   const { Icon: RiskIcon, label: riskLabel, tone: riskTone, note: riskNote } = riskInfo[risk] ?? riskInfo.medium;
-  const recs      = getRecommendations();
-  const today     = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  const filingReference = `SP-A-${new Date().getFullYear()}-${String(score).padStart(3, '0')}-${String(answeredCount).padStart(2, '0')}`;
+  const recs      = getRecommendations(cats);
+  const today     = formatFiledDate(report?.completedAt);
+  const reportAnsweredCount = report?.answeredQuestions ?? answeredCount;
+  const reportTotal = report?.totalQuestions ?? total;
   const catOrder  = ['password', 'device', 'communication', 'data', 'physical'];
+  const respondentName = getDisplayName(user) || 'Anonymous';
+  const categories = catOrder
+    .map((key, index) => {
+      const details = cats[key];
+      const meta = CATEGORY_META[key];
+      if (!details || !meta) return null;
+      return {
+        ...details,
+        ...meta,
+        key,
+        index,
+      };
+    })
+    .filter(Boolean);
+  const sortedCategories = [...categories].sort((left, right) => left.score - right.score);
+  const weakestCategory = sortedCategories[0] ?? null;
+  const strongestCategory = sortedCategories[sortedCategories.length - 1] ?? null;
+  const workContextScore = cats.risk?.score ?? 0;
+  const workContext = getWorkContextMeta(workContextScore);
+  const primaryRecommendation = recs[0] ?? null;
+  const nextRoute = primaryRecommendation
+    ? { label: primaryRecommendation.action, link: primaryRecommendation.link }
+    : { label: 'Pressure-test it in simulations', link: '/simulations' };
+  const nextRouteAccent = primaryRecommendation
+    ? primaryRecommendation.priority === 'critical'
+      ? 'var(--color-oxblood)'
+      : 'var(--color-brass)'
+    : 'var(--color-ink)';
+  const primaryFocus = primaryRecommendation
+    ? {
+        title: toTitleCase(primaryRecommendation.name),
+        score: primaryRecommendation.score,
+        note: recommendationNarrative(primaryRecommendation.key, primaryRecommendation.score, primaryRecommendation.priority),
+      }
+    : {
+        title: 'Maintain Posture',
+        score: score,
+        note: 'No category fell below the action threshold, so the next step is keeping the routine sharp and pressure-testing it in simulations.',
+      };
+  const metaCards = [
+    { label: 'Respondent', value: respondentName, note: user?.accountType ? toTitleCase(user.accountType) : 'Guest Session' },
+    { label: 'Questions Answered', value: `${reportAnsweredCount}/${reportTotal}`, note: 'Assessment Complete' },
+    { label: 'Primary Focus', value: primaryFocus.title, note: primaryRecommendation ? `${primaryFocus.score}/100` : workContext.label },
+  ];
 
   return (
-    <NewsPage>
-      <Motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
-        {/* Form header */}
-        <div className="news-page-topline">
+    <NewsPage className="scoreDossier">
+      <Motion.div
+        className="scoreReport"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="news-page-topline scoreReportTopline">
           <span className="eyebrow sm text-oxblood">Form SP-A — Security assessment</span>
           <span className="eyebrow sm">Filed · {today}</span>
         </div>
         <NewsRule />
 
-        {/* Respondent strip */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 pb-6 border-b border-ink/12">
-          {[
-            { label: 'Respondent', value: getDisplayName(user) || 'Anonymous', sub: user?.accountType || null },
-            { label: 'Questions answered', value: `${answeredCount} of ${total}`, sub: null },
-            { label: 'Filing reference', value: filingReference, sub: 'Form revision · v3.1' },
-          ].map(({ label, value, sub }) => (
-            <div key={label}>
+        <div className="scoreMetaGrid">
+          {metaCards.map(({ label, value, note }) => (
+            <div key={label} className="scoreMetaCard">
               <p className="eyebrow sm">{label}</p>
               <p className="display-soft text-xl md:text-2xl mt-2 leading-tight">{value}</p>
-              {sub && <p className="eyebrow text-[10px] normal-case text-smoke mt-1">{sub}</p>}
+              {note && <p className="eyebrow text-[10px] normal-case text-smoke mt-1">{note}</p>}
             </div>
           ))}
         </div>
 
-        {/* Score + risk note */}
-        <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-8 mt-8">
-          <div>
-            <p className="eyebrow sm">Result</p>
-            <h1 className={`display text-6xl md:text-8xl mt-2 leading-none num ${scoreTone(score)}`}>
-              {score}<span className="text-3xl text-smoke">/100</span>
-            </h1>
-            <p className="display-soft text-xl mt-3 leading-tight">
-              <em className="italic-ox">{scoreLabel(score)} posture.</em>
-            </p>
-          </div>
-          <div className="news-notice news-notice--brass">
-            <RiskIcon className="news-notice__icon" />
-            <div>
-              <p className={`eyebrow sm ${riskTone}`}>{riskLabel}</p>
-              <p className="text-sm text-ink-soft mt-1.5 leading-relaxed">{riskNote}</p>
+        <div className="scoreHero">
+          <article className="scoreSheet">
+            <div className="scoreSheetTabs" aria-hidden="true">
+              <span />
+              <span />
             </div>
+
+            <div className="scoreSheetTopline">
+              <div>
+                <p className="eyebrow sm text-oxblood">Assessment Result</p>
+                <p className="eyebrow text-[10px] normal-case text-smoke mt-1">{today}</p>
+              </div>
+              <NewsBadge color={scoreStroke(score)}>{scoreLabel(score)}</NewsBadge>
+            </div>
+
+            <div className="scoreSheetBody">
+              <h1 className={`display text-6xl md:text-[7.25rem] leading-none num ${scoreTone(score)}`}>
+                {score}<span className="text-3xl md:text-4xl text-smoke">/100</span>
+              </h1>
+              <p className="display-soft text-2xl mt-4 leading-tight">
+                <em className="italic-ox">{scoreLabel(score)} posture.</em>
+              </p>
+              <p className="scoreSheetCopy">{postureNarrative(score)}</p>
+
+              <div className="scoreSheetActions">
+                <Link to="/secure-setup" className="btn">
+                  Open secure setup <ArrowRight className="w-4 h-4" />
+                </Link>
+                <button onClick={restartQuiz} className="btn ghost">
+                  <RotateCcw className="w-4 h-4" /> Retake assessment
+                </button>
+              </div>
+            </div>
+
+            <div className="scoreStats">
+              <div className="scoreStat">
+                <span>Risk Level</span>
+                <strong className={riskTone}>{riskLabel}</strong>
+              </div>
+              <div className="scoreStat">
+                <span>Work Context</span>
+                <strong>{workContext.label}</strong>
+              </div>
+              <div className="scoreStat">
+                <span>Strongest Area</span>
+                <strong>{strongestCategory ? toTitleCase(strongestCategory.name) : 'Not Available'}</strong>
+              </div>
+              <div className="scoreStat">
+                <span>Weakest Area</span>
+                <strong>{weakestCategory ? toTitleCase(weakestCategory.name) : 'No Weak Area Flagged'}</strong>
+              </div>
+            </div>
+          </article>
+
+          <div className="scoreSide">
+            <NewsCard accent={riskInfo[risk]?.accent} className="scoreSideCard">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className={`eyebrow sm ${riskTone}`}>Risk Level</p>
+                  <h2 className="news-card-title mt-2">{riskLabel}</h2>
+                </div>
+                <RiskIcon className={`w-4 h-4 shrink-0 mt-0.5 ${riskTone}`} />
+              </div>
+              <p className="news-card-copy mt-4">{riskNote}</p>
+            </NewsCard>
+
+            <NewsCard accent={nextRouteAccent} className="scoreSideCard">
+              <div className="scoreSideCardMeter">
+                <div>
+                  <p className="eyebrow sm text-oxblood">Next Move</p>
+                  <h2 className="news-card-title mt-2">{primaryFocus.title}</h2>
+                </div>
+                <Gauge value={primaryFocus.score} size={56} />
+              </div>
+              <p className="news-card-copy mt-4">{primaryFocus.note}</p>
+              <p className="news-card-copy mt-3">{workContext.note}</p>
+              <Link to={nextRoute.link} className="scoreLink">
+                {nextRoute.label} <ArrowRight className="w-3 h-3" />
+              </Link>
+            </NewsCard>
           </div>
         </div>
 
-        {/* Category gauges */}
-        <div className="mt-10">
-          <p className="eyebrow sm pb-3 border-b border-ink/20">Category breakdown</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-            {catOrder.map((k, i) => {
-              const d = cats[k];
-              if (!d) return null;
-              return (
-                <div key={k} className={`flex items-center gap-4 py-4 ${i < catOrder.length - 2 || (catOrder.length % 2 !== 0 && i === catOrder.length - 1) ? '' : ''} border-b border-ink/10`}>
-                  <Gauge value={d.score} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="eyebrow text-[10px] normal-case text-smoke">{String(i + 1).padStart(2, '0')} · {d.name}</span>
-                    </div>
-                    <p className="display-soft text-lg mt-0.5 leading-tight">{d.name}</p>
-                  </div>
-                  <p className={`eyebrow sm shrink-0 ${scoreTone(d.score)}`}>{scoreLabel(d.score)}</p>
-                </div>
-              );
-            })}
+        <section className="scoreSection">
+          <div className="scoreSectionHeader">
+            <p className="eyebrow sm">Category Map</p>
+            <span className="scoreSectionNote">Five scored areas, each with one direct route out.</span>
           </div>
-        </div>
 
-        {/* Recommendations */}
-        {recs.length > 0 && (
-          <div className="mt-10">
-            <p className="eyebrow sm pb-3 border-b border-ink/20">Priority actions</p>
-            <div className="flex flex-col gap-0">
-              {recs.map(({ key, name, score: s, priority, action, link }) => (
-                <div key={key} className={`flex items-baseline gap-5 py-4 border-b border-ink/10 last:border-b-0`}>
-                  <Gauge value={s} size={44} />
-                  <div className="flex-1">
-                    <p className={`eyebrow sm ${priority === 'critical' ? 'text-oxblood' : 'text-brass'}`}>{priority}</p>
-                    <p className="display-soft text-base mt-0.5 leading-tight">{name}</p>
+          <div className="scoreCategoryGrid">
+            {categories.map(({ key, index, Icon, accent, summary, route, routeLabel, name, score: categoryScore }) => (
+              <NewsCard key={key} accent={accent} className="scoreCategoryCard">
+                <div className="scoreCategoryHead">
+                  <div className="scoreCategoryLabel">
+                    <Icon className="w-3.5 h-3.5 text-smoke" />
+                    <span>{String(index + 1).padStart(2, '0')} · {toTitleCase(name)}</span>
                   </div>
-                  <Link to={link} className="inline-flex items-center gap-1 btn ghost py-1.5 px-3 text-xs shrink-0">
-                    {action} <ArrowRight className="w-3 h-3" />
-                  </Link>
+                  <NewsBadge color={scoreStroke(categoryScore)}>{scoreLabel(categoryScore)}</NewsBadge>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Footer */}
-        <div className="mt-10 pt-4 border-t border-ink/22 flex flex-col sm:flex-row items-start sm:items-baseline gap-4 justify-between">
+                <div className="scoreCategoryMeter">
+                  <Gauge value={categoryScore} size={72} />
+                  <div>
+                    <p className={`display-soft text-3xl leading-none num ${scoreTone(categoryScore)}`}>{categoryScore}</p>
+                    <p className="eyebrow text-[10px] normal-case text-smoke mt-2">
+                      {weakestCategory?.key === key
+                        ? 'Top Priority'
+                        : strongestCategory?.key === key
+                          ? 'Best Protected'
+                          : categoryScore < 60
+                            ? 'Needs Attention'
+                            : 'Stable'}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="news-card-copy mt-4">{categoryNarrative(key, categoryScore)}</p>
+                <p className="scoreCategorySummary">{summary}</p>
+                <Link to={route} className="scoreLink">
+                  {routeLabel} <ArrowRight className="w-3 h-3" />
+                </Link>
+              </NewsCard>
+            ))}
+          </div>
+        </section>
+
+        <div className="scoreFooter">
           <span className="eyebrow sm">
-            Signed by respondent · {user?.username || 'Anonymous'} · {today}
+            Latest saved result · {today}
           </span>
           <div className="flex gap-3 flex-wrap">
-            <Link to="/secure-setup" className="btn">
-              Begin remediation <ArrowRight className="w-4 h-4" />
+            <Link to={nextRoute.link} className="btn ghost">
+              {nextRoute.label} <ArrowRight className="w-4 h-4" />
             </Link>
-            <button onClick={restartQuiz} className="btn ghost">
-              <RotateCcw className="w-4 h-4" /> Re-take
-            </button>
           </div>
         </div>
       </Motion.div>

@@ -1,5 +1,15 @@
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowRight, CheckCircle, Send, Sparkles } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle,
+  Clock3,
+  FileText,
+  Send,
+  Shield,
+  Sparkles,
+  Users,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 
@@ -47,14 +57,42 @@ const CONTACT_METHODS = [
   { id: 'signal', label: 'Signal messenger' },
 ];
 
+const INTAKE_STEPS = [
+  {
+    no: '01',
+    title: 'File the incident',
+    body: 'Capture the signal clearly enough that the queue can route it fast, even if you only have partial information.',
+  },
+  {
+    no: '02',
+    title: 'Specialist claims the file',
+    body: 'Only after claim does the full reporter brief and contact route unlock to the specialist handling the case.',
+  },
+  {
+    no: '03',
+    title: 'Work the case inside the desk',
+    body: 'Questions, containment notes, and the final resolution report stay in one place so the handoff stays calm.',
+  },
+];
+
+const getMonogram = (value = '') =>
+  value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('') || '?';
+
 const RequestSupport = () => {
-  const { user, resendVerificationEmail } = useAuth();
+  const { user, resendVerificationEmail, refreshUser } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [specialists, setSpecialists] = useState([]);
   const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const [filedAt, setFiledAt] = useState(null);
   const [submittedRequestId, setSubmittedRequestId] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [draftNotes, setDraftNotes] = useState('');
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState('');
@@ -72,6 +110,15 @@ const RequestSupport = () => {
     };
     fetchSpecialists();
   }, []);
+
+  useEffect(() => {
+    if (!user?.emailVerified) return;
+    if (user?.tokenClaims?.email_verified) return;
+
+    refreshUser().catch((error) => {
+      logError('Failed to refresh verified session for support request:', error);
+    });
+  }, [user?.emailVerified, user?.tokenClaims?.email_verified, refreshUser]);
 
   const [formData, setFormData] = useState({
     name: user?.realName || '',
@@ -95,11 +142,32 @@ const RequestSupport = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError('');
     if (!user || !user.emailVerified) return;
+
+    let sessionUser = user;
+    if (!user.tokenClaims?.email_verified) {
+      try {
+        const refreshedUser = await refreshUser();
+        if (refreshedUser) {
+          sessionUser = refreshedUser;
+        }
+      } catch (error) {
+        logError('Failed to refresh auth token before support request submit:', error);
+      }
+    }
+
+    if (!sessionUser?.tokenClaims?.email_verified) {
+      setSubmitError(
+        'Your email looks verified, but Firebase has not refreshed the secure session yet. Reload once or sign out and back in, then file the request again.'
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
       const created = await createSupportRequest({
-        requesterId: user.uid,
+        requesterId: sessionUser.uid,
         requesterName: formData.name,
         requesterEmail: formData.email,
         requesterPhone: formData.phone,
@@ -113,7 +181,13 @@ const RequestSupport = () => {
       setSubmitted(true);
     } catch (error) {
       logError('Error submitting request:', error);
-      alert('Something went wrong. Please try again.');
+      if (error?.code === 'permission-denied' || error?.message?.includes('permission-denied')) {
+        setSubmitError(
+          'SafePress could not verify this session against the support-request rules. Reload once or sign in again, then try filing the request.'
+        );
+      } else {
+        setSubmitError('Something went wrong while filing the request. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -197,7 +271,7 @@ const RequestSupport = () => {
     });
 
     return (
-      <NewsPage>
+      <NewsPage className="support-intake">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -211,59 +285,94 @@ const RequestSupport = () => {
           </div>
           <NewsRule tone="oxblood" />
 
-          <h1 className="display text-4xl md:text-6xl mt-10 leading-none max-w-[18ch]">
-            Your request is on <em className="italic-ox">the desk.</em>
-          </h1>
-          <p className="mt-6 text-base md:text-lg leading-relaxed text-ink-soft max-w-prose">
-            {specialistCount > 0
-              ? `${specialistCount} verified specialist${specialistCount === 1 ? ' is' : 's are'} on call. Expect first contact within 24h.`
-              : 'A verified cybersecurity specialist will review your request and reach out to you soon.'}
-          </p>
+          <div className="support-intake__success-hero">
+            <div>
+              <h1 className="display text-4xl md:text-6xl mt-10 leading-none max-w-[18ch]">
+                Your request is on <em className="italic-ox">the desk.</em>
+              </h1>
+              <p className="mt-6 text-base md:text-lg leading-relaxed text-ink-soft max-w-prose">
+                {specialistCount > 0
+                  ? `${specialistCount} verified specialist${specialistCount === 1 ? ' is' : 's are'} on call. Expect first contact within 24h.`
+                  : 'A verified cybersecurity specialist will review your request and reach out to you soon.'}
+              </p>
+            </div>
 
-          <div className="mt-9 grid grid-cols-1 md:grid-cols-2 gap-7 p-6 bg-paper-soft border border-ink/10 border-l-2 border-l-oxblood">
-            <div>
-              <p className="eyebrow sm">File reference</p>
-              <p className="display-soft text-2xl mt-2 leading-tight num">{fileRef}</p>
-            </div>
-            <div>
-              <p className="eyebrow sm">Filed at</p>
-              <p className="display-soft text-2xl mt-2 leading-tight">{filedStr}</p>
-            </div>
-            <div>
-              <p className="eyebrow sm">Type</p>
-              <p className="display-soft text-lg mt-2 leading-tight">
-                {CRISIS_TYPES.find((t) => t.id === formData.crisisType)?.label}
-              </p>
-            </div>
-            <div>
-              <p className="eyebrow sm">Urgency</p>
-              <p
-                className={`display-soft text-lg mt-2 leading-tight ${
-                  formData.urgency === 'emergency' ? 'text-oxblood' : 'text-ink'
-                }`}
-              >
-                {URGENCY_LEVELS.find((u) => u.id === formData.urgency)?.label}
-              </p>
+            <div className="editorial-form-sheet editorial-form-sheet--aside support-intake__success-note">
+              <div className="editorial-form-sheet__head">
+                <div>
+                  <p className="eyebrow sm text-brass">Next movement</p>
+                  <h2 className="display-soft text-2xl leading-none mt-3">Keep the case thread as the single source of truth.</h2>
+                </div>
+              </div>
+              <div className="editorial-form-sheet__body">
+                <div className="editorial-timeline">
+                  <div className="editorial-timeline__item">
+                    <span className="editorial-timeline__no">01</span>
+                    <p>Watch for the first specialist message inside the case desk.</p>
+                  </div>
+                  <div className="editorial-timeline__item">
+                    <span className="editorial-timeline__no">02</span>
+                    <p>Reply there with any new developments instead of scattering updates across channels.</p>
+                  </div>
+                  <div className="editorial-timeline__item">
+                    <span className="editorial-timeline__no">03</span>
+                    <p>Once stabilized, the final report will stay filed with the case for future reference.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="asterism mt-10 mb-8">⁂</div>
+          <div className="support-intake__success-grid">
+            <div className="support-intake__success-sheet">
+              <div className="support-intake__meta-grid">
+                <div className="support-intake__meta-card">
+                  <p className="eyebrow sm">File reference</p>
+                  <p className="display-soft text-2xl mt-2 leading-tight num">{fileRef}</p>
+                </div>
+                <div className="support-intake__meta-card">
+                  <p className="eyebrow sm">Filed at</p>
+                  <p className="display-soft text-2xl mt-2 leading-tight">{filedStr}</p>
+                </div>
+                <div className="support-intake__meta-card">
+                  <p className="eyebrow sm">Type</p>
+                  <p className="display-soft text-lg mt-2 leading-tight">
+                    {CRISIS_TYPES.find((t) => t.id === formData.crisisType)?.label}
+                  </p>
+                </div>
+                <div className="support-intake__meta-card">
+                  <p className="eyebrow sm">Urgency</p>
+                  <p
+                    className={`display-soft text-lg mt-2 leading-tight ${
+                      formData.urgency === 'emergency' ? 'text-oxblood' : 'text-ink'
+                    }`}
+                  >
+                    {URGENCY_LEVELS.find((u) => u.id === formData.urgency)?.label}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-          <div className="flex flex-col sm:flex-row gap-5 items-baseline">
-              <Link to="/" className="link-handdrawn">
-                Return home
+            <div className="support-intake__success-links">
+              <Link to="/" className="support-intake__jump-link">
+                <span>Return home</span>
+                <span>→</span>
               </Link>
               {submittedRequestId && (
-                <Link to={`/support-cases/${submittedRequestId}`} className="link-handdrawn">
-                  Open case desk
+                <Link to={`/support-cases/${submittedRequestId}`} className="support-intake__jump-link">
+                  <span>Open case desk</span>
+                  <span>→</span>
                 </Link>
               )}
-              <Link to="/my-cases" className="link-handdrawn">
-                All my cases
+              <Link to="/my-cases" className="support-intake__jump-link">
+                <span>All my cases</span>
+                <span>→</span>
               </Link>
-              <Link to="/crisis" className="link-handdrawn">
-                View crisis steps
+              <Link to="/crisis" className="support-intake__jump-link">
+                <span>View crisis steps</span>
+                <span>→</span>
               </Link>
+            </div>
           </div>
         </motion.div>
       </NewsPage>
@@ -277,7 +386,7 @@ const RequestSupport = () => {
     : 'Specialists on call';
 
   return (
-    <NewsPage>
+    <NewsPage className="support-intake">
       <PrivacyGuardModal
         open={Boolean(pendingPrivacyReview)}
         title="Review the redacted drafting notes"
@@ -308,58 +417,24 @@ const RequestSupport = () => {
         </div>
         <NewsRule />
 
-        <div className="mt-10 max-w-prose">
-          <h1 className="display text-4xl md:text-6xl leading-none">
-            Request specialist support<span className="italic-ox">.</span>
-          </h1>
-          <p className="mt-5 text-base md:text-lg leading-relaxed text-ink-soft">
-            Fill out this form and a verified cybersecurity expert will contact you.
-          </p>
-          {user && (
-            <p className="mt-3 text-sm text-smoke">
-              Filed before?{' '}
-              <Link to="/my-cases" className="link-handdrawn">
-                View your existing cases →
-              </Link>
+        <div className="support-intake__hero">
+          <div className="support-intake__hero-copy">
+            <h1 className="display text-4xl md:text-6xl leading-none">
+              Request specialist support<span className="italic-ox">.</span>
+            </h1>
+            <p className="mt-5 text-base md:text-lg leading-relaxed text-ink-soft">
+              File the incident like a proper newsroom intake sheet. The clearer the first brief, the faster the desk can route you to the right specialist.
             </p>
-          )}
-        </div>
-
-        {/* Specialist availability strip — kept quiet, no glass pill. */}
-        {specialistCount > 0 && (
-          <div className="mt-8 flex items-center gap-4 pt-4 pb-1 border-t border-ink/12">
-            <div className="flex -space-x-1.5 flex-shrink-0">
-              {recentSpecialists.map((sp) => (
-                sp.avatarUrl ? (
-                  <img
-                    key={sp.id}
-                    src={sp.avatarUrl}
-                    alt={sp.realName || sp.username}
-                    title={sp.realName || sp.username}
-                    className="w-8 h-8 rounded-full object-cover border border-ink/15"
-                  />
-                ) : (
-                  <span
-                    key={sp.id}
-                    className="w-8 h-8 inline-flex items-center justify-center bg-paper-soft border border-ink/15 font-display font-bold text-[11px] text-ink"
-                    title={sp.realName || sp.username}
-                  >
-                    {(sp.realName || sp.username || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?'}
-                  </span>
-                )
-              ))}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-ink">
-                {specialistCount} verified specialist{specialistCount === 1 ? '' : 's'} on call
+            {user && (
+              <p className="mt-3 text-sm text-smoke">
+                Filed before?{' '}
+                <Link to="/my-cases" className="link-handdrawn">
+                  View your existing cases →
+                </Link>
               </p>
-              <p className="eyebrow text-[10px] normal-case text-smoke mt-0.5">
-                Typical first contact within 24h · all credentials vetted by our team
-              </p>
-            </div>
-            <VerifiedBadge size="sm" />
+            )}
           </div>
-        )}
+        </div>
       </motion.header>
 
       {/* Form */}
@@ -370,308 +445,459 @@ const RequestSupport = () => {
         onSubmit={handleSubmit}
         className="mt-10"
       >
-        {/* Auth gating banners */}
-        {!user && (
-          <NewsNotice tone="brass" icon={AlertCircle} className="mb-8">
-            <p className="text-sm leading-relaxed text-ink-soft">
-              Sign in first to submit a confidential support request.{' '}
-              <Link to="/login" className="link-handdrawn">
-                Go to login
-              </Link>{' '}
-              or{' '}
-              <Link to="/signup" className="link-handdrawn">
-                create an account
-              </Link>
-              .
-            </p>
-          </NewsNotice>
-        )}
-
-        {user && !user.emailVerified && (
-          <NewsNotice tone="brass" icon={AlertCircle} className="mb-8">
-            <p className="text-sm leading-relaxed text-ink-soft">
-              Verify your email before sending a confidential support request.
-            </p>
-            <button
-              type="button"
-              onClick={handleResendVerification}
-              className="link-handdrawn mt-2 text-sm"
-            >
-              Resend verification email
-            </button>
-            {verificationEmailSent && (
-              <p className="text-xs text-brass mt-2">Verification email sent.</p>
+        <div className="editorial-form-layout">
+          <div className="editorial-form-main">
+            {!user && (
+              <NewsNotice tone="brass" icon={AlertCircle} className="mb-8">
+                <p className="text-sm leading-relaxed text-ink-soft">
+                  Sign in first to submit a confidential support request.{' '}
+                  <Link to="/login" className="link-handdrawn">
+                    Go to login
+                  </Link>{' '}
+                  or{' '}
+                  <Link to="/signup" className="link-handdrawn">
+                    create an account
+                  </Link>
+                  .
+                </p>
+              </NewsNotice>
             )}
-          </NewsNotice>
-        )}
 
-        <Section n="00" label="Rapid draft">
-          <NewsNotice tone="info" icon={Sparkles}>
-            <p className="text-sm leading-relaxed text-ink-soft">
-              If you are under pressure, write rough notes here and SafePress will draft the crisis section for you. You can still review and edit every field before filing.
-            </p>
-          </NewsNotice>
+            {user && !user.emailVerified && (
+              <NewsNotice tone="brass" icon={AlertCircle} className="mb-8">
+                <p className="text-sm leading-relaxed text-ink-soft">
+                  Verify your email before sending a confidential support request.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  className="link-handdrawn mt-2 text-sm"
+                >
+                  Resend verification email
+                </button>
+                {verificationEmailSent && (
+                  <p className="text-xs text-brass mt-2">Verification email sent.</p>
+                )}
+              </NewsNotice>
+            )}
 
-          <NewsField
-            no="00"
-            label="Rough notes for the drafting assistant"
-            className="mt-7"
-          >
-            <textarea
-              value={draftNotes}
-              onChange={(event) => {
-                setDraftNotes(event.target.value);
-                if (draftError) setDraftError('');
-              }}
-              rows="5"
-              placeholder="What happened, when did it start, what accounts or devices are affected, whether a source may be at risk, and the safest way for a specialist to contact you."
-            />
-          </NewsField>
+            {user?.emailVerified && !user?.tokenClaims?.email_verified && (
+              <NewsNotice tone="info" icon={AlertCircle} className="mb-8">
+                <p className="text-sm leading-relaxed text-ink-soft">
+                  Your email is verified, but this browser session is still catching up with Firebase. Filing will work as soon as the secure session refresh finishes.
+                </p>
+              </NewsNotice>
+            )}
 
-          <div className="mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p className="eyebrow text-[10px] normal-case text-smoke">
-              The AI sees a redacted version of these notes, not the raw draft.
-            </p>
-            <NewsButton
-              type="button"
-              onClick={handleDraftAssist}
-              disabled={drafting || !user || !user.emailVerified}
-              className="disabled:opacity-50 disabled:cursor-not-allowed"
+            <Section
+              n="00"
+              label="Rapid draft"
+              title="Get the first draft onto the desk."
+              note="Use rough notes when the incident is still unfolding. You can edit every field before filing."
             >
-              <Sparkles className="w-4 h-4" />
-              {drafting
-                ? 'Drafting the request...'
-                : !user
-                  ? 'Sign in to use AI draft'
-                  : !user.emailVerified
-                    ? 'Verify email to use AI draft'
-                    : 'Draft the crisis section'}
-            </NewsButton>
-          </div>
+              <NewsNotice tone="info" icon={Sparkles}>
+                <p className="text-sm leading-relaxed text-ink-soft">
+                  If you are under pressure, write rough notes here and SafePress will draft the crisis section for you.
+                </p>
+              </NewsNotice>
 
-          {draftError && (
-            <p className="mt-3 text-sm text-oxblood">{draftError}</p>
-          )}
+              <NewsField
+                no="00"
+                label="Rough notes for the drafting assistant"
+                className="mt-7"
+              >
+                <textarea
+                  value={draftNotes}
+                  onChange={(event) => {
+                    setDraftNotes(event.target.value);
+                    if (draftError) setDraftError('');
+                  }}
+                  rows="5"
+                  placeholder="What happened, when did it start, what accounts or devices are affected, whether a source may be at risk, and the safest way for a specialist to contact you."
+                />
+              </NewsField>
 
-          {draftMeta && (
-            <NewsNotice tone="info" icon={CheckCircle} className="mt-6">
-              <p className="text-sm leading-relaxed text-ink-soft">
-                The incident fields below were drafted from your notes.
-                {draftMeta.applied && draftMeta.flags?.length
-                  ? ` Redacted before sending to the model: ${draftMeta.flags.map((flag) => REDACTION_FLAG_LABELS[flag] || flag).join(', ')}.`
-                  : ' The current privacy scan did not flag obvious identifiers in the notes sent to the model.'}
+              <div className="support-intake__section-footer">
+                <p className="eyebrow text-[10px] normal-case text-smoke">
+                  The AI sees a redacted version of these notes, not the raw draft.
+                </p>
+                <NewsButton
+                  type="button"
+                  onClick={handleDraftAssist}
+                  disabled={drafting || !user || !user.emailVerified}
+                  className="disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {drafting
+                    ? 'Drafting the request...'
+                    : !user
+                      ? 'Sign in to use AI draft'
+                      : !user.emailVerified
+                        ? 'Verify email to use AI draft'
+                        : 'Draft the crisis section'}
+                </NewsButton>
+              </div>
+
+              {draftError && (
+                <p className="mt-3 text-sm text-oxblood">{draftError}</p>
+              )}
+
+              {draftMeta && (
+                <NewsNotice tone="info" icon={CheckCircle} className="mt-6">
+                  <p className="text-sm leading-relaxed text-ink-soft">
+                    The incident fields below were drafted from your notes.
+                    {draftMeta.applied && draftMeta.flags?.length
+                      ? ` Redacted before sending to the model: ${draftMeta.flags.map((flag) => REDACTION_FLAG_LABELS[flag] || flag).join(', ')}.`
+                      : ' The current privacy scan did not flag obvious identifiers in the notes sent to the model.'}
+                  </p>
+                </NewsNotice>
+              )}
+            </Section>
+
+            <Section
+              n="01"
+              label="Reporter"
+              title="Confirm the safe identity details."
+              note="These details stay inside the filed case and are only fully visible after a specialist claims it."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
+                <NewsField no="01" label={<>Name <span className="text-oxblood">*</span></>}>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={updateField('name')}
+                    required
+                    placeholder="Your full name"
+                  />
+                </NewsField>
+
+                <NewsField no="02" label={<>Email <span className="text-oxblood">*</span></>}>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={updateField('email')}
+                    required
+                    placeholder="your@email.com"
+                  />
+                </NewsField>
+
+                <NewsField no="03" label="Phone number (optional)" className="md:col-span-2">
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={updateField('phone')}
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </NewsField>
+              </div>
+            </Section>
+
+            <Section
+              n="02"
+              label="Crisis details"
+              title="Describe the incident and set the tempo."
+              note="Think like an editor reading the file cold: type, urgency, and a clean narrative of what happened."
+            >
+              <div className="f-row">
+                <span className="f-lbl">
+                  <span className="no">№ 04</span>
+                  <span>Type of crisis <span className="text-oxblood">*</span></span>
+                </span>
+                <div className="editorial-choice-grid editorial-choice-grid--two">
+                  {CRISIS_TYPES.map((opt) => {
+                    const active = formData.crisisType === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setFormData({ ...formData, crisisType: opt.id })}
+                        className={`editorial-choice-card ${active ? 'is-active' : ''}`}
+                        style={{ '--choice-accent': 'var(--color-oxblood)' }}
+                      >
+                        <div className="editorial-choice-card__topline">
+                          <span className="eyebrow sm text-smoke">{opt.id}</span>
+                          <span className="editorial-choice-card__dot" aria-hidden="true" />
+                        </div>
+                        <p className="editorial-choice-card__title">{opt.label}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="f-row mt-8">
+                <span className="f-lbl">
+                  <span className="no">№ 05</span>
+                  <span>Urgency level <span className="text-oxblood">*</span></span>
+                </span>
+                <div className="editorial-choice-grid editorial-choice-grid--three">
+                  {URGENCY_LEVELS.map((opt) => {
+                    const active = formData.urgency === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setFormData({ ...formData, urgency: opt.id })}
+                        className={`editorial-choice-card ${active ? 'is-active' : ''} ${opt.alarm ? 'is-alarm' : ''}`}
+                        style={{ '--choice-accent': opt.alarm ? 'var(--color-oxblood)' : 'var(--color-brass)' }}
+                      >
+                        <div className="editorial-choice-card__topline">
+                          <span className="eyebrow sm text-smoke">{opt.desc}</span>
+                          <span className="editorial-choice-card__dot" aria-hidden="true" />
+                        </div>
+                        <p className="editorial-choice-card__title">{opt.label}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <NewsField
+                no="06"
+                label={<>Describe your situation <span className="text-oxblood">*</span></>}
+                className="mt-8"
+              >
+                <textarea
+                  value={formData.description}
+                  onChange={updateField('description')}
+                  required
+                  rows="6"
+                  placeholder="What happened, what changed, which devices or accounts may be affected, what pressure you are under, and what kind of help you need first."
+                />
+              </NewsField>
+            </Section>
+
+            <Section
+              n="03"
+              label="Reply route"
+              title="Choose the safest return channel."
+              note="Tell the desk how a specialist should reach you first, especially if one channel may already be compromised."
+            >
+              <div className="f-row">
+                <span className="f-lbl">
+                  <span className="no">№ 07</span>
+                  <span>Preferred contact method <span className="text-oxblood">*</span></span>
+                </span>
+                <div className="editorial-choice-grid editorial-choice-grid--three">
+                  {CONTACT_METHODS.map((opt) => {
+                    const active = formData.contactMethod === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setFormData({ ...formData, contactMethod: opt.id })}
+                        className={`editorial-choice-card ${active ? 'is-active' : ''}`}
+                        style={{ '--choice-accent': 'var(--color-ink)' }}
+                      >
+                        <div className="editorial-choice-card__topline">
+                          <span className="eyebrow sm text-smoke">Preferred route</span>
+                          <span className="editorial-choice-card__dot" aria-hidden="true" />
+                        </div>
+                        <p className="editorial-choice-card__title">{opt.label}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </Section>
+
+            <NewsNotice tone="info" className="mt-10">
+              <p className="text-xs leading-relaxed text-ink-soft">
+                <span className="font-semibold text-ink">Privacy notice:</span> your
+                request is stored in Firebase and is only shown in full to you,
+                admins, and the specialist who claims your case. The specialist queue
+                only exposes redacted crisis metadata until a case is claimed.
               </p>
             </NewsNotice>
-          )}
-        </Section>
 
-        {/* §01 Reporter */}
-        <Section n="01" label="Reporter">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
-            <NewsField no="01" label={<>Name <span className="text-oxblood">*</span></>}>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={updateField('name')}
-                required
-                placeholder="Your full name"
-              />
-            </NewsField>
+            {submitError && (
+              <NewsNotice tone="danger" icon={AlertCircle} className="mt-6">
+                <p className="text-sm leading-relaxed text-ink-soft">{submitError}</p>
+              </NewsNotice>
+            )}
 
-            <NewsField no="02" label={<>Email <span className="text-oxblood">*</span></>}>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={updateField('email')}
-                required
-                placeholder="your@email.com"
-              />
-            </NewsField>
-
-            <NewsField no="03" label="Phone number (optional)">
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={updateField('phone')}
-                placeholder="+1 (555) 123-4567"
-              />
-            </NewsField>
-          </div>
-        </Section>
-
-        {/* §02 Nature of the incident */}
-        <Section n="02" label="Crisis details">
-          {/* Type — radio cluster */}
-          <div className="f-row">
-            <span className="f-lbl">
-              <span className="no">№ 04</span>
-              <span>Type of crisis <span className="text-oxblood">*</span></span>
-            </span>
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-7 gap-y-3 pt-2">
-              {CRISIS_TYPES.map((opt) => (
-                <label
-                  key={opt.id}
-                  className="inline-flex items-center gap-2.5 cursor-pointer text-sm text-ink-soft"
-                >
-                  <span
-                    className={`relative inline-block w-3.5 h-3.5 rounded-full border-[1.5px] flex-shrink-0 ${
-                      formData.crisisType === opt.id
-                        ? 'border-ink'
-                        : 'border-ink/35'
-                    }`}
-                  >
-                    {formData.crisisType === opt.id && (
-                      <span className="absolute inset-[3px] rounded-full bg-ink" />
-                    )}
-                  </span>
-                  <input
-                    type="radio"
-                    name="crisisType"
-                    value={opt.id}
-                    checked={formData.crisisType === opt.id}
-                    onChange={updateField('crisisType')}
-                    className="sr-only"
-                  />
-                  {opt.label}
-                </label>
-              ))}
+            <div className="support-intake__submit">
+              <div>
+                <span className="eyebrow sm">
+                  Signed by reporter · {formData.name || 'unsigned'}
+                </span>
+                <p className="support-intake__submit-note">
+                  The filed case becomes the working record for all follow-up.
+                </p>
+              </div>
+              <NewsButton
+                type="submit"
+                disabled={submitting || !user || !user.emailVerified}
+                className="disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send className="w-4 h-4" />
+                {submitting
+                  ? 'Filing the request...'
+                  : !user
+                    ? 'Sign in to submit'
+                    : !user.emailVerified
+                      ? 'Verify email to submit'
+                      : 'File the request'}
+                <ArrowRight className="w-4 h-4 ml-0.5" />
+              </NewsButton>
             </div>
           </div>
 
-          {/* Urgency — segmented control */}
-          <div className="f-row mt-8">
-            <span className="f-lbl">
-              <span className="no">№ 05</span>
-              <span>Urgency level <span className="text-oxblood">*</span></span>
-            </span>
-            <div className="flex gap-0 mt-2">
-              {URGENCY_LEVELS.map((opt, i) => {
-                const active = formData.urgency === opt.id;
-                const borderColor = opt.alarm ? 'border-oxblood' : 'border-ink';
-                const activeBg = opt.alarm ? 'bg-oxblood' : 'bg-ink';
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, urgency: opt.id })}
-                    className={`flex-1 px-4 py-2.5 font-mono uppercase text-[11px] tracking-[0.18em] transition-colors border ${borderColor} ${
-                      i === 0 ? '' : '-ml-px'
-                    } ${active
-                      ? `${activeBg} text-paper`
-                      : 'bg-transparent text-ink hover:bg-ink/[0.04]'
-                    }`}
-                  >
-                    {opt.label}
-                    <span className="block text-[9px] tracking-[0.16em] mt-0.5 opacity-70 normal-case">
-                      {opt.desc}
-                    </span>
-                  </button>
-                );
-              })}
+          <aside className="editorial-form-rail support-intake__rail">
+            <div className="editorial-form-sheet editorial-form-sheet--aside support-intake__dispatch">
+              <div className="support-intake__dispatch-head">
+                <div>
+                  <p className="eyebrow sm text-brass">Dispatch board</p>
+                  <h2 className="display-soft text-2xl leading-none mt-3">Live specialist coverage.</h2>
+                </div>
+                <VerifiedBadge size="sm" />
+              </div>
+
+              {specialistCount > 0 && (
+                <div className="support-intake__dispatch-avatars">
+                  {recentSpecialists.map((sp) => (
+                    sp.avatarUrl ? (
+                      <img
+                        key={sp.id}
+                        src={sp.avatarUrl}
+                        alt={sp.realName || sp.username}
+                        title={sp.realName || sp.username}
+                        className="support-intake__dispatch-avatar"
+                      />
+                    ) : (
+                      <span
+                        key={sp.id}
+                        className="support-intake__dispatch-avatar support-intake__dispatch-avatar--mono"
+                        title={sp.realName || sp.username}
+                      >
+                        {getMonogram(sp.realName || sp.username || '')}
+                      </span>
+                    )
+                  ))}
+                </div>
+              )}
+
+              <div className="support-intake__dispatch-grid">
+                <div className="support-intake__dispatch-cell">
+                  <p className="eyebrow sm text-smoke">Verified desk</p>
+                  <p className="display-soft text-2xl leading-none mt-2">{specialistCount || '—'}</p>
+                  <p className="support-intake__dispatch-note">specialists currently visible to the queue</p>
+                </div>
+                <div className="support-intake__dispatch-cell">
+                  <p className="eyebrow sm text-smoke">Expected rhythm</p>
+                  <p className="display-soft text-2xl leading-none mt-2">24h</p>
+                  <p className="support-intake__dispatch-note">typical first reply when the desk is staffed</p>
+                </div>
+              </div>
+
+              <p className="support-intake__dispatch-footnote">
+                Full reporter details stay redacted in the intake tray until a verified specialist claims the file.
+              </p>
             </div>
-          </div>
 
-          {/* Description — textarea */}
-          <NewsField
-            no="06"
-            label={<>Describe your situation <span className="text-oxblood">*</span></>}
-            className="mt-8"
-          >
-            <textarea
-              value={formData.description}
-              onChange={updateField('description')}
-              required
-              rows="6"
-              placeholder="Please provide details about what happened and what help you need…"
-            />
-          </NewsField>
-        </Section>
-
-        {/* §03 Contact preferences */}
-        <Section n="03" label="How should we contact you?">
-          <div className="f-row">
-            <span className="f-lbl">
-              <span className="no">№ 07</span>
-              <span>Preferred contact method <span className="text-oxblood">*</span></span>
-            </span>
-            <div className="flex gap-0 mt-2">
-              {CONTACT_METHODS.map((opt, i) => {
-                const active = formData.contactMethod === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, contactMethod: opt.id })}
-                    className={`flex-1 px-4 py-2.5 font-mono uppercase text-[11px] tracking-[0.18em] border border-ink transition-colors ${
-                      i === 0 ? '' : '-ml-px'
-                    } ${active
-                      ? 'bg-ink text-paper'
-                      : 'bg-transparent text-ink hover:bg-ink/[0.04]'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
+            <div className="editorial-form-sheet editorial-form-sheet--aside">
+              <div className="editorial-form-sheet__head">
+                <div>
+                  <p className="eyebrow sm text-oxblood">Intake protocol</p>
+                  <h2 className="display-soft text-2xl leading-none mt-3">How this request moves.</h2>
+                </div>
+              </div>
+              <div className="editorial-form-sheet__body">
+                <div className="editorial-timeline">
+                  {INTAKE_STEPS.map((step) => (
+                    <div key={step.no} className="editorial-timeline__item">
+                      <span className="editorial-timeline__no">{step.no}</span>
+                      <div>
+                        <p className="editorial-timeline__title">{step.title}</p>
+                        <p className="editorial-timeline__body">{step.body}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        </Section>
 
-        {/* Privacy notice */}
-        <NewsNotice tone="info" className="mt-10">
-          <p className="text-xs leading-relaxed text-ink-soft">
-            <span className="font-semibold text-ink">Privacy notice:</span> your
-            request is stored in Firebase and is only shown in full to you,
-            admins, and the specialist who claims your case. The specialist queue
-            only exposes redacted crisis metadata until a case is claimed.
-          </p>
-        </NewsNotice>
+            <div className="editorial-form-sheet editorial-form-sheet--aside">
+              <div className="editorial-form-sheet__head">
+                <div>
+                  <p className="eyebrow sm text-brass">Desk signals</p>
+                  <h2 className="display-soft text-2xl leading-none mt-3">What helps the triage pass.</h2>
+                </div>
+              </div>
+              <div className="editorial-form-sheet__body">
+                <div className="support-intake__signal-list">
+                  <div className="support-intake__signal-item">
+                    <Shield className="w-4 h-4 text-oxblood" />
+                    <p>Say whether a source, unpublished material, or a specific device is at risk.</p>
+                  </div>
+                  <div className="support-intake__signal-item">
+                    <Clock3 className="w-4 h-4 text-brass" />
+                    <p>Flag when the incident started and whether anything is still actively spreading or accessible.</p>
+                  </div>
+                  <div className="support-intake__signal-item">
+                    <FileText className="w-4 h-4 text-ink" />
+                    <p>Use the narrative box for sequence and scope, not just symptoms.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        {/* Submit */}
-        <div className="mt-10 pt-5 border-t border-ink/22 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3">
-          <span className="eyebrow sm">
-            Signed by reporter · {formData.name || 'unsigned'}
-          </span>
-          <NewsButton
-            type="submit"
-            disabled={submitting || !user || !user.emailVerified}
-            className="disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send className="w-4 h-4" />
-            {submitting
-              ? 'Filing the request...'
-              : !user
-                ? 'Sign in to submit'
-                : !user.emailVerified
-                  ? 'Verify email to submit'
-                  : 'File the request'}
-            <ArrowRight className="w-4 h-4 ml-0.5" />
-          </NewsButton>
+            <div className="editorial-form-sheet editorial-form-sheet--aside">
+              <div className="editorial-form-sheet__head">
+                <div>
+                  <p className="eyebrow sm text-oxblood">Emergency route</p>
+                  <h2 className="display-soft text-2xl leading-none mt-3">If the situation is moving right now.</h2>
+                </div>
+              </div>
+              <div className="editorial-form-sheet__body">
+                <div className="support-intake__emergency">
+                  <Users className="w-4 h-4 text-oxblood" />
+                  <p>
+                    Call{' '}
+                    <a
+                      href={EMERGENCY_SUPPORT_CONTACTS[0].phoneHref}
+                      className="text-oxblood hover:underline"
+                    >
+                      {EMERGENCY_SUPPORT_CONTACTS[0].phone}
+                    </a>{' '}
+                    for immediate escalation.
+                  </p>
+                </div>
+                <p className="support-intake__emergency-note">
+                  {EMERGENCY_SUPPORT_CONTACTS[0].org} · {EMERGENCY_SUPPORT_CONTACTS[0].available}
+                </p>
+              </div>
+            </div>
+          </aside>
         </div>
-
-        <p className="eyebrow text-[10px] normal-case text-center text-smoke mt-6">
-          Emergency? Call{' '}
-          <a
-            href={EMERGENCY_SUPPORT_CONTACTS[0].phoneHref}
-            className="text-oxblood hover:underline"
-          >
-            {EMERGENCY_SUPPORT_CONTACTS[0].phone}
-          </a>{' '}
-          ({EMERGENCY_SUPPORT_CONTACTS[0].org} · {EMERGENCY_SUPPORT_CONTACTS[0].available})
-        </p>
       </motion.form>
     </NewsPage>
   );
 };
 
 /* ─── Section header — § N · label, with hairline rule. ───────────────── */
-const Section = ({ n, label, children }) => (
-  <section className="mt-12">
-    <p className="eyebrow sm pb-2.5 border-b border-ink mb-7">
-      <span className="text-ink mr-2">§ {n}</span>
-      <span className="text-ink-soft">{label}</span>
-    </p>
-    {children}
+const Section = ({ n, label, title, note, children }) => (
+  <section className="editorial-form-sheet support-intake__section">
+    <div className="editorial-form-sheet__head">
+      <div>
+        <p className="eyebrow sm">
+          <span className="text-ink mr-2">§ {n}</span>
+          <span className="text-ink-soft">{label}</span>
+        </p>
+        <h2 className="display-soft text-2xl md:text-3xl leading-none mt-3">
+          {title}
+        </h2>
+        {note && (
+          <p className="editorial-form-sheet__lede">{note}</p>
+        )}
+      </div>
+    </div>
+    <div className="editorial-form-sheet__body">
+      {children}
+    </div>
   </section>
 );
 

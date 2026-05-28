@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCrisis } from '../../contexts/CrisisContext';
 import VerifiedBadge from '../VerifiedBadge';
+import CrisisSwitch from '../CrisisSwitch';
 import { useNotifications } from '../../features/notifications/hooks/useNotifications';
 import { logError } from '../../utils/logger';
 import { getDisplayName, getInitials } from '../../utils/userUtils';
@@ -297,9 +298,19 @@ const Header = () => {
                         onClick={() => { setUserMenuOpen(o => !o); setNotifOpen(false); }}
                         className={`flex items-center gap-2 pl-2 pr-3 h-9 rounded-sm ${t.controlBg} border ${t.controlBorder} transition-all`}
                       >
-                        <span className={`w-5 h-5 bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-[9px] text-ink flex-shrink-0`}>
-                          {getInitials(visibleName)}
-                        </span>
+                        {user.avatarUrl ? (
+                          <span className="w-5 h-5 border border-ink/20 overflow-hidden flex-shrink-0">
+                            <img
+                              src={user.avatarUrl}
+                              alt={visibleName}
+                              className="w-full h-full object-cover"
+                            />
+                          </span>
+                        ) : (
+                          <span className={`w-5 h-5 bg-paper-soft border border-ink/20 flex items-center justify-center font-display font-bold text-[9px] text-ink flex-shrink-0`}>
+                            {getInitials(visibleName)}
+                          </span>
+                        )}
                         <span className={`hidden sm:inline font-mono text-[11px] tracking-[0.1em] truncate max-w-[100px] ${t.userText}`}>
                           {visibleName}
                         </span>
@@ -484,12 +495,11 @@ const Header = () => {
         >
           {isInCrisis ? 'Crisis · active' : 'Crisis mode'}
         </span>
-        <button
+        <CrisisSwitch
           onClick={toggleOverlay}
-          role="switch"
-          aria-checked={overlayOpen}
-          className="relative flex-shrink-0 w-14 h-7 transition-colors duration-200 focus:outline-none"
-          style={{
+          checked={overlayOpen}
+          ariaLabel={overlayOpen ? 'Hide crisis overlay' : 'Open crisis overlay'}
+          trackStyle={{
             backgroundColor: overlayOpen
               ? 'var(--color-oxblood)'
               : isInCrisis
@@ -503,18 +513,10 @@ const Header = () => {
                 ? '1px solid rgba(21,17,12,0.22)'
                 : '1px solid rgba(255,255,255,0.18)',
           }}
-        >
-          <span
-            className="absolute w-[22px] h-[22px] transition-transform duration-200"
-            style={{
-              left: 3,
-              top: '50%',
-              transform: overlayOpen ? 'translate(28px, -50%)' : 'translate(0, -50%)',
-              backgroundColor: overlayOpen ? '#fff' : isPaperSurface ? 'var(--color-ink)' : '#fff',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
-            }}
-          />
-        </button>
+          thumbStyle={{
+            backgroundColor: overlayOpen ? '#fff' : isPaperSurface ? 'var(--color-ink)' : '#fff',
+          }}
+        />
       </div>}
     </div>
   );

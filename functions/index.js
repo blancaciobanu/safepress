@@ -42,6 +42,25 @@ const callerCanUseAiAdvisor = (auth) =>
 const clampText = (value, maxLength) =>
   typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 
+/* Like clampText, but if the cap lands inside a word/sentence we
+   roll back to the nearest sentence end or whitespace so the visible
+   output never ends mid-word. Used for long-form fields (summaries). */
+const clampProse = (value, maxLength) => {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  const slice = trimmed.slice(0, maxLength);
+  const lastSentence = Math.max(
+    slice.lastIndexOf('. '),
+    slice.lastIndexOf('! '),
+    slice.lastIndexOf('? '),
+  );
+  if (lastSentence > maxLength * 0.6) return slice.slice(0, lastSentence + 1).trim();
+  const lastSpace = slice.lastIndexOf(' ');
+  if (lastSpace > maxLength * 0.6) return `${slice.slice(0, lastSpace).trim()}…`;
+  return `${slice.trim()}…`;
+};
+
 const buildPublicProfilePayload = (privateProfile = {}) => ({
   username: privateProfile.username ?? null,
   realName: privateProfile.realName ?? null,
@@ -148,8 +167,8 @@ const toStringList = (value, maxItems = 6) =>
 
 const normalizeThreatReport = (report = {}) => {
   const threatLevel = THREAT_LEVELS.has(report.threatLevel) ? report.threatLevel : 'medium';
-  const summary = clampText(report.summary, 500);
-  const sourceRisk = clampText(report.sourceRisk, 320);
+  const summary = clampProse(report.summary, 1600);
+  const sourceRisk = clampProse(report.sourceRisk, 480);
   const adversaries = toStringList(report.adversaries);
   const attackSurfaces = toStringList(report.attackSurfaces);
   const immediateActions = toStringList(report.immediateActions);
@@ -228,32 +247,56 @@ const redactSensitiveDetails = (input = '') => {
     {
       key: 'name-prefix',
       label: 'person name',
-      pattern: /\b(my name is)\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,2})\b/gi,
+      pattern: /\b(my name is)\s+(\p{Lu}[\p{Ll}\p{M}'-]+(?:\s+\p{Lu}[\p{Ll}\p{M}'-]+){1,2})\b/giu,
       replace: (count, match, prefix) => `${prefix} [NAME_${count}]`,
     },
     {
       key: 'name-self-identification',
       label: 'person name',
-      pattern: /\b(i am|i'm)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})(?=(?:\s+(?:and|,|\.|;|who\b|from\b|at\b))|$)/g,
+      pattern: /\b(i am|i'm)\s+(\p{Lu}[\p{Ll}\p{M}'-]+(?:\s+\p{Lu}[\p{Ll}\p{M}'-]+){1,2})(?=(?:\s+(?:and|,|\.|;|who\b|from\b|at\b))|$)/giu,
       replace: (count, match, prefix) => `${prefix} [NAME_${count}]`,
+    },
+    {
+      key: 'name-role-intro',
+      label: 'person name',
+      pattern: /\b((?:editor|chief\s+editor|managing\s+editor|contact|colleague|source|reporter|journalist|correspondent)\s+is)\s+(\p{Lu}[\p{Ll}\p{M}'-]+(?:\s+\p{Lu}[\p{Ll}\p{M}'-]+)+)/giu,
+      replace: (count, match, intro) => `${intro} [NAME_${count}]`,
     },
     {
       key: 'affiliation',
       label: 'employer or affiliation',
-      pattern: /\b(i work at|i work for|i am at|i'm at|i am with|i'm with|journalist at|reporter at|editor at)\s+((?:the\s+)?[A-Za-z][A-Za-z0-9&'.-]*(?:\s+(?:[A-Za-z][A-Za-z0-9&'.-]*|the|of|and)){0,5})/gi,
+      pattern: /\b(i work at|i work for|i am at|i'm at|i am with|i'm with|journalist at|reporter at|editor at)\s+((?:the\s+)?\p{Lu}[\p{L}0-9&'.-]*(?:\s+(?:\p{L}[\p{L}0-9&'.-]*|the|of|and)){0,5})/giu,
       replace: (count, match, prefix) => `${prefix} [ORG_${count}]`,
     },
     {
       key: 'role-affiliation',
       label: 'employer or affiliation',
-      pattern: /\b((?:i am|i'm)\s+(?:an?\s+)?(?:journalist|reporter|editor|producer|staff writer|writer|correspondent|researcher|freelancer)\s+(?:at|for|with))\s+((?:the\s+)?[A-Z][A-Za-z0-9&'.-]*(?:\s+[A-Z][A-Za-z0-9&'.-]*){0,5})/gi,
+      pattern: /\b((?:i am|i'm)\s+(?:an?\s+)?(?:journalist|reporter|editor|producer|staff writer|writer|correspondent|researcher|freelancer)\s+(?:at|for|with))\s+((?:the\s+)?\p{Lu}[\p{L}0-9&'.-]*(?:\s+\p{Lu}[\p{L}0-9&'.-]*){0,5})/giu,
       replace: (count, match, prefix) => `${prefix} [ORG_${count}]`,
     },
     {
       key: 'trailing-affiliation',
       label: 'employer or affiliation',
-      pattern: /\b((?:at|for|with))\s+((?:the\s+)?[A-Z][A-Za-z0-9&'.-]*(?:\s+[A-Z][A-Za-z0-9&'.-]*){0,5})(?=\s+(?:someone|somebody|they|he|she|we|i)\b|[.,;]|$)/g,
+      pattern: /\b((?:at|for|with))\s+((?:the\s+)?\p{Lu}[\p{L}0-9&'.-]*(?:\s+\p{Lu}[\p{L}0-9&'.-]*){0,5})(?=\s+(?:someone|somebody|they|he|she|we|i)\b|[.,;—–]|$)/giu,
       replace: (count, match, prefix) => `${prefix} [ORG_${count}]`,
+    },
+    {
+      key: 'official-at-org',
+      label: 'employer or affiliation',
+      pattern: /\b((?:official|source|contact|employee|staff|representative|director|minister|head)\s+(?:at|from|with))\s+((?:the\s+)?\p{Lu}[\p{L}0-9&'.-]*(?:\s+\p{L}[\p{L}0-9&'.-]*){1,7})(?=[.,;]|\s*[—–]|\s+(?:I\b|but\b|who\b|they\b|he\b|she\b)|$)/giu,
+      replace: (count, match, prefix) => `${prefix} [ORG_${count}]`,
+    },
+    {
+      key: 'date-month-year',
+      label: 'date',
+      pattern: /\b((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4})\b/gi,
+      replace: (count) => `[DATE_${count}]`,
+    },
+    {
+      key: 'location-prefix',
+      label: 'location',
+      pattern: /\b(based\s+in|located\s+in|colleague\s+in|contact\s+in|source\s+in|working\s+(?:in|across|throughout)|covering)\s+(?:the\s+)?(\p{Lu}[\p{L}'-]+(?:\s+\p{Lu}[\p{L}'-]+)*)/giu,
+      replace: (count, match, prefix) => `${prefix} [LOCATION_${count}]`,
     },
     {
       key: 'family',
@@ -444,7 +487,7 @@ const requestThreatModel = async (input) => {
   const text = await requestAnthropicText({
     system,
     messages: [{ role: 'user', content: user }],
-    maxTokens: 900,
+    maxTokens: 1800,
   });
   const parsed = await parseJsonWithRepair(text);
   return normalizeThreatReport(parsed);

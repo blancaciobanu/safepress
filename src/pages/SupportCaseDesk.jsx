@@ -12,6 +12,7 @@ import {
 } from '../features/support/services/supportService';
 import { logError } from '../utils/logger';
 import { NewsButton, NewsCard, NewsNotice, NewsPage, NewsRule } from '../components/editorial/NewsPage';
+import { caseFileRef } from '../utils/caseRef';
 
 const CRISIS_LABELS = {
   hacked: 'hacked account',
@@ -143,7 +144,7 @@ const SupportCaseDesk = () => {
 
   if (loading) {
     return (
-      <NewsPage className="specialist-casefile" max="reading">
+      <NewsPage className="specialist-casefile">
         <div className="flex items-center justify-center py-32">
           <div className="text-center">
             <div className="w-6 h-6 border-2 border-ink border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -156,7 +157,7 @@ const SupportCaseDesk = () => {
 
   if (error || !caseFile) {
     return (
-      <NewsPage className="specialist-casefile" max="reading">
+      <NewsPage className="specialist-casefile">
         <div className="space-y-6">
           <div className="news-page-topline">
             <span className="eyebrow sm text-oxblood">Support case desk</span>
@@ -176,14 +177,16 @@ const SupportCaseDesk = () => {
   const markerMeta = CASE_MARKER_META[caseFile.caseMarker] || CASE_MARKER_META[SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST];
 
   return (
-    <NewsPage className="specialist-casefile" max="reading">
+    <NewsPage className="specialist-casefile">
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className="news-page-topline">
-          <span className="eyebrow sm text-oxblood">Support case desk</span>
+          <span className="eyebrow sm text-oxblood">
+            Support case desk · {caseFileRef(caseFile)}
+          </span>
           <Link to="/request-support" className="eyebrow sm text-smoke hover:text-ink-soft transition-colors">
             request another case
           </Link>
@@ -281,64 +284,96 @@ const SupportCaseDesk = () => {
         </div>
 
         <div className="specialist-casefile__workspace">
-          <NewsCard accent="#15110C" className="specialist-casefile__sheet">
-            <div className="specialist-casefile__section-head">
-              <div>
-                <p className="eyebrow sm text-ink">Case thread</p>
-                <h2 className="news-card-title mt-2">Keep questions, updates, and confirmations inside the file.</h2>
-              </div>
-            </div>
-
-            <div className="specialist-casefile__thread">
-              {messages.length > 0 ? messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`specialist-casefile__message specialist-casefile__message--${message.authorRole}`}
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="eyebrow sm text-oxblood">
-                      {message.authorRole === 'specialist' ? 'Specialist note' : 'Reporter update'}
-                    </p>
-                    <span className="text-[10px] text-smoke-dim uppercase tracking-widest">
-                      {new Date(message.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                  <p className="text-sm text-ink-soft leading-relaxed mt-3">{message.body}</p>
+          <div className="specialist-casefile__workspace-top">
+            <NewsCard accent="#15110C" className="specialist-casefile__sheet">
+              <div className="specialist-casefile__section-head">
+                <div>
+                  <p className="eyebrow sm text-ink">Case thread</p>
+                  <h2 className="news-card-title mt-2">Keep questions, updates, and confirmations inside the file.</h2>
                 </div>
-              )) : (
-                <p className="text-sm text-smoke">No messages yet. Add any new developments here so the specialist sees them in the file.</p>
-              )}
-            </div>
+              </div>
 
-            {caseFile.status === 'open' && (
-              <p className="text-sm text-smoke mt-4 pt-4 border-t border-ink/8">
-                The thread opens once a specialist claims your case. You can add more context to your request in the meantime by filing a new request with updated details.
-              </p>
-            )}
-
-            {caseFile.status === 'claimed' && (
-              <div className="specialist-casefile__composer">
-                <textarea
-                  value={messageDraft}
-                  onChange={(event) => setMessageDraft(event.target.value)}
-                  rows="4"
-                  placeholder="Add new developments, answer specialist questions, or clarify what has changed since the request was filed."
-                />
-                <div className="specialist-casefile__composer-actions">
-                  <NewsButton
-                    type="button"
-                    onClick={handleSendMessage}
-                    disabled={messageBusy || !messageDraft.trim()}
+              <div className="specialist-casefile__thread">
+                {messages.length > 0 ? messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`specialist-casefile__message specialist-casefile__message--${message.authorRole}`}
                   >
-                    <MessageSquare className="w-4 h-4" />
-                    {messageBusy ? 'sending…' : 'send update'}
-                  </NewsButton>
-                </div>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="eyebrow sm text-oxblood">
+                        {message.authorRole === 'specialist' ? 'Specialist note' : 'Reporter update'}
+                      </p>
+                      <span className="text-[10px] text-smoke-dim uppercase tracking-widest">
+                        {new Date(message.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-ink-soft leading-relaxed mt-3">{message.body}</p>
+                  </div>
+                )) : (
+                  <p className="text-sm text-smoke">No messages yet. Add any new developments here so the specialist sees them in the file.</p>
+                )}
               </div>
-            )}
-          </NewsCard>
 
-          <NewsCard accent="#375E5A" className="specialist-casefile__sheet">
+              {caseFile.status === 'open' && (
+                <p className="text-sm text-smoke mt-4 pt-4 border-t border-ink/8">
+                  The thread opens once a specialist claims your case. You can add more context to your request in the meantime by filing a new request with updated details.
+                </p>
+              )}
+
+              {caseFile.status === 'claimed' && (
+                <div className="specialist-casefile__composer">
+                  <p className="specialist-casefile__composer-note">
+                    Use the thread for new developments and confirmations so the whole case keeps a clear timeline.
+                  </p>
+                  <textarea
+                    value={messageDraft}
+                    onChange={(event) => setMessageDraft(event.target.value)}
+                    rows="4"
+                    placeholder="Add new developments, answer specialist questions, or clarify what has changed since the request was filed."
+                  />
+                  <div className="specialist-casefile__composer-actions">
+                    <NewsButton
+                      type="button"
+                      onClick={handleSendMessage}
+                      disabled={messageBusy || !messageDraft.trim()}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      {messageBusy ? 'sending…' : 'send update'}
+                    </NewsButton>
+                  </div>
+                </div>
+              )}
+            </NewsCard>
+
+            <div className="specialist-casefile__workspace-rail">
+              <NewsCard accent="#8A6D2C" className="specialist-casefile__sheet">
+                <div className="specialist-casefile__section-head">
+                  <div>
+                    <p className="eyebrow sm text-brass">Case rhythm</p>
+                    <h2 className="news-card-title mt-2">What happens next.</h2>
+                  </div>
+                </div>
+                <div className="specialist-casefile__report-readout">
+                  <div>
+                    <p className="eyebrow sm text-smoke-dim">Current marker</p>
+                    <p className="text-sm text-ink-soft leading-relaxed mt-2">{markerMeta.label}</p>
+                  </div>
+                  <div>
+                    <p className="eyebrow sm text-smoke-dim">Contact route</p>
+                    <p className="text-sm text-ink-soft leading-relaxed mt-2">{caseFile.contactMethod}</p>
+                  </div>
+                  <div>
+                    <p className="eyebrow sm text-smoke-dim">When the report appears</p>
+                    <p className="text-sm text-ink-soft leading-relaxed mt-2">
+                      Once the specialist closes the case, the final write-up will stay filed here.
+                    </p>
+                  </div>
+                </div>
+              </NewsCard>
+            </div>
+          </div>
+
+          <NewsCard accent="#375E5A" className="specialist-casefile__sheet specialist-casefile__sheet--report">
             <div className="specialist-casefile__section-head">
               <div>
                 <p className="eyebrow sm text-[#375E5A]">Resolution report</p>
@@ -347,16 +382,16 @@ const SupportCaseDesk = () => {
             </div>
 
             {caseFile.caseReport ? (
-              <div className="specialist-casefile__report-readout">
+              <div className="specialist-casefile__report-grid specialist-casefile__report-grid--readout">
                 {[
                   ['Situation summary', caseFile.caseReport.summary],
                   ['Actions taken', caseFile.caseReport.actionsTaken],
                   ['Outstanding risks', caseFile.caseReport.outstandingRisks],
                   ['Next steps', caseFile.caseReport.nextSteps],
-                ].map(([label, value]) => (
-                  <div key={label}>
-                    <p className="eyebrow sm text-smoke-dim">{label}</p>
-                    <p className="text-sm text-ink-soft leading-relaxed mt-2">{value || 'Not provided.'}</p>
+                ].map(([label, value], index) => (
+                  <div key={label} className="specialist-casefile__report-panel">
+                    <p className="eyebrow sm text-smoke-dim">{String(index + 1).padStart(2, '0')} · {label}</p>
+                    <p className="text-sm text-ink-soft leading-relaxed mt-3">{value || 'Not provided.'}</p>
                   </div>
                 ))}
               </div>

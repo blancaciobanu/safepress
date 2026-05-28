@@ -1,11 +1,10 @@
 import { motion } from 'framer-motion';
 import {
   Shield, AlertTriangle, CheckCircle, Clock, User,
-  Star,
-  Users, Award,
+  Star, Users, Inbox, FileText, Archive,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import VerifiedBadge from '../components/VerifiedBadge';
 import {
@@ -21,17 +20,48 @@ import {
   specialistNeedsVerificationDossier,
 } from '../features/users/verification';
 import { logError } from '../utils/logger';
-import { NewsPage, NewsRule } from '../components/editorial/NewsPage';
+import {
+  NewsButton,
+  NewsPage,
+  NewsRule,
+} from '../components/editorial/NewsPage';
+import { caseFileRef } from '../utils/caseRef';
+import { getRoleColor } from '../utils/userUtils';
 
 const CRISIS_LABELS = {
-  hacked:   'hacked account',
-  source:   'source exposed',
-  doxxed:   'doxxing incident',
-  phishing: 'phishing attempt',
-  other:    'security concern',
+  hacked:   'Hacked account',
+  source:   'Source exposed',
+  doxxed:   'Doxxing incident',
+  phishing: 'Phishing attempt',
+  other:    'Security concern',
 };
 
 const CRISIS_ICONS = { hacked: Shield, source: Users, doxxed: AlertTriangle, phishing: Shield, other: Shield };
+
+const URGENCY_LABELS = {
+  emergency: 'emergency',
+  urgent:    'urgent',
+  normal:    'normal',
+};
+
+const URGENCY_TONE = {
+  emergency: 'text-oxblood',
+  urgent:    'text-brass',
+  normal:    'text-smoke',
+};
+
+const CASE_MARKER_LABELS = {
+  [SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST]: 'awaiting specialist',
+  [SUPPORT_CASE_MARKERS.AWAITING_REPORTER]: 'awaiting reporter',
+  [SUPPORT_CASE_MARKERS.MONITORING]: 'monitoring',
+  [SUPPORT_CASE_MARKERS.READY_TO_FILE]: 'ready to file',
+};
+
+const ACCENT = {
+  open:     '#7B2E2E',
+  active:   '#8A6D2C',
+  resolved: '#375E5A',
+};
 
 const getMonogram = (value) =>
   (value || '')
@@ -42,18 +72,26 @@ const getMonogram = (value) =>
     .map((part) => part[0]?.toUpperCase() || '')
     .join('') || 'SP';
 
-const URGENCY_CONFIG = {
-  emergency: { label: 'emergency', bg: 'bg-oxblood/12', text: 'text-oxblood', border: 'border-oxblood/30' },
-  urgent:    { label: 'urgent',    bg: 'bg-brass/12',   text: 'text-brass',   border: 'border-brass/30' },
-  normal:    { label: 'normal',    bg: 'bg-paper-soft/80',   text: 'text-smoke',    border: 'border-ink/10' },
+const splitCredentialText = (value = '') =>
+  String(value)
+    .replace(/\.\s+(?=[A-Z(])/g, '.\n')
+    .split(/\r?\n|;\s+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+const expandCredentialEntries = (values = []) =>
+  values.flatMap((value) => splitCredentialText(value));
+
+const timeInQueue = (createdAt) => {
+  const hours = Math.floor((Date.now() - new Date(createdAt).getTime()) / 3_600_000);
+  if (hours < 1) return 'just now';
+  if (hours < 24) return `${hours}h in queue`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? '1 day in queue' : `${days} days in queue`;
 };
 
-const CASE_MARKER_LABELS = {
-  [SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST]: 'awaiting specialist',
-  [SUPPORT_CASE_MARKERS.AWAITING_REPORTER]: 'awaiting reporter',
-  [SUPPORT_CASE_MARKERS.MONITORING]: 'monitoring',
-  [SUPPORT_CASE_MARKERS.READY_TO_FILE]: 'ready to file',
-};
+const formatShortDate = (iso) =>
+  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 const loadSpecialistRequests = async (specialistId) => {
   const [openRequests, claimedRequests, resolvedRequests] = await Promise.all([
@@ -61,150 +99,139 @@ const loadSpecialistRequests = async (specialistId) => {
     getClaimedSupportRequestsBySpecialist(specialistId),
     getResolvedSupportRequestsBySpecialist(specialistId),
   ]);
-
-  return {
-    openRequests,
-    claimedRequests,
-    resolvedRequests,
-  };
+  return { openRequests, claimedRequests, resolvedRequests };
 };
 
-/* ─── Request Card ─────────────────────────────────────────────────────────── */
+/* ─── Case folder card — visualises an actual paper folder ───────────────── */
 
-const RequestCard = ({
-  req,
-  userId,
-  lane,
-  busy = false,
-  isDragging = false,
-  onClaim,
-  onResolve,
-  onDragStart,
-  onDragEnd,
-}) => {
-  const urgency = URGENCY_CONFIG[req.urgency] || URGENCY_CONFIG.normal;
+const CaseFolder = ({ req, lane, userId, busy, onClaim, onResolve }) => {
   const CrisisIcon = CRISIS_ICONS[req.crisisType] || Shield;
   const isMine = req.claimedBy === userId;
-  const privacyLocked = req.queueOnly && req.status === 'open';
-  const canRoute = lane === 'open' || lane === 'active';
-  const routeLabel = lane === 'open' ? 'drag to active' : 'drag to filed';
-  const canResolveFromDesk = Boolean(
-    req.caseReport?.summary?.trim() &&
-    req.caseReport?.actionsTaken?.trim() &&
-    req.caseReport?.nextSteps?.trim()
-  );
+  const accent = ACCENT[lane];
+  const crisisLabel = CRISIS_LABELS[req.crisisType] || req.crisisType;
+  const urgency = URGENCY_LABELS[req.urgency] || req.urgency;
   const markerLabel = CASE_MARKER_LABELS[req.caseMarker];
+  const caseRef = caseFileRef(req);
+
+  const canResolveFromDesk = Boolean(
+    req.caseReport?.summary?.trim()
+    && req.caseReport?.actionsTaken?.trim()
+    && req.caseReport?.nextSteps?.trim()
+  );
+
+  const toplineKicker =
+    lane === 'open' ? 'Redacted intake'
+    : lane === 'active' ? 'Active case file'
+    : 'Filed note';
+
+  const stampMeta =
+    lane === 'open' ? timeInQueue(req.createdAt)
+    : lane === 'active' && req.claimedAt ? `Claimed ${formatShortDate(req.claimedAt)}`
+    : lane === 'resolved' && req.resolvedAt ? `Filed ${formatShortDate(req.resolvedAt)}`
+    : formatShortDate(req.createdAt);
 
   return (
-    <motion.div
-      layout="position"
-      className={`specialist-request-card specialist-request-card--${lane}${busy ? ' is-routing' : ''}${isDragging ? ' is-dragging' : ''}`}
-    >
-      <div className="specialist-request-card__meta">
-        <span className="eyebrow sm text-oxblood">
-          {lane === 'open' ? 'Redacted intake' : lane === 'active' ? 'Active case file' : 'Filed note'}
-        </span>
-        {canRoute && (
-          <div
-            className="specialist-request-card__handle"
-            draggable={!busy}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-          >
-            {busy ? 'routing...' : routeLabel}
+    <article className={`case-folder case-folder--${lane}`} style={{ '--folder-accent': accent }}>
+      <div className="case-folder__tab" aria-hidden="true">
+        <span className="case-folder__tab-mark">{caseRef}</span>
+      </div>
+
+      <div className="case-folder__body">
+        <div className="case-folder__topline">
+          <div className="case-folder__topline-left">
+            <span className="case-folder__icon">
+              <CrisisIcon className="w-4 h-4" />
+            </span>
+            <div>
+              <p className="case-folder__kicker">{toplineKicker}</p>
+              <p className="case-folder__stamp">{stampMeta}</p>
+            </div>
+          </div>
+          {lane === 'resolved' && (
+            <span className="case-folder__resolved-stamp" aria-hidden="true">FILED</span>
+          )}
+        </div>
+
+        <h3 className="case-folder__title">
+          {crisisLabel}<span className="italic-ox">.</span>
+        </h3>
+
+        <div className="case-folder__meta">
+          <span className={URGENCY_TONE[req.urgency] || 'text-smoke'}>{urgency}</span>
+          {markerLabel && <span>{markerLabel}</span>}
+          {req.status === 'claimed' && isMine && <span className="text-oxblood">on your desk</span>}
+          {req.status === 'claimed' && !isMine && <span>claimed elsewhere</span>}
+        </div>
+
+        {req.previewNote && lane === 'open' && (
+          <p className="case-folder__excerpt">
+            &ldquo;{req.previewNote}&rdquo;
+          </p>
+        )}
+
+        {lane !== 'open' && req.requesterName && (
+          <div className="case-folder__contact">
+            <div>
+              <span className="case-folder__contact-key">Reporter</span>
+              <p>{req.requesterName}</p>
+            </div>
+            <div>
+              <span className="case-folder__contact-key">{req.contactMethod || 'email'}</span>
+              <p>{req.requesterEmail}</p>
+            </div>
           </div>
         )}
-      </div>
 
-      <div className="specialist-request-card__toggle">
-        <div className={`specialist-request-card__icon ${urgency.bg} ${urgency.border}`}>
-          <CrisisIcon className={`w-5 h-5 ${urgency.text}`} />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <p className="text-base font-medium text-ink">
-              {CRISIS_LABELS[req.crisisType] || req.crisisType}
-            </p>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${urgency.bg} ${urgency.text} ${urgency.border}`}>
-              {urgency.label}
-            </span>
-            {markerLabel && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-paper-soft/80 text-ink-soft border border-ink/12">
-                {markerLabel}
-              </span>
-            )}
-            {req.status === 'claimed' && isMine && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-ink/[0.06] text-oxblood border border-ink/30">
-                active
-              </span>
-            )}
-            {req.status === 'claimed' && !isMine && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-paper-soft/80 text-smoke border border-ink/10">
-                claimed
-              </span>
+        {lane === 'resolved' && req.feedback && (
+          <div className="case-folder__feedback">
+            <div className="flex gap-0.5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star
+                  key={s}
+                  className={`w-3.5 h-3.5 ${s <= req.feedback.rating ? 'text-brass fill-amber-400' : 'text-smoke/40'}`}
+                />
+              ))}
+            </div>
+            {req.feedback.comment && (
+              <p className="case-folder__feedback-text">&ldquo;{req.feedback.comment}&rdquo;</p>
             )}
           </div>
-          <p className="text-sm text-smoke line-clamp-1">
-            {req.description}
-          </p>
-          <p className="text-[10px] text-smoke mt-1">
-            {new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            {req.claimedByName && req.claimedBy !== userId && ` · claimed by ${req.claimedByName}`}
-          </p>
-        </div>
-      </div>
+        )}
 
-      <div className="specialist-request-card__footer">
-        <Link to={`/specialist-cases/${req.id}`} className="specialist-request-card__filelink">
-          open case file →
-        </Link>
+        <div className="case-folder__footer">
+          <Link to={`/specialist-cases/${req.id}`} className="case-folder__link">
+            open case file →
+          </Link>
 
-        <div className="flex gap-2">
-          {req.status === 'open' && (
-            <button
-              onClick={() => onClaim(req.id)}
-              disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 bg-ink/[0.08] border border-ink/30  text-sm text-oxblood hover:bg-ink/[0.10] transition-all font-medium"
-            >
-              <User className="w-3.5 h-3.5" />
-              {busy ? 'routing...' : 'claim this request'}
-            </button>
+          {lane === 'open' && (
+            <NewsButton onClick={() => onClaim(req.id)} disabled={busy}>
+              <User className="w-4 h-4" />
+              {busy ? 'Claiming…' : 'Claim case'}
+            </NewsButton>
           )}
-          {req.status === 'claimed' && isMine && (
-            <div className="flex flex-col items-end gap-1">
-              <button
+
+          {lane === 'active' && isMine && (
+            <div className="flex flex-col items-end gap-1.5">
+              <NewsButton
                 onClick={() => onResolve(req.id)}
                 disabled={busy || !canResolveFromDesk}
-                title={canResolveFromDesk ? undefined : 'Save the resolution report in the case file before filing'}
-                className="flex items-center gap-1.5 px-4 py-2 bg-olive-500/20 border border-olive-500/30  text-sm text-olive-500 hover:bg-olive-500/30 transition-all font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                title={canResolveFromDesk ? undefined : 'Save the resolution report inside the case file before filing.'}
               >
-                <CheckCircle className="w-3.5 h-3.5" />
-                {busy ? 'filing...' : 'mark as resolved'}
-              </button>
+                <CheckCircle className="w-4 h-4" />
+                {busy ? 'Filing…' : 'Mark resolved'}
+              </NewsButton>
               {!canResolveFromDesk && (
-                <p className="text-[10px] text-smoke">open case file to write the report first</p>
+                <p className="text-[10px] text-smoke-dim">Write the report inside the case file first.</p>
               )}
             </div>
           )}
+
+          {lane === 'active' && !isMine && (
+            <span className="eyebrow sm text-smoke-dim">claimed by {req.claimedByName || 'another specialist'}</span>
+          )}
         </div>
       </div>
-
-      {!privacyLocked && lane !== 'resolved' && (
-        <div className="specialist-request-card__details">
-          <div className="specialist-request-card__meta-block">
-            <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1">name</p>
-            <p className="text-sm text-ink">{req.requesterName}</p>
-          </div>
-          <div className="specialist-request-card__meta-block">
-            <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1">
-              {req.contactMethod || 'email'}
-            </p>
-            <p className="text-sm text-ink break-all">{req.requesterEmail}</p>
-          </div>
-        </div>
-      )}
-    </motion.div>
+    </article>
   );
 };
 
@@ -212,32 +239,28 @@ const RequestCard = ({
 
 const SpecialistDashboard = () => {
   const { user } = useAuth();
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
 
-  const [profile,      setProfile]      = useState(user);
-  const [loading,      setLoading]      = useState(false);
-  const [requests,     setRequests]     = useState([]);
-  const [resolved,     setResolved]     = useState([]);
+  const [profile, setProfile] = useState(user);
+  const [loading, setLoading] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [resolved, setResolved] = useState([]);
   const [claimedRequests, setClaimedRequests] = useState([]);
   const [routeBusyId, setRouteBusyId] = useState(null);
-  const [dragState, setDragState] = useState(null);
-  const [activeDropLane, setActiveDropLane] = useState(null);
+  const [activeLane, setActiveLane] = useState('open');
 
   const isSpecialist = user?.accountType === 'specialist';
   const isVerifiedSpecialist = isSpecialist && user?.verificationStatus === SPECIALIST_VERIFICATION_STATUSES.APPROVED;
 
-  // Only redirect non-specialists; pending/rejected specialists stay here and see status
   useEffect(() => {
     if (!user) return;
     if (user.accountType !== 'specialist') navigate('/dashboard', { replace: true });
   }, [user, navigate]);
 
-  // Use the already-hydrated auth profile immediately.
   useEffect(() => {
     setProfile(user || null);
   }, [user]);
 
-  // Fetch all request lists together for verified specialists.
   useEffect(() => {
     if (!isVerifiedSpecialist || !user) {
       setLoading(false);
@@ -248,7 +271,6 @@ const SpecialistDashboard = () => {
     }
 
     let cancelled = false;
-
     const fetch = async () => {
       setLoading(true);
       try {
@@ -257,25 +279,18 @@ const SpecialistDashboard = () => {
           claimedRequests: claimed,
           resolvedRequests,
         } = await loadSpecialistRequests(user.uid);
-
         if (cancelled) return;
         setRequests(openRequests);
         setClaimedRequests(claimed);
         setResolved(resolvedRequests);
       } catch (e) {
-        if (!cancelled) {
-          logError('Error fetching specialist dashboard data:', e);
-        }
+        if (!cancelled) logError('Error fetching specialist dashboard data:', e);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
-
     fetch();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [isVerifiedSpecialist, user]);
 
   const handleClaim = async (id) => {
@@ -286,11 +301,12 @@ const SpecialistDashboard = () => {
         specialistId: user.uid,
         specialistName: user.realName || user.username,
       });
-      setRequests(prev => prev.filter((request) => request.id !== id));
+      setRequests((prev) => prev.filter((request) => request.id !== id));
       const refreshedClaimed = await getClaimedSupportRequestsBySpecialist(user.uid);
       setClaimedRequests(refreshedClaimed.map((request) =>
         request.id === id ? { ...request, ...claimData } : request
       ));
+      setActiveLane('active');
     } catch (e) {
       logError('Error claiming:', e);
     } finally {
@@ -302,15 +318,28 @@ const SpecialistDashboard = () => {
     setRouteBusyId(id);
     try {
       const resolutionData = await resolveSupportRequest(id);
-      const req = claimedRequests.find(r => r.id === id);
-      setClaimedRequests(prev => prev.filter(r => r.id !== id));
-      if (req) setResolved(prev => [{ ...req, ...resolutionData }, ...prev]);
+      const req = claimedRequests.find((r) => r.id === id);
+      setClaimedRequests((prev) => prev.filter((r) => r.id !== id));
+      if (req) setResolved((prev) => [{ ...req, ...resolutionData }, ...prev]);
+      setActiveLane('resolved');
     } catch (e) {
       logError('Error resolving:', e);
     } finally {
       setRouteBusyId((current) => (current === id ? null : current));
     }
   };
+
+  /* ─── Derived ────────────────────────────────────────────────────────────── */
+
+  const openReqs     = useMemo(() => requests.filter((r) => r.status === 'open'), [requests]);
+  const myActiveReqs = useMemo(
+    () => claimedRequests.filter((r) => r.status === 'claimed' && r.claimedBy === user?.uid),
+    [claimedRequests, user?.uid],
+  );
+  const ratedReqs = useMemo(() => resolved.filter((r) => r.feedback), [resolved]);
+  const avgRating = ratedReqs.length
+    ? ratedReqs.reduce((s, r) => s + r.feedback.rating, 0) / ratedReqs.length
+    : null;
 
   if (loading || !isSpecialist) {
     return (
@@ -325,15 +354,43 @@ const SpecialistDashboard = () => {
     );
   }
 
-  // Pending / rejected specialists see a status view instead of the dashboard
+  /* ─── Pending / unverified state ─────────────────────────────────────────── */
+
   if (!isVerifiedSpecialist) {
     const status = user.emailVerified ? user.verificationStatus : SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL;
     const vd = profile?.verificationData || {};
     const submittedAtSource = vd.dossierSubmittedAt || vd.submittedAt;
-    const submittedAt = submittedAtSource ? new Date(submittedAtSource).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null;
+    const submittedAt = submittedAtSource
+      ? new Date(submittedAtSource).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : null;
     const rejectionReason = profile?.verificationRejectionReason;
     const reviewNote = profile?.verificationReviewNote;
     const needsDossier = specialistNeedsVerificationDossier(status);
+
+    const statusKicker =
+      status === 'rejected' ? 'application not approved'
+      : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL ? 'email verification required'
+      : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS ? 'dossier incomplete'
+      : status === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO ? 'additional detail requested'
+      : 'under review';
+
+    const statusHeadline =
+      status === 'rejected' ? 'Application not approved'
+      : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL ? 'Verify your email first'
+      : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS ? 'Complete your verification file'
+      : status === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO ? 'The desk needs more detail'
+      : 'Verification in review';
+
+    const statusDesc =
+      status === 'rejected'
+        ? 'Your previous verification was not approved. Revise the file if you want the desk to review it again.'
+        : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL
+          ? 'Your specialist application is saved, but it will not enter review until you verify your email address.'
+          : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS
+            ? 'Your basic application is on file, but the review desk still needs your working dossier before it can assess case readiness.'
+            : status === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO
+              ? 'The review desk sent the file back with notes. Strengthen it, then send it back for another pass.'
+              : "We're reviewing your specialist credentials. You'll get access to the request queue once approved.";
 
     return (
       <NewsPage className="specialist-desk">
@@ -342,50 +399,41 @@ const SpecialistDashboard = () => {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="text-center mb-8"
           >
-            <div className={`inline-flex items-center justify-center w-14 h-14  mb-5 border ${
-              status === 'rejected'
-                ? 'bg-oxblood/8 border-oxblood/20'
-                : 'bg-amber-500/10 border-amber-500/20'
-            }`}>
-              {status === 'rejected' ? (
-                <AlertTriangle className="w-7 h-7 text-oxblood" />
-              ) : (
-                <Clock className="w-7 h-7 text-amber-500" />
-              )}
+            <div className="news-page-topline">
+              <span className="eyebrow sm text-oxblood">Specialist Desk · Verification</span>
+              <span className="eyebrow sm">{statusKicker}</span>
             </div>
+            <NewsRule />
 
-            <h1 className="text-4xl md:text-5xl font-display font-bold mb-3">
-              {status === 'rejected'
-                ? 'application not approved'
-                : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL
-                  ? 'verify your email first'
-                  : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS
-                    ? 'complete your verification file'
-                    : status === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO
-                      ? 'the desk needs more detail'
-                  : 'verification in review'}
-            </h1>
-
-            <p className="text-base text-smoke max-w-md mx-auto leading-relaxed" style={{ letterSpacing: '0.03em' }}>
-              {status === 'rejected'
-                ? 'your previous verification was not approved. revise the file if you want the desk to review it again.'
-                : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_EMAIL
-                  ? 'your specialist application is saved, but it will not enter review until you verify your email address.'
-                  : status === SPECIALIST_VERIFICATION_STATUSES.PENDING_DETAILS
-                    ? 'your basic application is on file, but the review desk still needs your working dossier before it can assess case readiness.'
-                    : status === SPECIALIST_VERIFICATION_STATUSES.NEEDS_MORE_INFO
-                      ? 'the review desk sent the file back with notes. strengthen it, then send it back for another pass.'
-                  : "we're reviewing your specialist credentials. you'll get access to the request queue once approved."}
-            </p>
+            <div className="mt-10 flex items-start gap-5 max-w-prose">
+              <div className={`flex-shrink-0 inline-flex items-center justify-center w-11 h-11 border mt-1 ${
+                status === 'rejected'
+                  ? 'bg-oxblood/8 border-oxblood/20'
+                  : 'bg-amber-500/10 border-amber-500/20'
+              }`}>
+                {status === 'rejected' ? (
+                  <AlertTriangle className="w-5 h-5 text-oxblood" />
+                ) : (
+                  <Clock className="w-5 h-5 text-amber-500" />
+                )}
+              </div>
+              <div>
+                <h1 className="display text-4xl md:text-5xl leading-none">
+                  {statusHeadline}<span className="italic-ox">.</span>
+                </h1>
+                <p className="mt-5 text-base text-ink-soft leading-relaxed">
+                  {statusDesc}
+                </p>
+              </div>
+            </div>
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="specialist-status-sheet space-y-5"
+            className="specialist-status-sheet space-y-5 mt-10"
           >
             {(status === SPECIALIST_VERIFICATION_STATUSES.REJECTED && rejectionReason) && (
               <div className="bg-crimson-500/5 border border-oxblood/20  p-4">
@@ -487,370 +535,288 @@ const SpecialistDashboard = () => {
     );
   }
 
-  // Derived data
-  const sp           = profile?.specialistProfile || {};
-  const vd           = profile?.verificationData  || {};
-  const openReqs     = requests.filter(r => r.status === 'open');
-  const myActiveReqs = claimedRequests.filter(r => r.status === 'claimed' && r.claimedBy === user.uid);
-  const ratedReqs    = resolved.filter(r => r.feedback);
-  const avgRating    = ratedReqs.length
-    ? ratedReqs.reduce((s, r) => s + r.feedback.rating, 0) / ratedReqs.length
-    : null;
+  /* ─── Verified specialist dashboard ──────────────────────────────────────── */
+
+  const sp = profile?.specialistProfile || {};
+  const vd = profile?.verificationData || {};
   const specialistMonogram = getMonogram(user.realName || user.username);
-  const laneConfig = [
+  const coverageAreas = sp.expertiseAreas?.length > 0
+    ? sp.expertiseAreas
+    : (vd.supportAreas || []);
+  const hasCredentialStack = Boolean((sp.certifications?.length > 0) || vd.credentials);
+  const certificationEntries = expandCredentialEntries(sp.certifications || []);
+  const reviewDeskEntries = splitCredentialText(vd.credentials || '');
+  const credentialFacts = [
+    { label: 'Region', value: vd.region },
+    { label: 'Languages', value: vd.languages },
+    { label: 'Availability', value: vd.availability },
     {
-      id: 'open',
-      kicker: 'Intake tray',
-      title: 'New requests',
-      note: 'Requests stay redacted here until you pull them into the active folio.',
-      requests: openReqs,
-      empty: 'No new requests waiting in intake.',
+      label: 'Secure route',
+      value: vd.secureContactHandle
+        ? `${vd.secureContactMethod || 'secure'} · ${vd.secureContactHandle}`
+        : '',
     },
-    {
-      id: 'active',
-      kicker: 'Active folio',
-      title: 'Cases in progress',
-      note: 'Claimed requests reveal the brief so you can work directly with the reporter.',
-      requests: myActiveReqs,
-      empty: 'No active cases yet. Pull one from intake when you are ready.',
-    },
-    {
-      id: 'resolved',
-      kicker: 'Filed notes',
-      title: 'Closed resolutions',
-      note: 'Keep recent closures and feedback on the desk for pattern memory.',
-      requests: resolved,
-      empty: 'Nothing filed yet. Resolved cases will collect here.',
-    },
+  ].filter((item) => item.value);
+
+  const filingTabs = [
+    { id: 'open',     label: 'Intake tray',  desc: `${openReqs.length} new`,            icon: Inbox,    count: openReqs.length },
+    { id: 'active',   label: 'Active folio', desc: `${myActiveReqs.length} on desk`,    icon: FileText, count: myActiveReqs.length },
+    { id: 'resolved', label: 'Filed notes',  desc: `${resolved.length} closed`,         icon: Archive,  count: resolved.length },
   ];
 
-  const beginDeskDrag = (requestId, fromLane) => (event) => {
-    event.dataTransfer.effectAllowed = 'move';
-    setDragState({ id: requestId, from: fromLane });
-  };
+  const laneRequests =
+    activeLane === 'open' ? openReqs
+    : activeLane === 'active' ? myActiveReqs
+    : resolved;
 
-  const endDeskDrag = () => {
-    setDragState(null);
-    setActiveDropLane(null);
-  };
+  const laneEmpty =
+    activeLane === 'open' ? 'No new requests waiting. The intake tray is clear.'
+    : activeLane === 'active' ? 'No active cases yet. Pull one in from intake when you are ready.'
+    : 'Nothing filed yet. Resolved cases will collect here.';
 
-  const canDropIntoLane = (laneId) => {
-    if (!dragState) return false;
-    return (dragState.from === 'open' && laneId === 'active')
-      || (dragState.from === 'active' && laneId === 'resolved');
-  };
+  const laneSectionNote =
+    activeLane === 'open'
+      ? 'Each folder is a redacted intake. Claim a case to unlock the reporter brief and open the secure thread.'
+      : activeLane === 'active'
+        ? 'Folders pulled to your desk. Open one to message the reporter, set markers, and draft the resolution report.'
+        : 'A closing record for every case you filed. Open the folder to revisit the report or reporter feedback.';
 
-  const allowLaneDrop = (laneId) => (event) => {
-    if (!canDropIntoLane(laneId)) return;
-    event.preventDefault();
-    setActiveDropLane(laneId);
-  };
-
-  const leaveLaneDrop = (laneId) => () => {
-    setActiveDropLane((current) => (current === laneId ? null : current));
-  };
-
-  const dropInLane = (laneId) => async (event) => {
-    event.preventDefault();
-    if (!dragState || !canDropIntoLane(laneId)) {
-      endDeskDrag();
-      return;
-    }
-
-    const { id, from } = dragState;
-    setActiveDropLane(laneId);
-
-    try {
-      if (from === 'open' && laneId === 'active') {
-        await handleClaim(id);
-      } else if (from === 'active' && laneId === 'resolved') {
-        await handleResolve(id);
-      }
-    } finally {
-      endDeskDrag();
-    }
-  };
+  const todayStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  });
 
   return (
     <NewsPage className="specialist-desk">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          className="specialist-desk__header"
-        >
-          <div className="news-page-topline">
-            <span className="eyebrow sm text-oxblood">Specialist Desk · Casework queue</span>
-            <span className="eyebrow sm">{openReqs.length + myActiveReqs.length + resolved.length} tracked cases</span>
-          </div>
-          <NewsRule />
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="news-page-topline">
+          <span className="eyebrow sm text-oxblood">Specialist Desk · Casework queue</span>
+          <span className="eyebrow sm">{todayStr} · on duty</span>
+        </div>
+        <NewsRule />
 
-          <div className="specialist-desk__hero">
-              <div className="specialist-desk__identity">
-                <div className="specialist-desk__avatar">
-                  <span className="specialist-desk__avatar-mark">{specialistMonogram}</span>
-                </div>
-                <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  <h1 className="display text-4xl md:text-6xl leading-none">
-                    {user.realName || user.username}<span className="italic-ox">.</span>
-                  </h1>
-                  <VerifiedBadge size="md" />
-                </div>
-                <p className="text-smoke text-sm mb-3">
-                  security specialist
-                  {vd.organization && (
-                    <> · <span className="text-smoke">{vd.organization}</span></>
-                  )}
-                </p>
-
-                {(sp.expertiseAreas?.length > 0 || vd.expertise) && (
-                  <div className="flex flex-wrap gap-2">
-                    {(sp.expertiseAreas?.length > 0 ? sp.expertiseAreas : [vd.expertise]).map(area => (
-                      <span
-                        key={area}
-                        className="specialist-desk__chip"
-                      >
-                        {area}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+        {/* ── Nameplate header ──────────────────────────────────────────── */}
+        <section className="specialist-plate">
+          <div className="specialist-plate__photo-frame">
+            <div className="specialist-plate__photo">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.realName || user.username} className="specialist-plate__photo-img" />
+              ) : (
+                <span className="specialist-plate__photo-mark">{specialistMonogram}</span>
+              )}
             </div>
+            <span className="specialist-plate__duty-tag" aria-hidden="true">
+              <span className="specialist-plate__duty-pip" />
+              On duty
+            </span>
+          </div>
 
-            <div className="specialist-desk__note">
-              <p className="eyebrow sm text-brass">How this desk works</p>
-              <p className="news-card-copy mt-3">
-                Claim a case from the open queue, work it through your active desk, and file it once the journalist confirms the immediate risk is contained.
+          <div className="specialist-plate__copy">
+            <p className="eyebrow sm text-brass">Specialist · Verified by review desk</p>
+            <div className="flex items-center gap-2.5 mt-2.5 flex-wrap">
+              <h1 className={`display text-5xl md:text-6xl leading-none ${getRoleColor('specialist', true)}`}>
+                {user.realName || user.username}<span className="italic-ox">.</span>
+              </h1>
+              <VerifiedBadge size="md" />
+            </div>
+            {vd.organization && (
+              <p className="specialist-plate__role">
+                <span>{vd.organization}</span>
+              </p>
+            )}
+            {(sp.expertiseAreas?.length > 0 || vd.expertise) && (
+              <div className="specialist-plate__chips">
+                {(sp.expertiseAreas?.length > 0 ? sp.expertiseAreas : [vd.expertise]).map((area) => (
+                  <span key={area} className="specialist-plate__chip">{area}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── Duty ledger ───────────────────────────────────────────────── */}
+        <section className="duty-ledger">
+          <div className="duty-ledger__head">
+            <span className="eyebrow sm text-oxblood">Duty ledger</span>
+            <span className="eyebrow sm text-smoke-dim">As of {todayStr}</span>
+          </div>
+          <div className="duty-ledger__grid">
+            <div className="duty-ledger__cell">
+              <p className="duty-ledger__kicker">Cases resolved</p>
+              <p className="duty-ledger__value">{resolved.length}</p>
+              <p className="duty-ledger__note">All-time closures on your desk</p>
+            </div>
+            <div className="duty-ledger__cell">
+              <p className="duty-ledger__kicker">
+                Avg rating{ratedReqs.length ? ` · ${ratedReqs.length}` : ''}
+              </p>
+              <p className="duty-ledger__value duty-ledger__value--brass">
+                {avgRating ? avgRating.toFixed(1) : '—'}
+              </p>
+              <p className="duty-ledger__note">
+                {ratedReqs.length ? 'Reporter feedback, out of 5' : 'No feedback filed yet'}
               </p>
             </div>
+            <div className="duty-ledger__cell">
+              <p className="duty-ledger__kicker">Active now</p>
+              <p className="duty-ledger__value duty-ledger__value--oxblood">{myActiveReqs.length}</p>
+              <p className="duty-ledger__note">Live folders on the desk</p>
+            </div>
+          </div>
+        </section>
+
+      </motion.div>
+
+      <div className="specialist-casework-shell">
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="min-w-0"
+        >
+          {/* ── Filing-drawer tabs ───────────────────────────────────────── */}
+          <div className="filing-drawer" role="tablist" aria-label="Casework lanes">
+            {filingTabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeLane === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setActiveLane(tab.id)}
+                  className={`filing-drawer__tab ${active ? 'is-active' : ''}`}
+                  style={{ '--tab-accent': ACCENT[tab.id] }}
+                >
+                  <Icon className="filing-drawer__icon" />
+                  <span className="filing-drawer__copy">
+                    <span className="filing-drawer__label">{tab.label}</span>
+                    <span className="filing-drawer__desc">{tab.desc}</span>
+                  </span>
+                  <span className="filing-drawer__count">{String(tab.count).padStart(2, '0')}</span>
+                </button>
+              );
+            })}
           </div>
 
-            <div className="specialist-desk__stats">
-              {[
-                {
-                  value: resolved.length,
-                  label: 'cases resolved',
-                  tone: 'olive',
-                },
-                {
-                  value: avgRating ? avgRating.toFixed(1) : '—',
-                  label: `avg rating${ratedReqs.length ? ` (${ratedReqs.length})` : ''}`,
-                  tone: 'brass',
-                },
-                {
-                  value: myActiveReqs.length,
-                  label: 'active now',
-                  tone: 'oxblood',
-                },
-              ].map(stat => {
-                return (
-                  <div key={stat.label} className={`specialist-stat specialist-stat--${stat.tone}`}>
-                    <p className="specialist-stat__kicker">{stat.label}</p>
-                    <p className="specialist-stat__value">{stat.value}</p>
-                  </div>
-                );
-              })}
+          <div className="filing-drawer__note">
+            <p className="eyebrow sm text-smoke">{laneSectionNote}</p>
+          </div>
+
+          {laneRequests.length === 0 ? (
+            <div className="specialist-empty-state">
+              <p className="eyebrow sm text-smoke-dim">drawer clear</p>
+              <p className="text-sm text-smoke mt-2">{laneEmpty}</p>
             </div>
+          ) : (
+            <div className="case-folder-stack">
+              {laneRequests.map((req) => (
+                <CaseFolder
+                  key={req.id}
+                  req={req}
+                  lane={activeLane}
+                  userId={user.uid}
+                  busy={routeBusyId === req.id}
+                  onClaim={handleClaim}
+                  onResolve={handleResolve}
+                />
+              ))}
+            </div>
+          )}
         </motion.div>
+      </div>
 
-	        {/* ── 2-column layout ── */}
-	        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
+      <motion.section
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        className={`specialist-profile-file ${!hasCredentialStack ? 'specialist-profile-file--compact' : ''}`}
+      >
+        <div className="specialist-profile-file__mast">
+          <div>
+            <p className="eyebrow sm text-oxblood">Field profile</p>
+            <h2 className="display-soft text-3xl leading-none mt-3">Review desk profile.</h2>
+          </div>
+          <Link to="/settings" className="specialist-profile-file__edit">
+            edit file →
+          </Link>
+        </div>
 
-	          {/* ── Left: investigations board ── */}
-	          <motion.div
-	            initial={{ opacity: 0, y: 6 }}
-	            animate={{ opacity: 1, y: 0 }}
-	            transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-	            className="specialist-queue-panel"
-	          >
-	            <div className="specialist-queue-head">
-	              <div>
-	                <p className="eyebrow sm text-ink-soft">Investigations board</p>
-	                <h2 className="news-card-title mt-2">Route each case across intake, active, and filed lanes.</h2>
-	              </div>
-	              <div className="specialist-routing-note">
-	                <p className="eyebrow sm text-brass">Desk note</p>
-	                <p className="news-card-copy mt-3">
-	                  Drag a request into the active folio to claim it. Once the immediate risk is contained, drag it again into filed notes.
-	                </p>
-	              </div>
-	            </div>
+        <div className="specialist-profile-file__grid">
+          <div className="specialist-profile-file__brief">
+            <p className="specialist-profile-file__label">Desk copy</p>
+            {sp.bio ? (
+              <p className="specialist-profile-file__bio">{sp.bio}</p>
+            ) : (
+              <p className="specialist-profile-file__bio specialist-profile-file__bio--empty">
+                No field brief on file yet. Add one in settings so journalists understand what to route to you first.
+              </p>
+            )}
+          </div>
 
-	            <div className="specialist-board">
-	              {laneConfig.map((lane) => (
-	                <section
-	                  key={lane.id}
-	                  className={`specialist-lane specialist-lane--${lane.id}${activeDropLane === lane.id ? ' is-target' : ''}${canDropIntoLane(lane.id) ? ' is-droppable' : ''}`}
-	                  onDragOver={allowLaneDrop(lane.id)}
-	                  onDragLeave={leaveLaneDrop(lane.id)}
-	                  onDrop={dropInLane(lane.id)}
-	                >
-	                  <div className="specialist-lane__head">
-	                    <span className="eyebrow sm text-oxblood">{lane.kicker}</span>
-	                    <span className="eyebrow sm">{lane.requests.length} on desk</span>
-	                  </div>
-	                  <div className="specialist-lane__titleline">
-	                    <h3 className="specialist-lane__title">{lane.title}</h3>
-	                  </div>
-	                  <p className="specialist-lane__note">{lane.note}</p>
-
-	                  <div className="specialist-lane__stack">
-	                    {loading ? (
-	                      <div className="specialist-empty-state">
-	                        <div className="specialist-empty-state__icon bg-ink/8 border border-ink/20">
-	                          <div className="w-4 h-4 border-2 border-ink border-t-transparent rounded-full animate-spin" />
-	                        </div>
-	                        <p className="text-sm text-smoke">loading the desk...</p>
-	                      </div>
-	                    ) : lane.requests.length > 0 ? (
-	                      <div className="specialist-request-list">
-	                        {lane.requests.map((req) => (
-	                          <RequestCard
-	                            key={req.id}
-	                            req={req}
-	                            lane={lane.id}
-	                            userId={user.uid}
-	                            busy={routeBusyId === req.id}
-	                            isDragging={dragState?.id === req.id}
-	                            onClaim={handleClaim}
-	                            onResolve={handleResolve}
-	                            onDragStart={lane.id === 'resolved' ? undefined : beginDeskDrag(req.id, lane.id)}
-	                            onDragEnd={lane.id === 'resolved' ? undefined : endDeskDrag}
-	                          />
-	                        ))}
-	                      </div>
-	                    ) : (
-	                      <div className="specialist-empty-state">
-	                        <p className="eyebrow sm text-smoke-dim">tray clear</p>
-	                        <p className="text-sm text-smoke">{lane.empty}</p>
-	                      </div>
-	                    )}
-	                  </div>
-	                </section>
-	              ))}
-	            </div>
-	          </motion.div>
-
-	          {/* ── Right: profile + feedback ── */}
-	          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-	            transition={{ duration: 0.8, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
-	            className="specialist-side-rail lg:sticky lg:top-28"
-	          >
-	            <div className="specialist-side-note">
-	              <span className="specialist-side-note__pin" aria-hidden="true" />
-	              <p className="eyebrow sm text-oxblood">Pinned note</p>
-	              <p className="mt-3 text-sm text-ink-soft leading-relaxed">
-	                Keep only live risks in the active folio. Once a reporter is stabilized, file the case and let the desk breathe again.
-	              </p>
-	            </div>
-
-	            <div className="specialist-sidecard">
-	              <div className="flex items-center justify-between mb-4">
-	                <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim">field credentials</p>
-	                <Link
-	                  to="/settings"
-	                  className="text-[10px] text-smoke-dim hover:text-smoke transition-colors"
-                >
-                  edit →
-                </Link>
+          <div className="specialist-profile-file__details">
+            {credentialFacts.length > 0 && (
+              <div className="specialist-profile-file__facts">
+                {credentialFacts.map((fact) => (
+                  <div key={fact.label} className="specialist-profile-file__fact">
+                    <span>{fact.label}</span>
+                    <p>{fact.value}</p>
+                  </div>
+                ))}
               </div>
+            )}
 
-              {sp.bio ? (
-                <p className="text-sm text-smoke leading-relaxed mb-4">{sp.bio}</p>
-              ) : (
-                <p className="text-sm text-smoke italic mb-4">no bio yet — add one in settings</p>
-              )}
-
-              {/* Certifications */}
-              {sp.certifications?.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-2">certifications</p>
-                  <div className="space-y-1.5">
-                    {sp.certifications.map((cert, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <Award className="w-3.5 h-3.5 text-olive-500 flex-shrink-0" />
-                        <span className="text-xs text-smoke">{cert}</span>
-                      </div>
-                    ))}
-                  </div>
+            {coverageAreas.length > 0 && (
+              <div className="specialist-profile-file__lanes">
+                <p className="specialist-profile-file__label">Coverage lanes</p>
+                <div className="specialist-profile-file__chips">
+                  {coverageAreas.map((area) => (
+                    <span key={area} className="specialist-profile-file__chip">{area}</span>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
+          </div>
+        </div>
 
-              {/* Verification data — credentials */}
-              {vd.credentials && (
-                <div>
-                  <p className="text-[10px] text-smoke-dim uppercase tracking-wider mb-1.5">credentials</p>
-                  <p className="text-xs text-smoke leading-relaxed">{vd.credentials}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Feedback card */}
-            {ratedReqs.length > 0 && (
-              <div className="specialist-sidecard">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim">feedback</p>
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <Star key={s} className={`w-3 h-3 ${s <= Math.round(avgRating) ? 'text-brass fill-amber-400' : 'text-smoke'}`} />
-                      ))}
-                    </div>
-                    <span className="text-xs text-smoke">{avgRating.toFixed(1)}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {ratedReqs.slice(0, 4).map(req => (
-                    <div key={req.id} className="border-b border-white/[0.04] last:border-0 pb-3 last:pb-0">
-                      <div className="flex gap-0.5 mb-1.5">
-                        {[1, 2, 3, 4, 5].map(s => (
-                          <Star key={s} className={`w-3 h-3 ${s <= req.feedback.rating ? 'text-brass fill-amber-400' : 'text-smoke'}`} />
-                        ))}
-                      </div>
-                      {req.feedback.comment ? (
-                        <p className="text-xs text-smoke leading-relaxed">{req.feedback.comment}</p>
-                      ) : (
-                        <p className="text-xs text-smoke italic">no comment</p>
-                      )}
-                      <p className="text-[10px] text-smoke mt-1">
-                        {CRISIS_LABELS[req.crisisType] || req.crisisType} · {new Date(req.feedback.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </p>
-                    </div>
+        {hasCredentialStack && (
+          <div
+            className={`specialist-profile-file__evidence ${
+              certificationEntries.length === 0 || reviewDeskEntries.length === 0
+                ? 'specialist-profile-file__evidence--single'
+                : ''
+            }`}
+          >
+            {certificationEntries.length > 0 && (
+              <div className="specialist-profile-file__evidence-group">
+                <p className="specialist-profile-file__label">Certifications</p>
+                <div className="specialist-profile-file__certs">
+                  {certificationEntries.map((cert) => (
+                    <span key={cert} className="specialist-profile-file__cert">
+                      {cert}
+                    </span>
                   ))}
                 </div>
               </div>
             )}
 
-	            {/* Quick links */}
-	            <div className="specialist-sidecard">
-	              <p className="text-[10px] tracking-widest uppercase font-bold text-smoke-dim mb-3">reference shelf</p>
-	              <div className="space-y-1">
-                {[
-                  { to: '/resources',  label: 'field manual' },
-                  { to: '/community',  label: 'community desk' },
-                ].map(item => {
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      className="specialist-sidecard__link"
-                    >
-                      <span className="text-sm flex-1">{item.label}</span>
-                      <span className="specialist-sidecard__link-arrow">→</span>
-                    </Link>
-                  );
-                })}
+            {reviewDeskEntries.length > 0 && (
+              <div className="specialist-profile-file__evidence-group specialist-profile-file__evidence-group--note">
+                <p className="specialist-profile-file__label">Verified note</p>
+                <div className="specialist-profile-file__note">
+                  {reviewDeskEntries.map((entry) => (
+                    <p key={entry}>{entry}</p>
+                  ))}
+                </div>
               </div>
-            </div>
-
-          </motion.div>
-        </div>
-
+            )}
+          </div>
+        )}
+      </motion.section>
     </NewsPage>
   );
 };

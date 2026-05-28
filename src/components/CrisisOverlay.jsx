@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCrisis } from '../contexts/CrisisContext';
 import { useAuth } from '../contexts/AuthContext';
+import CrisisSwitch from './CrisisSwitch';
 
 /* ─── Data ──────────────────────────────────────────────────────────────── */
 
@@ -365,27 +366,16 @@ const CrisisOverlay = () => {
             <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.2em] text-oxblood">
               Crisis · active
             </span>
-            <button
+            <CrisisSwitch
+              checked
               onClick={closeOverlay}
-              role="switch"
-              aria-checked={true}
-              className="relative flex-shrink-0 w-14 h-7 transition-colors duration-200 focus:outline-none"
-              style={{
+              ariaLabel="Close crisis overlay and keep crisis mode active"
+              trackStyle={{
                 backgroundColor: 'var(--color-oxblood)',
                 border: '1px solid rgba(21,17,12,0.22)',
               }}
-            >
-              <span
-                className="absolute w-[22px] h-[22px] transition-transform duration-200"
-                style={{
-                  left: 3,
-                  top: '50%',
-                  transform: 'translate(28px, -50%)',
-                  backgroundColor: '#fff',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
-                }}
-              />
-            </button>
+              thumbStyle={{ backgroundColor: '#fff' }}
+            />
           </div>
 
           {/* ── Masthead ── */}
