@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion as Motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, MessageSquare, User } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle,
+  Clock3,
+  MessageSquare,
+  User,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   addSupportCaseMessage,
@@ -17,6 +23,7 @@ import {
 import { logError } from '../utils/logger';
 import {
   NewsButton,
+  NewsBadge,
   NewsCard,
   NewsNotice,
   NewsPage,
@@ -165,6 +172,55 @@ const REPORT_FIELDS = [
     placeholder: 'What the reporter should do next and when to escalate again.',
   },
 ];
+
+const buildCaseProgress = ({ caseFile, redacted, reportCompletionCount, canResolve }) => [
+  {
+    label: 'intake',
+    detail: redacted ? 'redacted brief' : 'brief visible',
+    complete: true,
+    current: redacted,
+  },
+  {
+    label: 'claimed',
+    detail: redacted ? 'locked until claim' : caseFile.specialistName || 'specialist assigned',
+    complete: !redacted,
+    current: !redacted && caseFile.status === 'claimed' && reportCompletionCount === 0,
+  },
+  {
+    label: 'working log',
+    detail: `${reportCompletionCount}/${REPORT_FIELDS.length} report fields`,
+    complete: reportCompletionCount === REPORT_FIELDS.length || caseFile.status === 'resolved',
+    current: !redacted && caseFile.status === 'claimed' && reportCompletionCount > 0 && !canResolve,
+  },
+  {
+    label: 'filed',
+    detail: caseFile.status === 'resolved' ? 'resolution recorded' : 'waiting on closure rule',
+    complete: caseFile.status === 'resolved',
+    current: canResolve && caseFile.status === 'claimed',
+  },
+];
+
+const CaseProgressRail = ({ steps }) => (
+  <div className="sim-track-rail specialist-casefile__case-rail" aria-label="Case progress">
+    {steps.map((step, index) => (
+      <div
+        key={step.label}
+        className={[
+          'sim-track-rail__tab',
+          'specialist-casefile__case-step',
+          step.complete ? 'is-complete' : '',
+          step.current ? 'is-current' : '',
+        ].filter(Boolean).join(' ')}
+      >
+        <span className="sim-transcript__row-index">{String(index + 1).padStart(2, '0')}</span>
+        <span className="min-w-0">
+          <span className="sim-track-rail__label">{step.label}</span>
+          <small className="specialist-casefile__case-step-detail">{step.detail}</small>
+        </span>
+      </div>
+    ))}
+  </div>
+);
 
 const SpecialistCaseFile = () => {
   const { requestId } = useParams();
@@ -395,6 +451,7 @@ const SpecialistCaseFile = () => {
     && caseFile.caseMarker === SUPPORT_CASE_MARKERS.READY_TO_FILE
   );
   const reportCompletionCount = REPORT_FIELDS.filter((field) => reportDraft[field.key]?.trim()).length;
+  const caseProgress = buildCaseProgress({ caseFile, redacted, reportCompletionCount, canResolve });
 
   return (
     <NewsPage className="specialist-casefile">
@@ -437,6 +494,8 @@ const SpecialistCaseFile = () => {
                 Review what this case involves and what will be required before you commit. Reporter identity and incident notes unlock after claiming.
               </p>
             </div>
+
+            <CaseProgressRail steps={caseProgress} />
 
             <div className="specialist-casefile__metastrip">
               <div className="specialist-casefile__metacard">
@@ -536,9 +595,15 @@ const SpecialistCaseFile = () => {
           <>
             <div className="specialist-casefile__hero">
               <div>
-                <p className="eyebrow sm text-smoke-dim">
-                  {STATUS_COPY[caseFile.status] || caseFile.status} · {URGENCY_LABELS[caseFile.urgency] || caseFile.urgency}
-                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="eyebrow sm text-smoke-dim">
+                    {STATUS_COPY[caseFile.status] || caseFile.status} · {URGENCY_LABELS[caseFile.urgency] || caseFile.urgency}
+                  </p>
+                  <NewsBadge color={markerMeta.accent}>
+                    <Clock3 className="w-3 h-3" />
+                    {caseFile.status === 'resolved' ? 'closed log' : 'live desk'}
+                  </NewsBadge>
+                </div>
                 <div className="mt-4">
                   <span className={`specialist-casefile__marker ${markerMeta.tone}`}>
                     {markerMeta.label}
@@ -553,7 +618,7 @@ const SpecialistCaseFile = () => {
                 </p>
               </div>
 
-              <div className="specialist-casefile__clipcard">
+              <div className="specialist-casefile__clipcard specialist-casefile__clipcard--hero">
                 <div className="specialist-casefile__clip" aria-hidden="true" />
                 <p className="eyebrow sm text-oxblood">Filed details</p>
                 <div className="space-y-3 mt-4 text-sm">
@@ -580,6 +645,8 @@ const SpecialistCaseFile = () => {
                 </div>
               </div>
             </div>
+
+            <CaseProgressRail steps={caseProgress} />
 
             <div className="specialist-casefile__grid">
               <NewsCard accent="#7B2E2E" className="specialist-casefile__sheet">

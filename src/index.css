@@ -4639,11 +4639,38 @@ body::before {
   }
 }
 
-.specialist-casefile {
-}
-
 .specialist-casefile__intake-header {
   margin-top: 2.3rem;
+  padding: 1.6rem 0 1.4rem;
+  border-top: 1px solid rgba(21, 17, 12, 0.18);
+  border-bottom: 1px solid rgba(21, 17, 12, 0.08);
+}
+
+.specialist-casefile__case-rail {
+  margin-top: 1.2rem;
+}
+
+.specialist-casefile__case-step {
+  justify-content: flex-start;
+  min-height: 4.3rem;
+  text-align: left;
+}
+
+.specialist-casefile__case-step.is-complete,
+.specialist-casefile__case-step.is-current {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.specialist-casefile__case-step.is-current {
+  color: var(--color-oxblood);
+}
+
+.specialist-casefile__case-step-detail {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--color-smoke);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .specialist-casefile__metastrip {
@@ -4657,7 +4684,8 @@ body::before {
   position: relative;
   padding: 0.95rem 1.05rem 0.9rem;
   border: 1px solid rgba(21, 17, 12, 0.11);
-  background: rgba(250, 246, 238, 0.8);
+  border-top: 2px solid rgba(123, 46, 46, 0.22);
+  background: rgba(250, 246, 238, 0.78);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.46) inset,
     0 14px 28px -26px rgba(21, 17, 12, 0.24);
@@ -4714,6 +4742,9 @@ body::before {
   gap: 2rem;
   align-items: start;
   margin-top: 2.3rem;
+  padding: 1.55rem 0 1.4rem;
+  border-top: 1px solid rgba(21, 17, 12, 0.18);
+  border-bottom: 1px solid rgba(21, 17, 12, 0.08);
 }
 
 .specialist-casefile__clipcard {
@@ -4722,6 +4753,12 @@ body::before {
   border: 1px solid rgba(21, 17, 12, 0.12);
   background: rgba(250, 246, 238, 0.88);
   box-shadow: 0 14px 26px -28px rgba(21, 17, 12, 0.28);
+}
+
+.specialist-casefile__clipcard--hero {
+  align-self: stretch;
+  background:
+    linear-gradient(180deg, rgba(250, 246, 238, 0.88), rgba(245, 238, 226, 0.94));
 }
 
 .specialist-casefile__clip {
@@ -4739,7 +4776,7 @@ body::before {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.85fr);
   gap: 1rem;
-  margin-top: 2rem;
+  margin-top: 1.4rem;
 }
 
 .specialist-casefile__rail {
@@ -4749,6 +4786,11 @@ body::before {
 
 .specialist-casefile__sheet {
   padding: 1.25rem;
+  background:
+    linear-gradient(180deg, rgba(250, 246, 238, 0.82), rgba(246, 239, 229, 0.92));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.46) inset,
+    0 16px 30px -30px rgba(21, 17, 12, 0.28);
 }
 
 .specialist-casefile__ledger {
@@ -4835,7 +4877,9 @@ body::before {
 .specialist-casefile__workspace {
   display: grid;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 1.15rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid rgba(21, 17, 12, 0.14);
 }
 
 .specialist-casefile__workspace-rail {
@@ -4850,12 +4894,15 @@ body::before {
 .specialist-casefile__thread {
   display: grid;
   gap: 0.9rem;
+  max-height: 28rem;
+  overflow: auto;
+  padding-right: 0.2rem;
 }
 
 .specialist-casefile__message {
   border: 1px solid rgba(21, 17, 12, 0.1);
   padding: 0.95rem 1rem;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.24);
 }
 
 .specialist-casefile__message--specialist {
@@ -4920,7 +4967,7 @@ body::before {
 .specialist-casefile__report-status-card {
   padding: 0.9rem 0.95rem;
   border: 1px solid rgba(21, 17, 12, 0.08);
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.26);
 }
 
 .specialist-casefile__report-grid {
@@ -5126,6 +5173,14 @@ body::before {
   .specialist-casefile__metastrip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .specialist-casefile__case-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .specialist-casefile__case-step:nth-child(2n) {
+    border-right: 0;
+  }
 }
 
 @media (max-width: 767px) {
@@ -5195,6 +5250,19 @@ body::before {
 
   .specialist-casefile__metastrip {
     grid-template-columns: 1fr;
+  }
+
+  .specialist-casefile__case-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .specialist-casefile__case-step {
+    border-right: 0;
+    border-bottom: 1px solid rgba(21, 17, 12, 0.1);
+  }
+
+  .specialist-casefile__case-step:last-child {
+    border-bottom: 0;
   }
 }
 
