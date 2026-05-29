@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import {
   CheckCircle2,
   ExternalLink,
@@ -239,7 +239,7 @@ const AdminDashboard = () => {
 
   return (
     <NewsPage className="admin-review-desk">
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -291,7 +291,7 @@ const AdminDashboard = () => {
             <p className="admin-review-stat__value">{rejectedCount}</p>
           </article>
         </div>
-      </motion.div>
+      </Motion.div>
 
       <div className="admin-review-desk__tabs">
         {[
@@ -318,7 +318,7 @@ const AdminDashboard = () => {
       </div>
 
       {activeTab === 'verifications' && (
-        <motion.section
+        <Motion.section
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
@@ -370,7 +370,7 @@ const AdminDashboard = () => {
           ) : (
             <div className="admin-review-filelist">
               {pendingVerifications.map((verification, index) => (
-                <motion.article
+                <Motion.article
                   key={verification.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -524,7 +524,7 @@ const AdminDashboard = () => {
                   </div>
 
                   {moreInfoId === verification.id && (
-                    <motion.div
+                    <Motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       className="admin-review-file__reply"
@@ -554,11 +554,11 @@ const AdminDashboard = () => {
                           cancel
                         </button>
                       </div>
-                    </motion.div>
+                    </Motion.div>
                   )}
 
                   {rejectingId === verification.id && (
-                    <motion.div
+                    <Motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       className="admin-review-file__reply"
@@ -588,9 +588,9 @@ const AdminDashboard = () => {
                           cancel
                         </button>
                       </div>
-                    </motion.div>
+                    </Motion.div>
                   )}
-                </motion.article>
+                </Motion.article>
               ))}
             </div>
           )}
@@ -630,11 +630,11 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
-        </motion.section>
+        </Motion.section>
       )}
 
       {activeTab === 'reports' && (
-        <motion.section
+        <Motion.section
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
@@ -747,11 +747,11 @@ const AdminDashboard = () => {
               ))}
             </div>
           )}
-        </motion.section>
+        </Motion.section>
       )}
 
       {activeTab === 'internal' && (
-        <motion.section
+        <Motion.section
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
@@ -810,7 +810,7 @@ const AdminDashboard = () => {
               </div>
             )}
           </div>
-        </motion.section>
+        </Motion.section>
       )}
     </NewsPage>
   );

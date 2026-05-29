@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import {
   AlertCircle,
   ArrowRight,
@@ -10,7 +10,7 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -83,6 +83,265 @@ const getMonogram = (value = '') =>
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || '')
     .join('') || '?';
+
+const Section = ({ n, label, title, note, children }) => (
+  <section className="editorial-form-sheet support-intake__section">
+    <div className="editorial-form-sheet__head">
+      <div>
+        <p className="eyebrow sm">
+          <span className="text-ink mr-2">§ {n}</span>
+          <span className="text-ink-soft">{label}</span>
+        </p>
+        <h2 className="display-soft text-2xl md:text-3xl leading-none mt-3">
+          {title}
+        </h2>
+        {note && (
+          <p className="editorial-form-sheet__lede">{note}</p>
+        )}
+      </div>
+    </div>
+    <div className="editorial-form-sheet__body">
+      {children}
+    </div>
+  </section>
+);
+
+const SupportSuccessView = ({ filedAt, specialistCount, submittedRequestId, formData }) => {
+  // eslint-disable-next-line react-hooks/purity
+  const fileRef = useRef(`SP-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`).current;
+  const filedStr = (filedAt || new Date()).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+
+  return (
+    <NewsPage className="support-intake">
+      <Motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="news-page-topline">
+          <span className="eyebrow sm text-oxblood">Form SP-S · Request filed</span>
+          <span className="eyebrow sm">Filed · {filedStr} UTC</span>
+        </div>
+        <NewsRule tone="oxblood" />
+
+        <div className="support-intake__success-hero">
+          <div>
+            <h1 className="display text-4xl md:text-6xl mt-10 leading-none max-w-[18ch]">
+              Your request is on <em className="italic-ox">the desk.</em>
+            </h1>
+            <p className="mt-6 text-base md:text-lg leading-relaxed text-ink-soft max-w-prose">
+              {specialistCount > 0
+                ? `${specialistCount} verified specialist${specialistCount === 1 ? ' is' : 's are'} on call. Expect first contact within 24h.`
+                : 'A verified cybersecurity specialist will review your request and reach out to you soon.'}
+            </p>
+          </div>
+
+          <div className="editorial-form-sheet editorial-form-sheet--aside support-intake__success-note">
+            <div className="editorial-form-sheet__head">
+              <div>
+                <p className="eyebrow sm text-brass">Next movement</p>
+                <h2 className="display-soft text-2xl leading-none mt-3">Keep the case thread as the single source of truth.</h2>
+              </div>
+            </div>
+            <div className="editorial-form-sheet__body">
+              <div className="editorial-timeline">
+                <div className="editorial-timeline__item">
+                  <span className="editorial-timeline__no">01</span>
+                  <p>Watch for the first specialist message inside the case desk.</p>
+                </div>
+                <div className="editorial-timeline__item">
+                  <span className="editorial-timeline__no">02</span>
+                  <p>Reply there with any new developments instead of scattering updates across channels.</p>
+                </div>
+                <div className="editorial-timeline__item">
+                  <span className="editorial-timeline__no">03</span>
+                  <p>Once stabilized, the final report will stay filed with the case for future reference.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="support-intake__success-grid">
+          <div className="support-intake__success-sheet">
+            <div className="support-intake__meta-grid">
+              <div className="support-intake__meta-card">
+                <p className="eyebrow sm">File reference</p>
+                <p className="display-soft text-2xl mt-2 leading-tight num">{fileRef}</p>
+              </div>
+              <div className="support-intake__meta-card">
+                <p className="eyebrow sm">Filed at</p>
+                <p className="display-soft text-2xl mt-2 leading-tight">{filedStr}</p>
+              </div>
+              <div className="support-intake__meta-card">
+                <p className="eyebrow sm">Type</p>
+                <p className="display-soft text-lg mt-2 leading-tight">
+                  {CRISIS_TYPES.find((t) => t.id === formData.crisisType)?.label}
+                </p>
+              </div>
+              <div className="support-intake__meta-card">
+                <p className="eyebrow sm">Urgency</p>
+                <p className={`display-soft text-lg mt-2 leading-tight ${formData.urgency === 'emergency' ? 'text-oxblood' : 'text-ink'}`}>
+                  {URGENCY_LEVELS.find((u) => u.id === formData.urgency)?.label}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="support-intake__success-links">
+            <Link to="/" className="support-intake__jump-link">
+              <span>Return home</span>
+              <span>→</span>
+            </Link>
+            {submittedRequestId && (
+              <Link to={`/support-cases/${submittedRequestId}`} className="support-intake__jump-link">
+                <span>Open case desk</span>
+                <span>→</span>
+              </Link>
+            )}
+            <Link to="/my-cases" className="support-intake__jump-link">
+              <span>All my cases</span>
+              <span>→</span>
+            </Link>
+            <Link to="/crisis" className="support-intake__jump-link">
+              <span>View crisis steps</span>
+              <span>→</span>
+            </Link>
+          </div>
+        </div>
+      </Motion.div>
+    </NewsPage>
+  );
+};
+
+const SupportIntakeSidebar = ({ specialistCount, recentSpecialists }) => (
+  <aside className="editorial-form-rail support-intake__rail">
+    <div className="editorial-form-sheet editorial-form-sheet--aside support-intake__dispatch">
+      <div className="support-intake__dispatch-head">
+        <div>
+          <p className="eyebrow sm text-brass">Dispatch board</p>
+          <h2 className="display-soft text-2xl leading-none mt-3">Live specialist coverage.</h2>
+        </div>
+        <VerifiedBadge size="sm" />
+      </div>
+
+      {specialistCount > 0 && (
+        <div className="support-intake__dispatch-avatars">
+          {recentSpecialists.map((sp) => (
+            sp.avatarUrl ? (
+              <img
+                key={sp.id}
+                src={sp.avatarUrl}
+                alt={sp.realName || sp.username}
+                title={sp.realName || sp.username}
+                className="support-intake__dispatch-avatar"
+              />
+            ) : (
+              <span
+                key={sp.id}
+                className="support-intake__dispatch-avatar support-intake__dispatch-avatar--mono"
+                title={sp.realName || sp.username}
+              >
+                {getMonogram(sp.realName || sp.username || '')}
+              </span>
+            )
+          ))}
+        </div>
+      )}
+
+      <div className="support-intake__dispatch-grid">
+        <div className="support-intake__dispatch-cell">
+          <p className="eyebrow sm text-smoke">Verified desk</p>
+          <p className="display-soft text-2xl leading-none mt-2">{specialistCount || '—'}</p>
+          <p className="support-intake__dispatch-note">specialists currently visible to the queue</p>
+        </div>
+        <div className="support-intake__dispatch-cell">
+          <p className="eyebrow sm text-smoke">Expected rhythm</p>
+          <p className="display-soft text-2xl leading-none mt-2">24h</p>
+          <p className="support-intake__dispatch-note">typical first reply when the desk is staffed</p>
+        </div>
+      </div>
+
+      <p className="support-intake__dispatch-footnote">
+        Full reporter details stay redacted in the intake tray until a verified specialist claims the file.
+      </p>
+    </div>
+
+    <div className="editorial-form-sheet editorial-form-sheet--aside">
+      <div className="editorial-form-sheet__head">
+        <div>
+          <p className="eyebrow sm text-oxblood">Intake protocol</p>
+          <h2 className="display-soft text-2xl leading-none mt-3">How this request moves.</h2>
+        </div>
+      </div>
+      <div className="editorial-form-sheet__body">
+        <div className="editorial-timeline">
+          {INTAKE_STEPS.map((step) => (
+            <div key={step.no} className="editorial-timeline__item">
+              <span className="editorial-timeline__no">{step.no}</span>
+              <div>
+                <p className="editorial-timeline__title">{step.title}</p>
+                <p className="editorial-timeline__body">{step.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <div className="editorial-form-sheet editorial-form-sheet--aside">
+      <div className="editorial-form-sheet__head">
+        <div>
+          <p className="eyebrow sm text-brass">Desk signals</p>
+          <h2 className="display-soft text-2xl leading-none mt-3">What helps the triage pass.</h2>
+        </div>
+      </div>
+      <div className="editorial-form-sheet__body">
+        <div className="support-intake__signal-list">
+          <div className="support-intake__signal-item">
+            <Shield className="w-4 h-4 text-oxblood" />
+            <p>Say whether a source, unpublished material, or a specific device is at risk.</p>
+          </div>
+          <div className="support-intake__signal-item">
+            <Clock3 className="w-4 h-4 text-brass" />
+            <p>Flag when the incident started and whether anything is still actively spreading or accessible.</p>
+          </div>
+          <div className="support-intake__signal-item">
+            <FileText className="w-4 h-4 text-ink" />
+            <p>Use the narrative box for sequence and scope, not just symptoms.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="editorial-form-sheet editorial-form-sheet--aside">
+      <div className="editorial-form-sheet__head">
+        <div>
+          <p className="eyebrow sm text-oxblood">Emergency route</p>
+          <h2 className="display-soft text-2xl leading-none mt-3">If the situation is moving right now.</h2>
+        </div>
+      </div>
+      <div className="editorial-form-sheet__body">
+        <div className="support-intake__emergency">
+          <Users className="w-4 h-4 text-oxblood" />
+          <p>
+            Call{' '}
+            <a href={EMERGENCY_SUPPORT_CONTACTS[0].phoneHref} className="text-oxblood hover:underline">
+              {EMERGENCY_SUPPORT_CONTACTS[0].phone}
+            </a>{' '}
+            for immediate escalation.
+          </p>
+        </div>
+        <p className="support-intake__emergency-note">
+          {EMERGENCY_SUPPORT_CONTACTS[0].org} · {EMERGENCY_SUPPORT_CONTACTS[0].available}
+        </p>
+      </div>
+    </div>
+  </aside>
+);
 
 const RequestSupport = () => {
   const { user, resendVerificationEmail, refreshUser } = useAuth();
@@ -255,127 +514,14 @@ const RequestSupport = () => {
   const specialistCount = specialists.length;
   const recentSpecialists = specialists.slice(0, 3);
 
-  /* ─── Success state ────────────────────────────────────────────────── */
-
   if (submitted) {
-    const fileRef = `SP-${new Date().getFullYear()}-${String(
-      Math.floor(Math.random() * 9000) + 1000,
-    )}`;
-    const filedStr = (filedAt || new Date()).toLocaleString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-
     return (
-      <NewsPage className="support-intake">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <div className="news-page-topline">
-            <span className="eyebrow sm text-oxblood">Form SP-S · Request filed</span>
-            <span className="eyebrow sm">
-              Filed · {filedStr} UTC
-            </span>
-          </div>
-          <NewsRule tone="oxblood" />
-
-          <div className="support-intake__success-hero">
-            <div>
-              <h1 className="display text-4xl md:text-6xl mt-10 leading-none max-w-[18ch]">
-                Your request is on <em className="italic-ox">the desk.</em>
-              </h1>
-              <p className="mt-6 text-base md:text-lg leading-relaxed text-ink-soft max-w-prose">
-                {specialistCount > 0
-                  ? `${specialistCount} verified specialist${specialistCount === 1 ? ' is' : 's are'} on call. Expect first contact within 24h.`
-                  : 'A verified cybersecurity specialist will review your request and reach out to you soon.'}
-              </p>
-            </div>
-
-            <div className="editorial-form-sheet editorial-form-sheet--aside support-intake__success-note">
-              <div className="editorial-form-sheet__head">
-                <div>
-                  <p className="eyebrow sm text-brass">Next movement</p>
-                  <h2 className="display-soft text-2xl leading-none mt-3">Keep the case thread as the single source of truth.</h2>
-                </div>
-              </div>
-              <div className="editorial-form-sheet__body">
-                <div className="editorial-timeline">
-                  <div className="editorial-timeline__item">
-                    <span className="editorial-timeline__no">01</span>
-                    <p>Watch for the first specialist message inside the case desk.</p>
-                  </div>
-                  <div className="editorial-timeline__item">
-                    <span className="editorial-timeline__no">02</span>
-                    <p>Reply there with any new developments instead of scattering updates across channels.</p>
-                  </div>
-                  <div className="editorial-timeline__item">
-                    <span className="editorial-timeline__no">03</span>
-                    <p>Once stabilized, the final report will stay filed with the case for future reference.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="support-intake__success-grid">
-            <div className="support-intake__success-sheet">
-              <div className="support-intake__meta-grid">
-                <div className="support-intake__meta-card">
-                  <p className="eyebrow sm">File reference</p>
-                  <p className="display-soft text-2xl mt-2 leading-tight num">{fileRef}</p>
-                </div>
-                <div className="support-intake__meta-card">
-                  <p className="eyebrow sm">Filed at</p>
-                  <p className="display-soft text-2xl mt-2 leading-tight">{filedStr}</p>
-                </div>
-                <div className="support-intake__meta-card">
-                  <p className="eyebrow sm">Type</p>
-                  <p className="display-soft text-lg mt-2 leading-tight">
-                    {CRISIS_TYPES.find((t) => t.id === formData.crisisType)?.label}
-                  </p>
-                </div>
-                <div className="support-intake__meta-card">
-                  <p className="eyebrow sm">Urgency</p>
-                  <p
-                    className={`display-soft text-lg mt-2 leading-tight ${
-                      formData.urgency === 'emergency' ? 'text-oxblood' : 'text-ink'
-                    }`}
-                  >
-                    {URGENCY_LEVELS.find((u) => u.id === formData.urgency)?.label}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="support-intake__success-links">
-              <Link to="/" className="support-intake__jump-link">
-                <span>Return home</span>
-                <span>→</span>
-              </Link>
-              {submittedRequestId && (
-                <Link to={`/support-cases/${submittedRequestId}`} className="support-intake__jump-link">
-                  <span>Open case desk</span>
-                  <span>→</span>
-                </Link>
-              )}
-              <Link to="/my-cases" className="support-intake__jump-link">
-                <span>All my cases</span>
-                <span>→</span>
-              </Link>
-              <Link to="/crisis" className="support-intake__jump-link">
-                <span>View crisis steps</span>
-                <span>→</span>
-              </Link>
-            </div>
-          </div>
-        </motion.div>
-      </NewsPage>
+      <SupportSuccessView
+        filedAt={filedAt}
+        specialistCount={specialistCount}
+        submittedRequestId={submittedRequestId}
+        formData={formData}
+      />
     );
   }
 
@@ -404,7 +550,7 @@ const RequestSupport = () => {
         }}
       />
       {/* Form header — printed-form heading. */}
-      <motion.header
+      <Motion.header
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -435,10 +581,10 @@ const RequestSupport = () => {
             )}
           </div>
         </div>
-      </motion.header>
+      </Motion.header>
 
       {/* Form */}
-      <motion.form
+      <Motion.form
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
@@ -746,159 +892,14 @@ const RequestSupport = () => {
             </div>
           </div>
 
-          <aside className="editorial-form-rail support-intake__rail">
-            <div className="editorial-form-sheet editorial-form-sheet--aside support-intake__dispatch">
-              <div className="support-intake__dispatch-head">
-                <div>
-                  <p className="eyebrow sm text-brass">Dispatch board</p>
-                  <h2 className="display-soft text-2xl leading-none mt-3">Live specialist coverage.</h2>
-                </div>
-                <VerifiedBadge size="sm" />
-              </div>
-
-              {specialistCount > 0 && (
-                <div className="support-intake__dispatch-avatars">
-                  {recentSpecialists.map((sp) => (
-                    sp.avatarUrl ? (
-                      <img
-                        key={sp.id}
-                        src={sp.avatarUrl}
-                        alt={sp.realName || sp.username}
-                        title={sp.realName || sp.username}
-                        className="support-intake__dispatch-avatar"
-                      />
-                    ) : (
-                      <span
-                        key={sp.id}
-                        className="support-intake__dispatch-avatar support-intake__dispatch-avatar--mono"
-                        title={sp.realName || sp.username}
-                      >
-                        {getMonogram(sp.realName || sp.username || '')}
-                      </span>
-                    )
-                  ))}
-                </div>
-              )}
-
-              <div className="support-intake__dispatch-grid">
-                <div className="support-intake__dispatch-cell">
-                  <p className="eyebrow sm text-smoke">Verified desk</p>
-                  <p className="display-soft text-2xl leading-none mt-2">{specialistCount || '—'}</p>
-                  <p className="support-intake__dispatch-note">specialists currently visible to the queue</p>
-                </div>
-                <div className="support-intake__dispatch-cell">
-                  <p className="eyebrow sm text-smoke">Expected rhythm</p>
-                  <p className="display-soft text-2xl leading-none mt-2">24h</p>
-                  <p className="support-intake__dispatch-note">typical first reply when the desk is staffed</p>
-                </div>
-              </div>
-
-              <p className="support-intake__dispatch-footnote">
-                Full reporter details stay redacted in the intake tray until a verified specialist claims the file.
-              </p>
-            </div>
-
-            <div className="editorial-form-sheet editorial-form-sheet--aside">
-              <div className="editorial-form-sheet__head">
-                <div>
-                  <p className="eyebrow sm text-oxblood">Intake protocol</p>
-                  <h2 className="display-soft text-2xl leading-none mt-3">How this request moves.</h2>
-                </div>
-              </div>
-              <div className="editorial-form-sheet__body">
-                <div className="editorial-timeline">
-                  {INTAKE_STEPS.map((step) => (
-                    <div key={step.no} className="editorial-timeline__item">
-                      <span className="editorial-timeline__no">{step.no}</span>
-                      <div>
-                        <p className="editorial-timeline__title">{step.title}</p>
-                        <p className="editorial-timeline__body">{step.body}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="editorial-form-sheet editorial-form-sheet--aside">
-              <div className="editorial-form-sheet__head">
-                <div>
-                  <p className="eyebrow sm text-brass">Desk signals</p>
-                  <h2 className="display-soft text-2xl leading-none mt-3">What helps the triage pass.</h2>
-                </div>
-              </div>
-              <div className="editorial-form-sheet__body">
-                <div className="support-intake__signal-list">
-                  <div className="support-intake__signal-item">
-                    <Shield className="w-4 h-4 text-oxblood" />
-                    <p>Say whether a source, unpublished material, or a specific device is at risk.</p>
-                  </div>
-                  <div className="support-intake__signal-item">
-                    <Clock3 className="w-4 h-4 text-brass" />
-                    <p>Flag when the incident started and whether anything is still actively spreading or accessible.</p>
-                  </div>
-                  <div className="support-intake__signal-item">
-                    <FileText className="w-4 h-4 text-ink" />
-                    <p>Use the narrative box for sequence and scope, not just symptoms.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="editorial-form-sheet editorial-form-sheet--aside">
-              <div className="editorial-form-sheet__head">
-                <div>
-                  <p className="eyebrow sm text-oxblood">Emergency route</p>
-                  <h2 className="display-soft text-2xl leading-none mt-3">If the situation is moving right now.</h2>
-                </div>
-              </div>
-              <div className="editorial-form-sheet__body">
-                <div className="support-intake__emergency">
-                  <Users className="w-4 h-4 text-oxblood" />
-                  <p>
-                    Call{' '}
-                    <a
-                      href={EMERGENCY_SUPPORT_CONTACTS[0].phoneHref}
-                      className="text-oxblood hover:underline"
-                    >
-                      {EMERGENCY_SUPPORT_CONTACTS[0].phone}
-                    </a>{' '}
-                    for immediate escalation.
-                  </p>
-                </div>
-                <p className="support-intake__emergency-note">
-                  {EMERGENCY_SUPPORT_CONTACTS[0].org} · {EMERGENCY_SUPPORT_CONTACTS[0].available}
-                </p>
-              </div>
-            </div>
-          </aside>
+          <SupportIntakeSidebar
+            specialistCount={specialistCount}
+            recentSpecialists={recentSpecialists}
+          />
         </div>
-      </motion.form>
+      </Motion.form>
     </NewsPage>
   );
 };
-
-/* ─── Section header — § N · label, with hairline rule. ───────────────── */
-const Section = ({ n, label, title, note, children }) => (
-  <section className="editorial-form-sheet support-intake__section">
-    <div className="editorial-form-sheet__head">
-      <div>
-        <p className="eyebrow sm">
-          <span className="text-ink mr-2">§ {n}</span>
-          <span className="text-ink-soft">{label}</span>
-        </p>
-        <h2 className="display-soft text-2xl md:text-3xl leading-none mt-3">
-          {title}
-        </h2>
-        {note && (
-          <p className="editorial-form-sheet__lede">{note}</p>
-        )}
-      </div>
-    </div>
-    <div className="editorial-form-sheet__body">
-      {children}
-    </div>
-  </section>
-);
 
 export default RequestSupport;

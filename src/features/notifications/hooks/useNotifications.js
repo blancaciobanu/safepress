@@ -74,6 +74,7 @@ export const useNotifications = () => {
       cancelled = true;
       unsubscribeSupport();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
   const onOpen = async () => {

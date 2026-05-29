@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { AlertTriangle, MessageSquare, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -13,14 +13,7 @@ import {
 import { logError } from '../utils/logger';
 import { NewsButton, NewsCard, NewsNotice, NewsPage, NewsRule } from '../components/editorial/NewsPage';
 import { caseFileRef } from '../utils/caseRef';
-
-const CRISIS_LABELS = {
-  hacked: 'hacked account',
-  source: 'source exposed',
-  doxxed: 'doxxing incident',
-  phishing: 'phishing attempt',
-  other: 'security concern',
-};
+import { CRISIS_LABELS } from '../features/support/supportCase.constants';
 
 const STATUS_COPY = {
   open: 'waiting in intake',
@@ -178,7 +171,7 @@ const SupportCaseDesk = () => {
 
   return (
     <NewsPage className="specialist-casefile">
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -466,7 +459,7 @@ const SupportCaseDesk = () => {
             </NewsCard>
           )}
         </div>
-      </motion.div>
+      </Motion.div>
     </NewsPage>
   );
 };

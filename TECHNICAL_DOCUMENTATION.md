@@ -29,8 +29,8 @@
 ## Technology Stack
 
 ### Frontend
-- **React 19.2.0** - Modern UI library
-- **Vite 7.3.1** - Fast development build tool
+- **React 19.2.x** - Modern UI library
+- **Vite 7.3.x** - Fast development build tool
 - **React Router DOM** - Client-side routing
 - **Framer Motion** - Smooth animations
 - **Lucide React** - Icon library
@@ -38,16 +38,17 @@
 
 ### AI
 - **Firebase Cloud Functions** — all Claude API calls are server-side (no client-side API key)
-  - AI Advisor: `streamMessage` callable streams a chat response back to the browser
-  - Threat Model: `requestThreatModelReport` callable returns a structured threat analysis
-  - Support drafting: callable redacts PII from user notes before passing to the model
+  - AI Advisor: client wrapper `streamMessage()` calls the `generateAiAdvisorReply` Firebase callable and simulates streaming in the browser
+  - Threat Model: client wrapper `requestThreatModelReport()` calls the `generateThreatModel` Firebase callable and returns a structured threat analysis
+  - Support drafting: `draftSupportRequest` callable redacts PII from user notes before passing them to the model
   - Model: `claude-haiku-4-5-20251001` (configured in the function, not the client)
 - **Privacy Guard** — `src/features/ai/services/privacyGuard.js` runs client-side before any submission: detects and redacts email, phone, URL, name (self-identified and role-introduced e.g. "Editor is …"), employer/affiliation (including non-English org names via Unicode-aware patterns), month+year dates, and prefix-based locations (e.g. "based in …", "colleague in …"); produces a redacted preview; `PrivacyGuardModal.jsx` shows this preview and requires explicit confirmation. Server-side `redactSensitiveDetails` in `functions/index.js` mirrors these rules. Regex-based NER has known limits: comma-separated country lists, relative time phrases ("six weeks"), and story-angle descriptions are not caught.
 
 ### Backend & Services
-- **Firebase** - Backend-as-a-Service
+- **Firebase** - Backend-as-a-Service plus a small serverless backend
   - **Firebase Authentication** - User management (email/password)
   - **Firestore Database** - NoSQL document database for user data
+  - **Cloud Functions v2** - trusted callable workflows and server-side AI requests
   - **Firebase SDK** - Client-side integration
 
 ### Design System
@@ -72,8 +73,8 @@
 │                    React Frontend                        │
 │  ┌──────────────────────────────────────────────────┐   │
 │  │  Components (UI)                                  │   │
-│  │  - Pages (Dashboard, Settings, SecurityScore)    │   │
-│  │  - Layout (Header, Footer, MainLayout)           │   │
+│  │  - Pages (Home, Settings, SecurityScore, etc.)   │   │
+│  │  - Layout (Header, MainLayout)                   │   │
 │  │  - ProtectedRoute (Auth guard)                   │   │
 │  └──────────────────────────────────────────────────┘   │
 │                          │                               │
@@ -98,6 +99,7 @@
 │  │  - config.js (initialization)                    │   │
 │  │  - auth (Firebase Authentication)                │   │
 │  │  - db (Firestore Database)                       │   │
+│  │  - functions (Firebase callables)                │   │
 │  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
                           │
@@ -108,9 +110,15 @@
 │  │  Authentication  │      │  Firestore Database     │  │
 │  │  - User accounts │      │  Collection: users      │  │
 │  │  - Email/Password│      │  Collection: community  │  │
-│  │  - Session mgmt  │      │  Collection: support    │  │
+│  │  - Custom claims │      │  Collection: support    │  │
 │  │                   │      │  Security rules active  │  │
 │  └──────────────────┘      └─────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Cloud Functions v2                               │   │
+│  │  - AI callables                                   │   │
+│  │  - specialist verification review/submission      │   │
+│  │  - admin claim management                         │   │
+│  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -124,7 +132,7 @@
 2. **Quiz Completion**:
    ```
    User Answers → SecurityScore Component → Calculate Score →
-   Save to Firestore → Update Dashboard
+   Save to Firestore → Update signed-in Home brief
    ```
 
 3. **Home Brief (signed-in state)**:
@@ -134,7 +142,7 @@
 
 4. **Support Workflow**:
    ```
-   User Action → supportService → Firestore → Dashboard / Specialist Dashboard UI update
+   User Action → supportService → Firestore / callable functions → My Cases / Specialist Dashboard UI update
    ```
 
 5. **Route Loading**:
@@ -321,6 +329,11 @@ Source: `/functions/` — Firebase Functions v2 (Node 20), region `europe-west1`
   - Caller must already have `request.auth.token.admin === true` and a verified email.
   - Writes `claimsUpdatedAt` (server timestamp) to the target's `users/{uid}` doc; the client checks this on next session hydrate and force-refreshes the ID token if it predates the claim change.
   - Invoked from the Admin Dashboard's *internal* tab.
+- **`reviewSpecialistVerification`** (HTTPS callable): admin-only specialist approval, rejection, or needs-more-info review. Updates the private user doc and syncs the corresponding public profile.
+- **`submitSpecialistVerificationDossier`** (HTTPS callable): verified specialist users submit or resubmit their dossier. The function validates required identity, expertise, contact, availability, and support-area fields before moving the file to `pending`.
+- **`draftSupportRequest`** (HTTPS callable): verified users send rough crisis notes, server-side redaction runs, and Anthropic returns a normalized support request draft.
+- **`generateAiAdvisorReply`** (HTTPS callable): authenticated users send AI Advisor messages. Messages are redacted server-side before the Anthropic request.
+- **`generateThreatModel`** (HTTPS callable): authenticated users submit threat-model form data. Sensitive note fields are redacted server-side and the response is normalized into a structured report.
 
 Deploy: `cd functions && npm install && firebase deploy --only functions`.
 
@@ -363,12 +376,17 @@ safepress/
 │   │   ├── ai/
 │   │   │   ├── components/
 │   │   │   │   └── PrivacyGuardModal.jsx  # Consent modal: shows redacted preview, requires confirmation
-│   │   │   └── services/
-│   │   │       ├── aiService.js         # Firebase callable wrappers + system prompt builder
-│   │   │       └── privacyGuard.js      # PII detection rules + text redaction
+│   │   │   ├── services/
+│   │   │   │   ├── aiService.js         # Firebase callable wrappers + system prompt builder
+│   │   │   │   └── privacyGuard.js      # PII detection rules + text redaction
+│   │   │   └── threatModel.data.js      # ThreatModel constants (THREAT_LEVEL_META, REPORT_BLOCKS, options)
 │   │   ├── community/
-│   │   │   ├── components/              # AuthorLine, AuthorProfileModal, DeleteConfirmModal, ReportModal, UserAvatar
+│   │   │   ├── components/              # AuthorLine, AuthorProfileModal, CommentCard, DeleteConfirmModal, ReportModal, UserAvatar
+│   │   │   │   └── CommentCard.jsx      # Single comment + nested replies (extracted from CommunityPostDetail)
 │   │   │   ├── hooks/                   # useAMAs, useAuthorProfile, useCommunityPosts, useFollowedPosts, useNewPost, usePostComments, useReportDialog
+│   │   │   ├── utils/
+│   │   │   │   ├── authorHelpers.js     # AUTHOR_META_CLASS + getRoleLabel (shared by CommentCard + CommunityPostDetail)
+│   │   │   │   └── richTextFormatting.js
 │   │   │   └── services/
 │   │   │       ├── amaService.js        # AMA post create/list (type='ama' community posts)
 │   │   │       └── communityService.js  # Posts, comments subcollection, reports
@@ -387,13 +405,20 @@ safepress/
 │   │   │   └── services/
 │   │   │       └── notificationService.js  # Batched Firestore notification queries
 │   │   ├── resources/
-│   │   │   └── OSMockup.jsx             # Animated OS UI mockup for Resources OS guides
-│   │   ├── setup/data/
-│   │   │   └── setupTasks.js            # Static task data: allTasks, TASKS_BY_ID, DEFAULT_TASK_ORDER
+│   │   │   ├── OSMockup.jsx             # Animated OS UI mockup for Resources OS guides
+│   │   │   └── resources.data.js        # All Resources static data (osGuides, toolCategories, AI/source content)
+│   │   ├── setup/
+│   │   │   ├── components/
+│   │   │   │   └── SetupWorkbenchCards.jsx  # ProgressRing, CategoryTrayCard, TaskCard (extracted from SecureSetup)
+│   │   │   ├── data/
+│   │   │   │   └── setupTasks.js        # Static task data: allTasks, TASKS_BY_ID, DEFAULT_TASK_ORDER
+│   │   │   └── workbenchConstants.js    # CATEGORY_TONE shared by workbench cards
 │   │   ├── simulations/services/
 │   │   │   └── simulationService.js     # Simulation confidence reads/writes to users/{uid}.simulationProgress
-│   │   ├── support/services/
-│   │   │   └── supportService.js        # Support request workflow + case messaging + SUPPORT_CASE_MARKERS
+│   │   ├── support/
+│   │   │   ├── services/
+│   │   │   │   └── supportService.js    # Support request workflow + case messaging + SUPPORT_CASE_MARKERS
+│   │   │   └── supportCase.constants.js # Shared CRISIS_LABELS + URGENCY_LABELS (MyCases, SupportCaseDesk, SpecialistCaseFile)
 │   │   └── users/
 │   │       ├── accountRouting.js        # Post-auth path: Welcome for new journalists, /specialist-verification redirect
 │   │       ├── verification.js          # SPECIALIST_VERIFICATION_STATUSES + dossier routing constants
@@ -573,14 +598,28 @@ onAuthStateChanged(auth, async (user) => {
 
   // Specialist-only fields (when accountType === 'specialist')
   realName: string,                 // Required for specialists; admins use it to verify identity. Never set on journalist docs.
-  verificationStatus: 'pending-email-verification' | 'pending' | 'approved' | 'rejected',
+  verificationStatus: 'pending-email-verification' | 'pending-details' | 'pending' | 'needs-more-info' | 'approved' | 'rejected',
   verificationDate: string | null,
+  verificationReviewNote: string | null,
+  verificationRejectionReason: string | null,
   verificationData: {
     expertise: string,
     credentials: string,
     linkedinUrl: string,
     organization: string,
-    submittedAt: string (ISO 8601)
+    portfolioUrl: string,
+    certifications: string,
+    secureContactMethod: string,
+    secureContactHandle: string,
+    region: string,
+    languages: string,
+    availability: string,
+    supportAreas: string[],
+    notes: string,
+    responseToReviewNote: string,
+    submittedAt: string (ISO 8601),
+    dossierSubmittedAt: string (ISO 8601),
+    resubmittedAt: string | null
   },
   specialistProfile: {
     bio: string,
@@ -596,7 +635,7 @@ onAuthStateChanged(auth, async (user) => {
 
 ```javascript
 {
-  type: 'discussion' | 'story' | 'question',
+  type: 'discussion' | 'story' | 'question' | 'ama',
   title: string,
   content: string,
   authorId: string,                 // User UID
@@ -639,9 +678,10 @@ onAuthStateChanged(auth, async (user) => {
 ```javascript
 {
   username: string,
+  realName: string | null,
   avatarIcon: string,
   accountType: 'journalist' | 'specialist',
-  verificationStatus: 'pending' | 'approved' | 'rejected' | null,
+  verificationStatus: 'pending-email-verification' | 'pending-details' | 'pending' | 'needs-more-info' | 'approved' | 'rejected' | null,
   createdAt: string | null,
   specialistProfile: {
     bio: string,
@@ -684,6 +724,26 @@ onAuthStateChanged(auth, async (user) => {
   } | null,
 
   createdAt: string (ISO 8601)
+}
+```
+
+### Support Request Queue Document
+**Collection**: `support-request-queue`
+**Document ID**: Same as the private support request ID
+
+```javascript
+{
+  requesterId: string,
+  crisisType: 'hacked' | 'source' | 'doxxed' | 'phishing' | 'other',
+  urgency: 'emergency' | 'urgent' | 'normal',
+  contactMethod: 'email' | 'phone' | 'signal',
+  status: 'open' | 'claimed' | 'resolved',
+  claimedBy: string | null,
+  claimedByName: string | null,
+  claimedAt: string | null,
+  resolvedAt: string | null,
+  createdAt: string (ISO 8601),
+  previewNote: string | null          // Optional redacted excerpt shown to specialists before claim
 }
 ```
 
@@ -740,6 +800,24 @@ onAuthStateChanged(auth, async (user) => {
 ---
 
 ## Component Organization
+
+### Code Organisation Conventions
+Page files hold state, effects, and event handlers. Presentation is factored out into:
+- **Co-located feature components** (`src/features/<feature>/components/`) — extracted from pages when they grow large or are reused (e.g. `CommentCard`, `SetupWorkbenchCards`).
+- **Data files** (`*.data.js`) — large static arrays/objects (OS guides, tool lists, threat-model options, form defaults) live beside the feature that owns them, not inside the page file.
+- **Shared constants** (`*.constants.js`) — duplicated lookup tables (e.g. `CRISIS_LABELS`, `URGENCY_LABELS`) are extracted to a single source of truth under the owning feature.
+- **Helper utilities** (`src/features/community/utils/authorHelpers.js`, `src/features/setup/workbenchConstants.js`) — pure functions and class-string constants shared between components and parent pages.
+
+### Current Code Health Snapshot
+
+As of the latest cleanup pass:
+
+- `npm run lint` passes for both the React app and Firebase Functions.
+- `npm run build` passes and confirms the lazy route chunks compile.
+- The codebase is cleaner and more modular than the early prototype state, especially around community, support, home, resources, setup, notifications, and AI service boundaries.
+- The main remaining streamlining work is component decomposition. The largest pages still mix substantial UI markup with orchestration logic: `RequestSupport`, `ThreatModel`, `AdminDashboard`, `SpecialistDashboard`, `SpecialistCaseFile`, `CommunityPostDetail`, `Settings`, and `SecureSetup`.
+- A small number of targeted `eslint-disable` comments remain around React hook compiler rules. They are known cleanup markers, not current lint failures.
+- Older pages still contain some direct Firestore calls; future refactors should move them behind feature services for consistency.
 
 ### Page Components
 Each page is a self-contained component with local state, feature-service calls, and layout using the editorial design system primitives (`NewsPage`, `NewsCard`, etc.).

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { AlertTriangle, ExternalLink, Newspaper } from 'lucide-react';
 import { NewsPanel } from '../../components/editorial/NewsPage';
 import { timeAgo } from '../../utils/time';
@@ -11,7 +11,7 @@ export const NewsSidebar = ({ className = '' }) => {
   const { articles, loading } = useNewsArticles();
 
   return (
-    <motion.aside
+    <Motion.aside
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -72,6 +72,6 @@ export const NewsSidebar = ({ className = '' }) => {
           </p>
         </div>
       </NewsPanel>
-    </motion.aside>
+    </Motion.aside>
   );
 };

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import {
   Shield, AlertTriangle, CheckCircle, Clock, User,
   Star, Users, Inbox, FileText, Archive,
@@ -27,6 +27,7 @@ import {
 } from '../components/editorial/NewsPage';
 import { caseFileRef } from '../utils/caseRef';
 import { getRoleColor } from '../utils/userUtils';
+import { URGENCY_LABELS } from '../features/support/supportCase.constants';
 
 const CRISIS_LABELS = {
   hacked:   'Hacked account',
@@ -37,12 +38,6 @@ const CRISIS_LABELS = {
 };
 
 const CRISIS_ICONS = { hacked: Shield, source: Users, doxxed: AlertTriangle, phishing: Shield, other: Shield };
-
-const URGENCY_LABELS = {
-  emergency: 'emergency',
-  urgent:    'urgent',
-  normal:    'normal',
-};
 
 const URGENCY_TONE = {
   emergency: 'text-oxblood',
@@ -395,7 +390,7 @@ const SpecialistDashboard = () => {
     return (
       <NewsPage className="specialist-desk">
         <div className="specialist-desk__status">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
@@ -427,9 +422,9 @@ const SpecialistDashboard = () => {
                 </p>
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
 
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
@@ -529,7 +524,7 @@ const SpecialistDashboard = () => {
               <span>·</span>
               <Link to="/community" className="text-oxblood hover:text-ink transition-colors">community →</Link>
             </div>
-          </motion.div>
+          </Motion.div>
         </div>
       </NewsPage>
     );
@@ -587,7 +582,7 @@ const SpecialistDashboard = () => {
 
   return (
     <NewsPage className="specialist-desk">
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
@@ -668,10 +663,10 @@ const SpecialistDashboard = () => {
           </div>
         </section>
 
-      </motion.div>
+      </Motion.div>
 
       <div className="specialist-casework-shell">
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
@@ -727,10 +722,10 @@ const SpecialistDashboard = () => {
               ))}
             </div>
           )}
-        </motion.div>
+        </Motion.div>
       </div>
 
-      <motion.section
+      <Motion.section
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
@@ -816,7 +811,7 @@ const SpecialistDashboard = () => {
             )}
           </div>
         )}
-      </motion.section>
+      </Motion.section>
     </NewsPage>
   );
 };

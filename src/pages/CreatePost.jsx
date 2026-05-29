@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { ArrowLeft, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { createCommunityPost } from '../features/community/services/communityService';
@@ -106,7 +106,7 @@ const CreatePost = () => {
       <div>
 
         {/* ── Header — mirrors Community page structure ───────────── */}
-        <motion.header initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+        <Motion.header initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
           <div className="news-page-topline">
             <button onClick={() => navigate('/community')}
@@ -143,7 +143,7 @@ const CreatePost = () => {
             </div>
           )}
           {isAMA && <div className="border-b border-ink/14 mt-8" />}
-        </motion.header>
+        </Motion.header>
 
         {/* ── Two-column layout ───────────────────────────────────── */}
         <div className="lg:grid lg:grid-cols-[1fr_256px] lg:gap-8 lg:items-start mt-6">

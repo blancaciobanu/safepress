@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, MessageSquare, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -24,24 +24,12 @@ import {
 } from '../components/editorial/NewsPage';
 import { caseFileRef } from '../utils/caseRef';
 
-const CRISIS_LABELS = {
-  hacked: 'hacked account',
-  source: 'source exposed',
-  doxxed: 'doxxing incident',
-  phishing: 'phishing attempt',
-  other: 'security concern',
-};
+import { CRISIS_LABELS, URGENCY_LABELS } from '../features/support/supportCase.constants';
 
 const STATUS_COPY = {
   open: 'redacted intake',
   claimed: 'active case file',
   resolved: 'filed resolution',
-};
-
-const URGENCY_LABELS = {
-  emergency: 'emergency',
-  urgent: 'urgent',
-  normal: 'normal',
 };
 
 const URGENCY_TONES = {
@@ -268,6 +256,7 @@ const SpecialistCaseFile = () => {
     });
 
     return unsubscribe;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId, caseFile?.status]);
 
   useEffect(() => {
@@ -278,6 +267,7 @@ const SpecialistCaseFile = () => {
       outstandingRisks: caseFile.caseReport?.outstandingRisks || '',
       nextSteps: caseFile.caseReport?.nextSteps || '',
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseFile?.id, caseFile?.caseReport?.updatedAt]);
 
   const handleClaim = async () => {
@@ -408,7 +398,7 @@ const SpecialistCaseFile = () => {
 
   return (
     <NewsPage className="specialist-casefile">
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -812,7 +802,7 @@ const SpecialistCaseFile = () => {
             </div>
           </>
         )}
-      </motion.div>
+      </Motion.div>
     </NewsPage>
   );
 };

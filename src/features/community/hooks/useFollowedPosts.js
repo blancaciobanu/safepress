@@ -10,6 +10,7 @@ export const useFollowedPosts = (user) => {
   const [followedPosts, setFollowedPosts] = useState(new Set());
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFollowedPosts(new Set(user?.followedPosts || []));
   }, [user?.followedPosts, user?.uid]);
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Shield, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getPostAuthPath, needsWelcomePathChoice } from '../features/users/accountRouting';
@@ -89,25 +89,25 @@ const Welcome = () => {
 
   return (
     <div className="fixed inset-0 z-50 bg-paper flex flex-col items-center justify-center px-8 text-center">
-      <motion.div
+      <Motion.div
         initial={{ scale: 0.75, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.55, ease }}
         className="w-14 h-14 bg-oxblood/[0.07] border border-oxblood/20 flex items-center justify-center mb-8"
       >
         <Shield className="w-7 h-7 text-oxblood" />
-      </motion.div>
+      </Motion.div>
 
-      <motion.p
+      <Motion.p
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5, ease }}
         className="display-soft text-2xl text-smoke leading-none"
       >
         Welcome to
-      </motion.p>
+      </Motion.p>
 
-      <motion.h1
+      <Motion.h1
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.6, ease }}
@@ -115,40 +115,40 @@ const Welcome = () => {
         style={{ fontSize: 'clamp(4rem, 11vw, 7rem)' }}
       >
         SafePress
-      </motion.h1>
+      </Motion.h1>
 
-      <motion.div
+      <Motion.div
         initial={{ scaleX: 0, opacity: 0 }}
         animate={{ scaleX: 1, opacity: 1 }}
         transition={{ delay: 0.85, duration: 0.5, ease }}
         className="w-16 h-px bg-ink/20 mt-6 mb-6 origin-center"
       />
 
-      <motion.p
+      <Motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.9, duration: 0.3 }}
         className="display-soft text-lg text-smoke max-w-xs leading-snug min-h-[2.5rem]"
       >
         {typeStart && <Typewriter text={typewriterText} onDone={handleTypeDone} />}
-      </motion.p>
+      </Motion.p>
 
       <AnimatePresence>
         {showBody && (
-          <motion.p
+          <Motion.p
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease }}
             className="mt-4 text-sm text-smoke-dim max-w-xs leading-relaxed"
           >
             This is your anonymous identity on SafePress. Now choose whether this account stays in the journalist lane or opens a specialist verification file.
-          </motion.p>
+          </Motion.p>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {showChoices && (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease }}
@@ -183,7 +183,7 @@ const Welcome = () => {
                 Open dossier <ArrowRight className="w-3.5 h-3.5" />
               </span>
             </button>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>

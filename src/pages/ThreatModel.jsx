@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight,
   ShieldAlert,
@@ -8,8 +8,6 @@ import {
   NotebookPen,
   AlertTriangle,
   CheckCircle2,
-  Crosshair,
-  Footprints,
   Compass,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -27,100 +25,22 @@ import {
   NewsPage,
   NewsRule,
 } from '../components/editorial/NewsPage';
-
-const THREAT_LEVEL_META = {
-  low: {
-    label: 'Low risk',
-    color: '#375E5A',
-    tone: 'text-ink',
-    headline: 'Low-risk posture.',
-    note: 'Current routines and reporting context are not raising new pressure on this assignment. Maintain them and pressure-test as conditions change.',
-  },
-  medium: {
-    label: 'Medium risk',
-    color: '#8A6D2C',
-    tone: 'text-brass',
-    headline: 'Medium-risk posture.',
-    note: 'The essentials are in place, but a few gaps are visible enough to matter if pressure increases on this story.',
-  },
-  high: {
-    label: 'High risk',
-    color: '#7B2E2E',
-    tone: 'text-oxblood',
-    headline: 'High-risk posture.',
-    note: 'Several exposures point at the same workflow. Tighten the basics flagged below before the next field action.',
-  },
-  critical: {
-    label: 'Critical risk',
-    color: '#7B2E2E',
-    tone: 'text-oxblood',
-    headline: 'Critical-risk posture.',
-    note: 'Too many foundational safeguards are missing for this threat level. The next moves should focus on immediate hardening and specialist support.',
-  },
-};
+import {
+  THREAT_LEVEL_META,
+  REPORT_BLOCKS,
+  DESTINATION_META,
+  SOURCE_SENSITIVITY_OPTIONS,
+  PUBLIC_VISIBILITY_OPTIONS,
+  TRAVEL_PROFILE_OPTIONS,
+  THREAT_WORKFLOW,
+  DEFAULT_FORM_DATA,
+} from '../features/ai/threatModel.data';
 
 const formatFiledDate = (value = new Date()) =>
   new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const toTitleCase = (value = '') =>
   value.replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
-
-const REPORT_BLOCKS = [
-  { key: 'adversaries', title: 'Likely adversaries', accent: '#7B2E2E', Icon: Users,
-    summary: 'Who is most likely to push back on this work.' },
-  { key: 'attackSurfaces', title: 'Exposed workflows', accent: '#8A6D2C', Icon: Crosshair,
-    summary: 'Routines and channels currently carrying the most exposure.' },
-  { key: 'immediateActions', title: 'Immediate actions', accent: '#375E5A', Icon: AlertTriangle,
-    summary: 'Hardening moves to take before the next field activity.' },
-  { key: 'longerTermActions', title: 'Longer-term protections', accent: '#15110C', Icon: Footprints,
-    summary: 'Habits and routines worth shifting over the coming weeks.' },
-];
-
-const DESTINATION_META = {
-  'secure-setup': { to: '/secure-setup', label: 'Open Secure Setup' },
-  resources: { to: '/resources', label: 'Open Manual' },
-  'source-protection': { to: '/resources?tab=source-protection', label: 'Open Source Protection Guide' },
-  'request-support': { to: '/request-support', label: 'Request Specialist Support' },
-  'ai-advisor': { to: '/ai-advisor', label: 'Continue in AI Advisor' },
-};
-
-const SOURCE_SENSITIVITY_OPTIONS = [
-  { id: 'low', label: 'Low', desc: 'Mostly public or low-risk sources' },
-  { id: 'moderate', label: 'Moderate', desc: 'Some confidential sources or sensitive interviews' },
-  { id: 'high', label: 'High', desc: 'Confidential sources could face retaliation' },
-  { id: 'critical', label: 'Critical', desc: 'Source exposure could cause arrest, violence, or severe reprisal' },
-];
-
-const PUBLIC_VISIBILITY_OPTIONS = [
-  { id: 'low', label: 'Low', desc: 'Few bylines, limited public profile' },
-  { id: 'medium', label: 'Medium', desc: 'Regular bylines or moderate social visibility' },
-  { id: 'high', label: 'High', desc: 'High public exposure, broadcast presence, or targeted profile' },
-];
-
-const TRAVEL_PROFILE_OPTIONS = [
-  { id: 'rare', label: 'Rare', desc: 'Mostly desk-based work' },
-  { id: 'regional', label: 'Regional', desc: 'Regular domestic or nearby travel' },
-  { id: 'cross-border', label: 'Cross-border', desc: 'International travel or border crossings' },
-  { id: 'hostile', label: 'Hostile', desc: 'Authoritarian, conflict, or high-surveillance environments' },
-];
-
-const THREAT_WORKFLOW = [
-  {
-    no: '01',
-    title: 'Describe the assignment',
-    body: 'Give the desk the story context, geography, and any warning signs that already surfaced.',
-  },
-  {
-    no: '02',
-    title: 'Mark the pressure level',
-    body: 'Source sensitivity, visibility, and travel profile change how every weak habit should be interpreted.',
-  },
-  {
-    no: '03',
-    title: 'Document operating habits',
-    body: 'The model becomes useful when it sees how you actually handle devices, channels, and field movement.',
-  },
-];
 
 const Section = ({ n, label, title, note, children }) => (
   <section className="threat-section">
@@ -198,19 +118,6 @@ const ThreatListCard = ({ title, items = [], accent, Icon, summary, index = 0 })
   </NewsCard>
 );
 
-const DEFAULT_FORM_DATA = {
-  beat: '',
-  region: '',
-  sourceSensitivity: 'high',
-  publicVisibility: 'medium',
-  travelProfile: 'regional',
-  deviceProfile: '',
-  communicationProfile: '',
-  publicationTimeline: '',
-  recentIncidents: '',
-  notes: '',
-};
-
 const ThreatModel = () => {
   const { user } = useAuth();
   const latestScore = user?.securityScores?.at(-1) ?? null;
@@ -257,6 +164,7 @@ const ThreatModel = () => {
         ? `Weakest areas currently on file: ${weakAreas.join(', ')}.`
         : 'No weak areas are currently flagged in the security score.'),
     }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestScore?.score, completedTasks, weakAreas.join(' | ')]);
 
   const updateField = (field) => (event) => {
@@ -371,7 +279,7 @@ const ThreatModel = () => {
           }, clientFlags);
         }}
       />
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -392,9 +300,9 @@ const ThreatModel = () => {
             </p>
           </div>
         </div>
-      </motion.div>
+      </Motion.div>
 
-      <motion.form
+      <Motion.form
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
@@ -625,7 +533,7 @@ const ThreatModel = () => {
 
         <AnimatePresence>
           {generating && (
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
@@ -646,14 +554,14 @@ const ThreatModel = () => {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
-      </motion.form>
+      </Motion.form>
 
       <AnimatePresence mode="wait">
         {report && (
-          <motion.div
+          <Motion.div
             key={report.summary}
             className="scoreReport mt-14"
             initial={{ opacity: 0, y: 10 }}
@@ -935,7 +843,7 @@ const ThreatModel = () => {
                 )}
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </NewsPage>

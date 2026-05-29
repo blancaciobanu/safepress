@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -78,7 +78,7 @@ const Login = () => {
 
   return (
     <NewsPage>
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -159,7 +159,7 @@ const Login = () => {
             </p>
           </div>
         </section>
-      </motion.div>
+      </Motion.div>
     </NewsPage>
   );
 };

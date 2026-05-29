@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   AlertCircle, Lock, Users, Shield,
   ArrowRight, ShieldCheck, Check, Phone, ChevronDown,
@@ -298,6 +298,7 @@ const CrisisOverlay = () => {
   const [openGuides, setOpenGuides]    = useState([]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!overlayOpen) { setLocalId(null); setCompleted([]); setOpenGuides([]); }
   }, [overlayOpen]);
 
@@ -344,7 +345,7 @@ const CrisisOverlay = () => {
   return (
     <AnimatePresence>
       {overlayOpen && (
-        <motion.div
+        <Motion.div
           key="crisis-overlay"
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
@@ -397,7 +398,7 @@ const CrisisOverlay = () => {
           </div>
 
           {/* ── Content ── */}
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -406,7 +407,7 @@ const CrisisOverlay = () => {
 
               {/* ── Selection view ── */}
               {!displayId && (
-                <motion.div
+                <Motion.div
                   key="selection"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -414,7 +415,7 @@ const CrisisOverlay = () => {
                   transition={{ duration: 0.18 }}
                   className="min-h-screen flex flex-col items-center justify-center px-6 py-20"
                 >
-                  <motion.div
+                  <Motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.35 }}
@@ -430,13 +431,13 @@ const CrisisOverlay = () => {
                     <p className="text-smoke text-sm leading-relaxed">
                       Select the scenario that matches what's happening right now.
                     </p>
-                  </motion.div>
+                  </Motion.div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl w-full">
                     {SCENARIOS.map((s, i) => {
                       const Icon = s.icon;
                       return (
-                        <motion.button
+                        <Motion.button
                           key={s.id}
                           initial={{ opacity: 0, y: 12 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -450,16 +451,16 @@ const CrisisOverlay = () => {
                           </div>
                           <h3 className="display text-2xl text-ink mb-2 leading-tight">{s.title}</h3>
                           <p className="text-sm text-smoke leading-relaxed">{s.subtitle}</p>
-                        </motion.button>
+                        </Motion.button>
                       );
                     })}
                   </div>
-                </motion.div>
+                </Motion.div>
               )}
 
               {/* ── Expanded view ── */}
               {displayId && currentScenario && (
-                <motion.div
+                <Motion.div
                   key="expanded"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -472,7 +473,7 @@ const CrisisOverlay = () => {
 
                       {/* ── Left: scenario content ── */}
                       <AnimatePresence mode="wait">
-                        <motion.div
+                        <Motion.div
                           key={displayId}
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -503,7 +504,7 @@ const CrisisOverlay = () => {
                           {/* Progress — flat rule */}
                           <div className="flex items-center gap-3 mb-8">
                             <div className="flex-1 h-px bg-ink/10 relative overflow-hidden">
-                              <motion.div
+                              <Motion.div
                                 className="absolute top-0 left-0 h-full bg-oxblood"
                                 initial={{ width: 0 }}
                                 animate={{ width: `${(completedSteps.length / currentScenario.actions.length) * 100}%` }}
@@ -534,13 +535,13 @@ const CrisisOverlay = () => {
                                       }`}
                                     >
                                       {done && (
-                                        <motion.div
+                                        <Motion.div
                                           initial={{ scale: 0 }}
                                           animate={{ scale: 1 }}
                                           transition={{ type: 'spring', stiffness: 500, damping: 28 }}
                                         >
                                           <Check className="w-3 h-3 text-paper" />
-                                        </motion.div>
+                                        </Motion.div>
                                       )}
                                     </button>
 
@@ -568,7 +569,7 @@ const CrisisOverlay = () => {
 
                                       <AnimatePresence>
                                         {guideOpen && action.guide && (
-                                          <motion.ul
+                                          <Motion.ul
                                             initial={{ opacity: 0, height: 0, marginTop: 0 }}
                                             animate={{ opacity: 1, height: 'auto', marginTop: 10 }}
                                             exit={{ opacity: 0, height: 0, marginTop: 0 }}
@@ -582,7 +583,7 @@ const CrisisOverlay = () => {
                                                 {point}
                                               </li>
                                             ))}
-                                          </motion.ul>
+                                          </Motion.ul>
                                         )}
                                       </AnimatePresence>
                                     </div>
@@ -594,7 +595,7 @@ const CrisisOverlay = () => {
 
                           <AnimatePresence>
                             {allDone && (
-                              <motion.div
+                              <Motion.div
                                 initial={{ opacity: 0, y: 6 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0 }}
@@ -606,10 +607,10 @@ const CrisisOverlay = () => {
                                   <p className="eyebrow sm text-oxblood">All steps completed.</p>
                                   <p className="text-xs mt-0.5 text-smoke">When you're safe, click "I'm Safe" on the right.</p>
                                 </div>
-                              </motion.div>
+                              </Motion.div>
                             )}
                           </AnimatePresence>
-                        </motion.div>
+                        </Motion.div>
                       </AnimatePresence>
 
                       {/* ── Right sidebar ── */}
@@ -687,12 +688,12 @@ const CrisisOverlay = () => {
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </Motion.div>
               )}
 
             </AnimatePresence>
-          </motion.div>
-        </motion.div>
+          </Motion.div>
+        </Motion.div>
       )}
     </AnimatePresence>
   );

@@ -18,7 +18,7 @@ const AUTHOR_LINE_VARIANTS = {
   },
 };
 
-export const resolveAuthor = (item) => {
+const resolveAuthor = (item) => {
   if (item?.isAnonymous) {
     return { name: 'anonymous', type: 'journalist', anonymous: true, verified: false, clickable: false };
   }

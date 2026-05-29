@@ -197,36 +197,32 @@ export const AuthProvider = ({ children }) => {
 
   /* ── Email / password signup ─────────────────────────────────────────── */
   const signup = async (email, password) => {
-    try {
-      const existingMethods = await fetchSignInMethodsForEmail(auth, email);
-      if (existingMethods.length > 0) {
-        const conflictError = new Error('An account already exists for this email.');
-        conflictError.code = existingMethods.includes('google.com')
-          ? 'auth/google-account-conflict'
-          : 'auth/email-already-in-use';
-        conflictError.signInMethods = existingMethods;
-        throw conflictError;
-      }
-
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      const profile = buildBaseJournalistProfile(result.user);
-
-      await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), profile);
-      try {
-        await createOrUpdatePublicProfile(result.user.uid, profile);
-      } catch (error) {
-        logError('Public profile sync failed after signup:', error);
-      }
-      const { sent, error } = await sendVerificationEmailWithRetry(result.user);
-      if (!sent) {
-        logError('Verification email could not be sent automatically after signup.');
-        if (error) logError('Automatic verification email error detail:', error);
-      }
-      await refreshUser();
-      return result;
-    } catch (error) {
-      throw error;
+    const existingMethods = await fetchSignInMethodsForEmail(auth, email);
+    if (existingMethods.length > 0) {
+      const conflictError = new Error('An account already exists for this email.');
+      conflictError.code = existingMethods.includes('google.com')
+        ? 'auth/google-account-conflict'
+        : 'auth/email-already-in-use';
+      conflictError.signInMethods = existingMethods;
+      throw conflictError;
     }
+
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    const profile = buildBaseJournalistProfile(result.user);
+
+    await setDoc(doc(db, COLLECTIONS.USERS, result.user.uid), profile);
+    try {
+      await createOrUpdatePublicProfile(result.user.uid, profile);
+    } catch (error) {
+      logError('Public profile sync failed after signup:', error);
+    }
+    const { sent, error } = await sendVerificationEmailWithRetry(result.user);
+    if (!sent) {
+      logError('Verification email could not be sent automatically after signup.');
+      if (error) logError('Automatic verification email error detail:', error);
+    }
+    await refreshUser();
+    return result;
   };
 
   /* ── Google sign-in ──────────────────────────────────────────────────── */

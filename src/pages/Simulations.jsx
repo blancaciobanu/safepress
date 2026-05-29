@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   AlertTriangle,
   ArrowRight,
@@ -149,7 +149,7 @@ const Simulations = () => {
 
   return (
     <NewsPage className="simulation-desk">
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -187,9 +187,9 @@ const Simulations = () => {
             </div>
           </NewsCard>
         </div>
-      </motion.div>
+      </Motion.div>
 
-      <motion.section
+      <Motion.section
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
@@ -224,7 +224,7 @@ const Simulations = () => {
             })}
           </div>
         </div>
-      </motion.section>
+      </Motion.section>
 
       <div className="mt-10 grid grid-cols-1 xl:grid-cols-[0.78fr_1.42fr] gap-6 items-start">
         <div className="sim-left-column">
@@ -406,7 +406,7 @@ const Simulations = () => {
 
               <AnimatePresence>
                 {activeSelectedOption && scenarioReveal[currentStepIndex] && (
-                  <motion.div
+                  <Motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 8 }}
@@ -428,7 +428,7 @@ const Simulations = () => {
                         </NewsButton>
                       )}
                     </div>
-                  </motion.div>
+                  </Motion.div>
                 )}
               </AnimatePresence>
             </div>
@@ -441,7 +441,7 @@ const Simulations = () => {
           )}
 
           {allAnswered && (
-            <motion.section
+            <Motion.section
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -532,7 +532,7 @@ const Simulations = () => {
                   </div>
                 </NewsCard>
               </div>
-            </motion.section>
+            </Motion.section>
           )}
         </div>
       </div>

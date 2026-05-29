@@ -471,7 +471,7 @@ const requestSupportDraft = async (roughDetails) => {
 const parseJsonWithRepair = async (text) => {
   try {
     return JSON.parse(extractJsonObject(text));
-  } catch (error) {
+  } catch {
     const { system, user } = buildJsonRepairPrompt(text);
     const repaired = await requestAnthropicText({
       system,

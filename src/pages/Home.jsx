@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { AlertTriangle, ArrowRight, ArrowUpRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,7 +9,7 @@ import {
   getSetupProgress,
   getSpecialistVerificationState,
 } from '../features/home/services/homeService';
-import { buildPageModel, emphasis } from '../features/home/services/homePageModel';
+import { buildPageModel } from '../features/home/services/homePageModel';
 import { useHomeData } from '../features/home/hooks/useHomeData';
 
 const ease = [0.22, 1, 0.36, 1];
@@ -54,7 +54,7 @@ const Marginalia = ({ folio, filed, inscription }) => (
 );
 
 const RailInstrument = ({ instrument, index }) => (
-  <motion.li
+  <Motion.li
     initial={{ opacity: 0, y: 12 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true, amount: 0.2 }}
@@ -76,7 +76,7 @@ const RailInstrument = ({ instrument, index }) => (
         <ArrowRight className="w-3 h-3" />
       </span>
     </Link>
-  </motion.li>
+  </Motion.li>
 );
 
 const SidebarStat = ({ label, value, detail, tone }) => (
@@ -183,7 +183,7 @@ const Home = () => {
         <div className="max-w-[1400px] mx-auto">
 
           {/* Broadsheet masthead */}
-          <motion.header
+          <Motion.header
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, ease }}
@@ -197,12 +197,12 @@ const Home = () => {
                 Vol. I &nbsp;·&nbsp; № 01
               </span>
             </div>
-          </motion.header>
+          </Motion.header>
 
           {/* Emergency rail — dismissible */}
           <AnimatePresence initial={false}>
             {!emergencyDismissed && (
-              <motion.div
+              <Motion.div
                 key="emergency-rail"
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -238,12 +238,12 @@ const Home = () => {
                     <X className="w-3 h-3" /> Not in crisis
                   </button>
                 </div>
-              </motion.div>
+              </Motion.div>
             )}
           </AnimatePresence>
 
           {/* Lead headline — full width */}
-          <motion.h1
+          <Motion.h1
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.1, delay: 0.15, ease }}
@@ -251,13 +251,13 @@ const Home = () => {
           >
             {heroHeadingNode}
             {!user && <span className="ink-caret" aria-hidden="true" />}
-          </motion.h1>
+          </Motion.h1>
 
           {/* Broadsheet body: rail | center lead | sidebar */}
           <div className="mt-10 md:mt-14 grid md:grid-cols-12 gap-y-12 gap-x-0 md:border-t md:border-ink/25">
 
             {/* LEFT — instruments rail */}
-            <motion.aside
+            <Motion.aside
               {...fadeUp}
               className="md:col-span-3 md:order-1 order-2 md:border-r md:border-ink/15 md:pr-6 lg:pr-8 md:pt-7"
             >
@@ -269,11 +269,11 @@ const Home = () => {
                   <RailInstrument key={instrument.title} instrument={instrument} index={index} />
                 ))}
               </ol>
-            </motion.aside>
+            </Motion.aside>
 
             {/* CENTER — lead column */}
             <div className="md:col-span-6 md:order-2 order-1 md:px-6 lg:px-8 md:pt-7">
-              <motion.figure
+              <Motion.figure
                 initial={{ opacity: 0, y: 14 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
@@ -284,18 +284,18 @@ const Home = () => {
                   alt="A hand holds a microphone facing another hand holding a dove tangled in the microphone cable."
                   className="w-full h-auto block"
                 />
-              </motion.figure>
+              </Motion.figure>
 
-              <motion.div
+              <Motion.div
                 {...fadeUp}
                 className="broadsheet-columns mt-8 md:mt-10 text-base leading-relaxed text-ink-soft"
               >
                 <p>{heroLede}</p>
                 {heroLedeBody ? <p>{heroLedeBody}</p> : null}
-              </motion.div>
+              </Motion.div>
 
               {user ? (
-                <motion.div
+                <Motion.div
                   {...fadeUp}
                   className="mt-8 md:mt-10 pt-7 border-t border-ink/25"
                 >
@@ -312,9 +312,9 @@ const Home = () => {
                       <ArrowRight className="w-4 h-4" />
                     </Link>
                   )}
-                </motion.div>
+                </Motion.div>
               ) : (
-                <motion.div
+                <Motion.div
                   {...fadeUp}
                   className="mt-8 md:mt-10 pt-7 border-t border-ink/25 flex flex-wrap items-baseline gap-x-8 gap-y-3"
                 >
@@ -328,12 +328,12 @@ const Home = () => {
                       <ArrowRight className="w-4 h-4" />
                     </Link>
                   ))}
-                </motion.div>
+                </Motion.div>
               )}
             </div>
 
             {/* RIGHT — sidebar */}
-            <motion.aside
+            <Motion.aside
               {...fadeUp}
               className="md:col-span-3 md:order-3 order-3 md:border-l md:border-ink/15 md:pl-6 lg:pl-8 md:pt-7"
             >
@@ -385,7 +385,7 @@ const Home = () => {
                   />
                 </div>
               </div>
-            </motion.aside>
+            </Motion.aside>
 
           </div>
         </div>
@@ -395,16 +395,16 @@ const Home = () => {
       <section className="-mx-6 md:-mx-10 lg:-mx-14 px-6 md:px-10 lg:px-14 pt-16 md:pt-24 pb-16 md:pb-20 bg-ink text-paper">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-12 gap-8 md:gap-10">
 
-          <motion.div {...fadeUp} className="md:col-span-3">
+          <Motion.div {...fadeUp} className="md:col-span-3">
             <div style={{ '--color-oxblood': '#A6873E', '--color-smoke': 'rgba(244, 239, 230, 0.55)', '--color-ink-soft': 'rgba(244, 239, 230, 0.85)' }}>
               <Marginalia
                 filed="Continue"
                 inscription="The front page should orient you, then send you back into the work without more theatre."
               />
             </div>
-          </motion.div>
+          </Motion.div>
 
-          <motion.div {...fadeUp} className="md:col-span-9">
+          <Motion.div {...fadeUp} className="md:col-span-9">
             <p className="display text-paper text-4xl md:text-5xl lg:text-6xl max-w-[16ch] leading-[0.98]">
               {pageModel.closing.heading}
             </p>
@@ -418,7 +418,7 @@ const Home = () => {
               {pageModel.closing.label}
               <ArrowRight className="w-4 h-4 self-center" />
             </Link>
-          </motion.div>
+          </Motion.div>
         </div>
       </section>
     </div>

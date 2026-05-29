@@ -1,321 +1,130 @@
 # SafePress Architecture Review
 
-## What SafePress is today
+## Current Reality
 
-SafePress is currently a **client-side React application** built with Vite.
+SafePress is a client-rendered React/Vite application backed by Firebase.
 
-The app uses Firebase for:
+The app uses:
 
-- Authentication via Firebase Auth
-- Data storage via Firestore
-- Access control via Firestore security rules
+- Firebase Authentication for identity and email verification
+- Cloud Firestore for the database
+- Firestore security rules for primary data authorization
+- Firebase Cloud Functions v2 for AI calls and privileged verification/admin workflows
+- Firebase Hosting configuration for deployment headers and rewrites
 
-There is **no custom backend/server in this repository**.
+This is not a traditional custom backend such as Express, Fastify, or Rails. It is now more than frontend-only Firebase, though: `functions/index.js` provides a small trusted server-side layer for Anthropic requests, specialist verification review, dossier submission, and admin-claim management.
 
-That means:
+## Current Cleanup Status
 
-- the browser talks directly to Firebase
-- your React code contains both UI logic and most app/business logic
-- Render, if you used it, is most likely just hosting the built frontend assets
-
-## Current cleanup status
-
-The project now has the beginning of a **feature service layer**:
+The project has moved meaningfully toward a feature-based structure:
 
 - `src/features/community/services/communityService.js`
 - `src/features/support/services/supportService.js`
 - `src/features/admin/services/adminService.js`
 - `src/features/users/services/userService.js`
+- `src/features/ai/services/aiService.js`
+- `src/features/notifications/services/notificationService.js`
+- `src/features/home/services/homeService.js`
+- extracted static data modules for resources, setup tasks, threat model options, and support constants
+- extracted UI pieces such as `CommentCard` and `SetupWorkbenchCards`
 
-This does not add a new backend by itself, but it is a strong organizational step because Firestore access is no longer only embedded inside large page files.
+This made the codebase cleaner and easier to explain, but it is not fully streamlined yet. Several page components still own a lot of rendering, form state, and orchestration logic.
 
-## Do I have a backend?
+## Backend And Database
 
-Yes, but not in the traditional sense.
+SafePress has a backend-as-a-service architecture with a small serverless layer.
 
-You have a **backend-as-a-service** setup:
+Firebase responsibilities:
 
-- Firebase Auth acts as your authentication backend
-- Firestore acts as your database
-- Firestore security rules act as part of your authorization layer
+- **Auth**: user sessions, email verification, custom claims
+- **Firestore**: persisted app data
+- **Rules**: document-level authorization
+- **Functions**: server-side Anthropic calls and privileged workflows
 
-You do **not** currently have:
-
-- a custom Node/Express/Fastify server
-- server-side API routes
-- server-side admin jobs
-- server-side secret handling beyond what Firebase provides
-
-## Do I have a database?
-
-Yes.
-
-Your database is **Cloud Firestore**, which is a NoSQL document database.
-
-Based on the codebase, the main collections are:
+Main Firestore collections:
 
 - `users`
 - `public-profiles`
 - `community-posts`
 - `community-reports`
 - `support-requests`
+- `support-request-queue`
+- `support-requests/{requestId}/messages`
+- `community-posts/{postId}/comments`
 
-## What is working well
+Callable functions:
 
-- Clear product direction: safety, support, education, community
-- Good amount of real functionality for a dissertation project
-- Firebase is a reasonable choice for an early-stage app
-- Authentication and persistence are already real, not mocked
-- The project is deployable without a large ops burden
+- `setAdminClaim`
+- `reviewSpecialistVerification`
+- `submitSpecialistVerificationDossier`
+- `draftSupportRequest`
+- `generateAiAdvisorReply`
+- `generateThreatModel`
 
-## Current architectural limits
+## What Is Working Well
 
-### 1. Frontend and app logic are too mixed together
+- The product has a clear dissertation story: journalist safety, source protection, crisis support, community, and AI assistance.
+- Firebase is a reasonable stack for this stage because auth, persistence, rules, hosting, and serverless functions stay inside one ecosystem.
+- The most sensitive AI integration is no longer client-side; API secrets live in Cloud Functions.
+- Specialist verification has moved toward server-validated workflows.
+- Public and private user data are separated through `users` and `public-profiles`.
+- Support requests are split into private request details and a redacted specialist queue.
+- Route-level lazy loading and vendor chunking keep the frontend deployable despite many feature surfaces.
+- Lint and production build currently pass.
 
-Large page components currently handle:
+## Remaining Architectural Limits
 
-- rendering
-- form state
-- Firestore reads/writes
-- role checks
-- sorting/filtering
-- moderation/support workflow behavior
+### Large Page Components
 
-This makes the project harder to reason about and harder to extend safely.
+The biggest remaining cleanliness issue is component size. Several pages are still large enough that they are hard to scan quickly:
 
-### 2. Firestore rules are much stronger now, with a few honest tradeoffs left
+- `RequestSupport.jsx`
+- `ThreatModel.jsx`
+- `AdminDashboard.jsx`
+- `SpecialistDashboard.jsx`
+- `SpecialistCaseFile.jsx`
+- `CommunityPostDetail.jsx`
+- `Settings.jsx`
+- `SecureSetup.jsx`
 
-The highest-risk areas are no longer relying on the frontend alone:
+These are not automatically bad, but they are the clearest next place to streamline.
 
-- private `users` reads are now owner/admin only
-- public-facing cross-user reads now use `public-profiles`
-- only approved specialists can claim support requests
-- only the assigned specialist can resolve them
-- only the requester can leave feedback
-- admin verification updates are now much narrower
-- community comments now live in a subcollection, which made post-update rules far more specific
+### Some Direct Firestore Work Remains In Pages
 
-The main remaining tradeoffs are now smaller:
+Most new work flows through feature services, but a few pages still import Firestore directly, especially older account/setup/score surfaces. Moving those reads and writes into services would make the architecture more consistent.
 
-- community likes and cached `commentCount` are still client-driven updates, even though they are much more constrained than before
-- admin authorization still has a verified-email fallback list until custom claims are fully provisioned server-side
-- there is no server-side trusted aggregation yet for public specialist stats such as ratings/case counts
+### Some Client-Driven Aggregates Remain
 
-Important new improvements since the earlier review:
+The current model still uses client-managed fields for things like likes, cached counts, and some timestamps. Firestore rules constrain these, but server-owned aggregation would be stronger if the app grew beyond dissertation scope.
 
-- support requests are now split into a private `support-requests` collection and a redacted `support-request-queue`
-- email/password accounts must verify email before community posting/reporting or confidential support requests
-- admin checks are centralized in the app and rules, with optional custom-claim support already wired in
-- Firebase Hosting security headers are configured in `firebase.json`
-- Firebase App Check initialization is scaffolded and ready for a production reCAPTCHA site key
-- route-level lazy loading now prevents every page from shipping in the first JavaScript payload, and Vite vendor chunking keeps Firebase-heavy code more cache-friendly
-- startup work is lighter now: session hydration no longer performs public-profile writes, and notification badge queries are deferred until the browser is idle
-- public pages no longer wait on auth hydration before first paint; only protected routes keep the auth-loading gate
-- several logged-in screens now reuse hydrated auth data instead of re-fetching the same profile document, which trims duplicated Firestore work after sign-in
-- notification lookups are now less chatty by batching followed-post fetches and skipping comment subcollection checks for posts that have no recent activity
-- Home is now a dual-state front page rather than a static brochure: anonymous users get crisis-first orientation, while signed-in users get a lighter role-aware brief assembled from existing permitted reads only
+### Hook-Rule Suppressions Exist
 
-This is a strong Firebase-only architecture for the current stage, even though it is not the final possible security model.
+The repo now passes ESLint, but there are still a handful of targeted `eslint-disable` comments around hook/purity rules. These should be treated as known cleanup markers, not as hidden failures.
 
-### 3. Some data modeling choices still deserve future attention
+## Security Posture
 
-Current patterns include:
+The current security model is credible for the project stage:
 
-- fetching full collections and sorting/filtering in the client
-- using client-generated ISO timestamps instead of server timestamps
+- private `users` documents are owner/admin scoped
+- public display fields live in `public-profiles`
+- email verification gates community posting/reporting and confidential support submission
+- approved specialists can read the redacted support queue
+- full support request details are available only after claim
+- admin paths rely on a verified-email admin custom claim
+- AI requests are server-side and apply redaction before provider calls
 
-These are simple and fine early on, but they become awkward for moderation, pagination, analytics, and consistency.
+Future hardening would focus on moving more support workflow transitions and aggregates into Cloud Functions for stronger auditing and server-owned timestamps.
 
-### 4. Admin and privileged behavior is partly client-defined
+## Recommended Next Cleanup
 
-Admin checks exist both in Firestore rules and in client routing.
+1. Split the largest pages into smaller feature components.
+2. Move remaining page-level Firestore calls into feature services.
+3. Replace remaining hook-rule suppressions with extracted components/hooks where practical.
+4. Add automated tests for support request creation, specialist claim/resolve, community posting/reporting, and AI redaction helpers.
+5. Consider Cloud Function ownership for claim/resolve and moderation actions if the app needs a stricter audit trail.
 
-That is okay for UI gating, but the sensitive operations should rely on server-trustable authorization first, not primarily frontend checks.
+## Bottom Line
 
-## Would you benefit from a backend?
+SafePress is much cleaner than the earlier prototype state. It now has a real feature-service layer, a small serverless backend, stronger Firebase rules, and a clearer public/private data split.
 
-### Short answer
-
-You do **not need a traditional backend yet** to make SafePress better.
-
-You would benefit more immediately from:
-
-1. tightening Firebase rules
-2. reorganizing frontend code
-3. improving Firestore data modeling
-4. introducing a **small server-side layer only where it adds real value**
-
-### When a backend becomes useful
-
-Add a backend layer when you need things like:
-
-- trusted moderation actions
-- email notifications
-- scheduled jobs/reminders
-- analytics aggregation
-- secure API integrations
-- privileged workflows that should never be client-controlled
-- safer specialist verification/admin tooling
-
-### Best next step instead of a full backend
-
-If you want server-side power without a full rewrite, the best next step is:
-
-- keep React as the frontend
-- keep Firebase Auth and Firestore
-- add **Firebase Cloud Functions** or **Firebase-hosted server endpoints** for privileged actions
-
-That gives you a real backend story without making the project much heavier.
-
-## Recommended target architecture
-
-### Keep
-
-- React + Vite
-- Firebase Auth
-- Firestore
-
-### Add
-
-- a small service layer in the frontend
-- stricter Firestore rules
-- optionally Cloud Functions for admin/moderation/notification tasks
-
-### Organize the frontend like this
-
-```text
-src/
-  app/
-    router.jsx
-    providers.jsx
-  components/
-  features/
-    auth/
-      components/
-      hooks/
-      services/
-    community/
-      components/
-      hooks/
-      services/
-    support/
-      components/
-      hooks/
-      services/
-    dashboard/
-      components/
-      hooks/
-    admin/
-      components/
-      hooks/
-      services/
-  lib/
-    firebase/
-      config.js
-      auth.js
-      firestore.js
-  pages/
-  styles/
-```
-
-This is much easier to explain in a dissertation because each feature owns its logic.
-
-## Most important cleanup priorities
-
-### Priority 1: Fix authorization model
-
-Tighten Firestore rules so that:
-
-- users can only update the fields they should control
-- only post authors can edit their own posts
-- only comment authors can change/delete their own comments
-- only verified specialists can claim support requests
-- only the assigned specialist or requester can update certain support fields
-- only admins can perform admin/moderation actions
-
-### Priority 2: Move Firebase calls out of page components
-
-Create small modules such as:
-
-- `src/features/community/services/communityService.js`
-- `src/features/support/services/supportService.js`
-- `src/features/admin/services/adminService.js`
-
-Then your pages become thinner and easier to maintain.
-
-### Priority 3: Improve data modeling
-
-Good next changes after the current refactor:
-
-- use `serverTimestamp()` for authoritative times
-- add a lightweight migration/backfill strategy for older users/posts
-- separate sensitive specialist verification fields from broadly readable profile data even more explicitly if the app grows
-
-### Priority 4: Separate public vs private user data
-
-Right now the app reads user documents broadly.
-
-A cleaner model would be:
-
-- `users/{uid}` for private account data
-- `public-profiles/{uid}` for safe public display info
-
-That makes privacy and community profile rendering much cleaner.
-
-### Priority 5: Add one small backend capability
-
-To make the project feel more impressive without overbuilding, add one of:
-
-- Cloud Function for support-request claiming/resolving with validation
-- Cloud Function for report moderation workflow
-- Cloud Function for notification emails when a request is claimed
-- Cloud Function to generate simple admin analytics
-
-One strong server-side workflow is usually more impressive than a large but loosely controlled frontend.
-
-## What would make the project feel cleaner and more impressive
-
-Focus on three qualities:
-
-### 1. Stronger trust model
-
-Examiners and technical reviewers notice when sensitive actions are properly controlled.
-
-### 2. Better structure
-
-Feature folders, service modules, and clearer data ownership make the project look intentional.
-
-### 3. One or two polished “serious” workflows
-
-Examples:
-
-- specialist verification with audit trail
-- crisis support triage with assignment + status history
-- moderation queue with reports and resolution reasons
-
-These make the app feel like a real platform, not just a UI showcase.
-
-## Suggested next milestone
-
-If you want the highest-value cleanup before adding new features:
-
-1. Refactor Firebase operations into feature services
-2. Tighten Firestore rules around posts, support requests, and admin actions
-3. Split public profile data from private user data
-4. Move comments into a subcollection
-5. Add one Cloud Function for a privileged workflow
-
-That would keep the stack simple while making the architecture much more credible.
-
-## Bottom line
-
-You are not stuck because the idea is weak.
-
-You are at the normal point where a prototype has enough features that it now needs:
-
-- clearer boundaries
-- stricter data/security rules
-- a little less page-level complexity
-- one small server-side layer for trust-critical actions
-
-SafePress already has the foundation of a real app. The best move now is not a rewrite. It is a cleanup pass that turns the current prototype into a more structured platform.
+It is not fully streamlined yet. The next improvements are not a rewrite; they are targeted decomposition and test coverage around the largest, most security-sensitive workflows.

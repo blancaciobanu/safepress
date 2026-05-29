@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { AlertCircle, CheckCircle2, Clock, FileText, Shield } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
@@ -192,7 +192,7 @@ const SpecialistVerification = () => {
 
   return (
     <NewsPage className="verification-dossier">
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
@@ -641,7 +641,7 @@ const SpecialistVerification = () => {
             </div>
           </aside>
         </div>
-      </motion.div>
+      </Motion.div>
     </NewsPage>
   );
 };

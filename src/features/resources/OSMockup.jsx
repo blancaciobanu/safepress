@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, RotateCcw, Check, Search } from 'lucide-react';
 
 /* ─── Helpers ────────────────────────────────────────────────────── */
@@ -34,7 +34,7 @@ const IOSToggle = ({ on }) => (
     background: on ? '#34C759' : '#E9E9EA',
     position: 'relative', transition: 'background 300ms', flexShrink: 0,
   }}>
-    <motion.div animate={{ x: on ? 18 : 0 }} transition={spring}
+    <Motion.div animate={{ x: on ? 18 : 0 }} transition={spring}
       style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff',
         position: 'absolute', top: 2, left: 2,
         boxShadow: '0 2px 6px rgba(0,0,0,0.28), 0 0 0 0.5px rgba(0,0,0,0.06)' }} />
@@ -47,7 +47,7 @@ const MacToggle = ({ on }) => (
     background: on ? '#007AFF' : '#D1D1D6',
     position: 'relative', transition: 'background 350ms', flexShrink: 0,
   }}>
-    <motion.div animate={{ x: on ? 18 : 0 }} transition={spring}
+    <Motion.div animate={{ x: on ? 18 : 0 }} transition={spring}
       style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff',
         position: 'absolute', top: 2, left: 2,
         boxShadow: '0 2px 5px rgba(0,0,0,0.3)' }} />
@@ -61,7 +61,7 @@ const AndroidSwitch = ({ on }) => (
     position: 'relative', flexShrink: 0, alignSelf: 'center',
     transition: 'background 300ms',
   }}>
-    <motion.div animate={{ x: on ? 26 : 0 }} transition={spring}
+    <Motion.div animate={{ x: on ? 26 : 0 }} transition={spring}
       style={{ width: 24, height: 24, borderRadius: '50%',
         background: on ? '#1A73E8' : '#BDBDBD',
         position: 'absolute', top: -3, left: 0,
@@ -75,7 +75,7 @@ const Win11Toggle = ({ on }) => (
     background: on ? '#0078D4' : '#767676',
     position: 'relative', transition: 'background 300ms', flexShrink: 0,
   }}>
-    <motion.div animate={{ x: on ? 22 : 0 }} transition={spring}
+    <Motion.div animate={{ x: on ? 22 : 0 }} transition={spring}
       style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff',
         position: 'absolute', top: 2, left: 2 }} />
   </div>
@@ -168,7 +168,7 @@ const WindowsMockup = ({ navPath, step }) => {
 
         {/* Content */}
         <AnimatePresence mode="wait">
-          <motion.div key={step}
+          <Motion.div key={step}
             initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             style={{ flex: 1, padding: '12px 18px', overflowY: 'hidden' }}
@@ -220,7 +220,7 @@ const WindowsMockup = ({ navPath, step }) => {
                 })}
               </div>
             )}
-          </motion.div>
+          </Motion.div>
         </AnimatePresence>
       </div>
     </div>
@@ -312,7 +312,7 @@ const MacOSMockup = ({ navPath, step }) => {
 
         {/* Content */}
         <AnimatePresence mode="wait">
-          <motion.div key={step}
+          <Motion.div key={step}
             initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0 }} transition={{ duration: 0.24 }}
             style={{ flex: 1, padding: '14px 18px', background: '#F5F5F5', overflowY: 'hidden' }}
@@ -353,7 +353,7 @@ const MacOSMockup = ({ navPath, step }) => {
                 })}
               </div>
             )}
-          </motion.div>
+          </Motion.div>
         </AnimatePresence>
       </div>
     </div>
@@ -382,8 +382,10 @@ const LinuxMockup = ({ navPath, step }) => {
   const [typed, setTyped] = useState(0);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (step < 1) { setTyped(0); return; }
     if (step >= 2) { setTyped(command.length); return; }
+    /* eslint-enable react-hooks/set-state-in-effect */
     if (typed >= command.length) return;
     const t = setTimeout(() => setTyped((c) => c + 1), 22);
     return () => clearTimeout(t);
@@ -427,7 +429,7 @@ const LinuxMockup = ({ navPath, step }) => {
               : <span style={{ color: '#E5C07B' }}>{displayCmd}</span>
           )}
           {cursorOnCmd && (
-            <motion.span style={{ display: 'inline-block', width: 7, height: 13,
+            <Motion.span style={{ display: 'inline-block', width: 7, height: 13,
               background: '#4EC994', verticalAlign: 'text-bottom', marginLeft: 1 }}
               animate={{ opacity: [1, 0] }}
               transition={{ duration: 0.55, repeat: Infinity, repeatType: 'reverse' }} />
@@ -437,27 +439,27 @@ const LinuxMockup = ({ navPath, step }) => {
         {/* Config line (when details had →) */}
         <AnimatePresence>
           {step >= 2 && configLine && (
-            <motion.div initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+            <Motion.div initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
               style={{ fontSize: 12, marginTop: 2, color: '#5C6370' }}>
               <span style={{ color: '#888' }}>{'# '}</span>
               <span style={{ color: '#C678DD' }}>{configLine}</span>
-            </motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
 
         {/* Output lines */}
         <AnimatePresence>
           {step >= 2 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+            <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
               {output.map((line, i) => (
-                <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 + i * 0.15 }}
+                <Motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 + i * 0.15 }}
                   style={{ fontSize: 12, lineHeight: 1.6,
                     color: i === output.length - 1 ? '#4EC994' : '#5C6370' }}>
                   {line}
-                </motion.div>
+                </Motion.div>
               ))}
               {/* New prompt */}
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 transition={{ delay: 0.1 + output.length * 0.15 }}
                 style={{ fontSize: 13, marginTop: 4 }}>
                 <span style={{ color: '#56B6C2' }}>user</span>
@@ -465,12 +467,12 @@ const LinuxMockup = ({ navPath, step }) => {
                 <span style={{ color: '#E5C07B' }}>linux</span>
                 <span style={{ color: '#4EC994' }}>:~</span>
                 <span style={{ color: '#ABB2BF' }}>$ </span>
-                <motion.span style={{ display: 'inline-block', width: 7, height: 13,
+                <Motion.span style={{ display: 'inline-block', width: 7, height: 13,
                   background: '#4EC994', verticalAlign: 'text-bottom', marginLeft: 1 }}
                   animate={{ opacity: [1, 0] }}
                   transition={{ duration: 0.55, repeat: Infinity, repeatType: 'reverse' }} />
-              </motion.div>
-            </motion.div>
+              </Motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
       </div>
@@ -577,7 +579,7 @@ const IOSMockup = ({ navPath, step }) => {
 
       {/* Nav bar */}
       <AnimatePresence mode="wait">
-        <motion.div key={`nav-${step}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        <Motion.div key={`nav-${step}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
           style={{ minHeight: 42, background: '#fff', borderBottom: '0.5px solid rgba(0,0,0,0.1)',
             display: 'flex', alignItems: 'center', padding: '0 14px', position: 'relative' }}>
@@ -591,12 +593,12 @@ const IOSMockup = ({ navPath, step }) => {
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 72px' }}>
             {trunc(screenTitle, 16)}
           </div>
-        </motion.div>
+        </Motion.div>
       </AnimatePresence>
 
       {/* Screen content */}
       <AnimatePresence mode="wait">
-        <motion.div key={step}
+        <Motion.div key={step}
           initial={{ opacity: 0, x: step > 0 ? 36 : 0 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -24 }}
@@ -641,7 +643,7 @@ const IOSMockup = ({ navPath, step }) => {
               </div>
             </div>
           )}
-        </motion.div>
+        </Motion.div>
       </AnimatePresence>
     </div>
   );
@@ -735,13 +737,13 @@ const AndroidMockup = ({ navPath, step }) => {
 
       {/* Content */}
       <AnimatePresence mode="wait">
-        <motion.div key={step}
+        <Motion.div key={step}
           initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }} transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
         >
           {isFinalStep ? (
             <div style={{ padding: '4px 0 8px' }}>
-              {['Storage', 'Location', finalItem, 'Accessibility'].map((item, i, arr) => {
+              {['Storage', 'Location', finalItem, 'Accessibility'].map((item, i) => {
                 const isTarget = item === finalItem;
                 return (
                   <DroidRow key={i} item={item} highlighted={isTarget}
@@ -761,7 +763,7 @@ const AndroidMockup = ({ navPath, step }) => {
               ))}
             </div>
           )}
-        </motion.div>
+        </Motion.div>
       </AnimatePresence>
     </div>
   );
@@ -774,11 +776,11 @@ const PathProgress = ({ navPath, step, osColor }) => (
     {navPath.map((seg, i) => (
       <Fragment key={i}>
         {i > 0 && <ChevronRight style={{ width: 9, height: 9, color: 'var(--color-smoke-dim)', flexShrink: 0 }} />}
-        <motion.span animate={{ color: i <= step ? osColor : 'var(--color-smoke-dim)' }} transition={{ duration: 0.4 }}
+        <Motion.span animate={{ color: i <= step ? osColor : 'var(--color-smoke-dim)' }} transition={{ duration: 0.4 }}
           style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.05em',
             fontWeight: i === step ? 600 : 400, whiteSpace: 'nowrap' }}>
           {seg.length > 26 ? seg.slice(0, 24) + '…' : seg}
-        </motion.span>
+        </Motion.span>
       </Fragment>
     ))}
   </div>

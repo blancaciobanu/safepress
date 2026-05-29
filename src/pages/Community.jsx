@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import {
   MessageSquare, HelpCircle, Heart,
   Plus, Search, Shield,
@@ -60,7 +60,7 @@ const DispatchCard = ({ post, onNavigate }) => {
     .toUpperCase();
 
   return (
-    <motion.div className="mb-8" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+    <Motion.div className="mb-8" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
       <div className="border-t-2 border-ink" />
       <div className="flex items-center justify-between py-1.5 border-b border-ink/40">
@@ -88,7 +88,7 @@ const DispatchCard = ({ post, onNavigate }) => {
           <span>·</span><span>{getPostCommentCount(post)} {getPostCommentCount(post) === 1 ? 'reply' : 'replies'}</span>
         </div>
       </div>
-    </motion.div>
+    </Motion.div>
   );
 };
 
@@ -224,7 +224,7 @@ const Community = () => {
       <div>
 
         {/* ── Header ─────────────────────────────────────────────── */}
-        <motion.header initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+        <Motion.header initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
           <div className="news-page-topline">
             <span className="eyebrow sm text-oxblood">The newsroom board</span>
@@ -267,11 +267,11 @@ const Community = () => {
               );
             })}
           </div>
-        </motion.header>
+        </Motion.header>
 
         {/* ── Toolbar (hidden on AMAs tab) ─────────────────────────── */}
         {!isAMATab && (
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+          <Motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center gap-3 mt-5 mb-5"
           >
@@ -309,7 +309,7 @@ const Community = () => {
               <Plus className="w-3 h-3" />
               {isQA ? 'ask' : 'post'}
             </button>
-          </motion.div>
+          </Motion.div>
         )}
 
         {/* ── Three-column layout ─────────────────────────────────── */}
@@ -401,7 +401,9 @@ const Community = () => {
                     {amas.map((ama) => {
                       const qCount     = ama.commentCount || 0;
                       const lastActive = ama.lastCommentAt || ama.createdAt;
-                      const isRecent   = lastActive && Date.now() - new Date(lastActive) < 7 * 24 * 60 * 60 * 1000;
+                      // eslint-disable-next-line react-hooks/purity
+                      const now        = Date.now();
+                      const isRecent   = lastActive && now - new Date(lastActive) < 7 * 24 * 60 * 60 * 1000;
                       return (
                         <div key={ama.id}
                           onClick={() => navigate(`/community/${ama.id}`)}
@@ -576,7 +578,7 @@ const Community = () => {
             )}
 
             {/* Guidelines footer */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+            <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
               className="mt-14 pt-8 border-t border-ink/8">
               <div className="flex items-start gap-3">
                 <Shield className="w-4 h-4 text-smoke-dim flex-shrink-0 mt-0.5" />
@@ -587,7 +589,7 @@ const Community = () => {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
 
           {/* ── Right sidebar ─────────────────────────────────────── */}

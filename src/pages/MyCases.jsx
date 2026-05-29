@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -11,20 +11,7 @@ import { logError } from '../utils/logger';
 import { NewsNotice, NewsPage, NewsRule } from '../components/editorial/NewsPage';
 import PageLoader from '../components/PageLoader';
 import { caseFileRef } from '../utils/caseRef';
-
-const CRISIS_LABELS = {
-  hacked: 'hacked account',
-  source: 'source exposed',
-  doxxed: 'doxxing incident',
-  phishing: 'phishing attempt',
-  other: 'security concern',
-};
-
-const URGENCY_LABELS = {
-  emergency: 'emergency',
-  urgent: 'urgent',
-  normal: 'normal',
-};
+import { CRISIS_LABELS, URGENCY_LABELS } from '../features/support/supportCase.constants';
 
 const CASE_MARKER_LABELS = {
   [SUPPORT_CASE_MARKERS.AWAITING_SPECIALIST]: 'awaiting specialist',
@@ -79,7 +66,7 @@ const MyCases = () => {
 
   return (
     <NewsPage>
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -152,7 +139,7 @@ const MyCases = () => {
                     : 'resolution filed';
 
               return (
-                <motion.div
+                <Motion.div
                   key={caseItem.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -202,7 +189,7 @@ const MyCases = () => {
                       open case desk →
                     </Link>
                   </div>
-                </motion.div>
+                </Motion.div>
               );
             })}
           </div>
@@ -215,7 +202,7 @@ const MyCases = () => {
             File a new request →
           </Link>
         </div>
-      </motion.div>
+      </Motion.div>
     </NewsPage>
   );
 };

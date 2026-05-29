@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { ArrowUp, Shield, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -68,32 +68,32 @@ const Intro = ({ onDone }) => {
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
   return (
-    <motion.div
+    <Motion.div
       className="absolute inset-0 z-20 bg-paper flex flex-col items-center justify-center px-8 text-center"
       exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.7, ease } }}
     >
       {/* Shield */}
-      <motion.div
+      <Motion.div
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.55, ease }}
         className="w-16 h-16 bg-oxblood/[0.08] border border-oxblood/20 flex items-center justify-center mb-8"
       >
         <Shield className="w-8 h-8 text-oxblood" />
-      </motion.div>
+      </Motion.div>
 
       {/* "Meet" */}
-      <motion.p
+      <Motion.p
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5, ease }}
         className="display-soft text-2xl text-smoke leading-none"
       >
         Meet
-      </motion.p>
+      </Motion.p>
 
       {/* "Aegis" */}
-      <motion.h1
+      <Motion.h1
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 0.6, ease }}
@@ -101,10 +101,10 @@ const Intro = ({ onDone }) => {
         style={{ fontSize: 'clamp(4.5rem, 12vw, 8rem)' }}
       >
         Aegis
-      </motion.h1>
+      </Motion.h1>
 
       {/* Rule */}
-      <motion.div
+      <Motion.div
         initial={{ scaleX: 0, opacity: 0 }}
         animate={{ scaleX: 1, opacity: 1 }}
         transition={{ delay: 0.85, duration: 0.5, ease }}
@@ -112,19 +112,19 @@ const Intro = ({ onDone }) => {
       />
 
       {/* Tagline — typewriter */}
-      <motion.p
+      <Motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.9, duration: 0.3 }}
         className="display-soft text-lg text-smoke max-w-xs leading-snug min-h-[3rem]"
       >
         {typeStart && <Typewriter onDone={handleTypeDone} />}
-      </motion.p>
+      </Motion.p>
 
       {/* Begin */}
       <AnimatePresence>
         {showBegin && (
-          <motion.button
+          <Motion.button
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease }}
@@ -132,10 +132,10 @@ const Intro = ({ onDone }) => {
             className="mt-8 btn mono"
           >
             Begin <ArrowRight className="w-3.5 h-3.5" />
-          </motion.button>
+          </Motion.button>
         )}
       </AnimatePresence>
-    </motion.div>
+    </Motion.div>
   );
 };
 
@@ -235,6 +235,7 @@ const AIAdvisor = () => {
     briefRef.current = true;
     const sp = buildSystemPrompt(user);
     systemPromptRef.current = sp;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setChips(buildSuggestedPrompts(user));
 
     let acc = '';
@@ -372,7 +373,7 @@ const AIAdvisor = () => {
 
             {/* No-quiz notice */}
             {!hasScores && (
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease }}
                 className="flex gap-3 items-start p-4 border border-brass/30 bg-brass/[0.06] mb-4"
@@ -385,17 +386,17 @@ const AIAdvisor = () => {
                     Take the quiz <ArrowRight className="w-3 h-3" />
                   </Link>
                 </div>
-              </motion.div>
+              </Motion.div>
             )}
 
             {/* Opening brief */}
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease }}>
+            <Motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease }}>
               <AiMessage content={brief || 'Generating your security brief…'} streaming={!briefDone} />
-            </motion.div>
+            </Motion.div>
 
             {/* Conversation */}
             {messages.map((msg, i) => (
-              <motion.div
+              <Motion.div
                 key={i}
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, ease }}
@@ -404,7 +405,7 @@ const AIAdvisor = () => {
                   ? <UserMessage content={msg.content} />
                   : <AiMessage content={msg.content} streaming={msg.streaming} />
                 }
-              </motion.div>
+              </Motion.div>
             ))}
           </div>
 
@@ -459,7 +460,7 @@ const AIAdvisor = () => {
                         <span className={`display-soft num text-lg leading-none ${scoreColor(pct)}`}>{pct}</span>
                       </div>
                       <div className="h-0.5 bg-ink/[0.07] rounded-full overflow-hidden">
-                        <motion.div
+                        <Motion.div
                           className="h-full rounded-full"
                           style={{ backgroundColor: pct >= 70 ? 'var(--color-ink)' : pct >= 50 ? 'var(--color-brass)' : 'var(--color-oxblood)' }}
                           initial={{ width: 0 }}
